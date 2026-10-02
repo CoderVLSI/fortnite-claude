@@ -1,0 +1,12 @@
+# Godot 3 import cache and user data
+.import/
+*.translation
+.mono/
+# Export output and signing material
+build/
+*.apk
+*.aab
+*.keystore
+*.jks
+# Local test artifacts
+tests/out/

@@ -1,0 +1,205 @@
+extends "res://scripts/Fighter.gd"
+# Simple battle-royale bot: wanders the island, runs from the storm, and
+# fights anything it can see (the player and other bots).
+
+enum State { WANDER, STORM, CHASE, ATTACK }
+
+const SIGHT_RANGE := 75.0
+const ATTACK_RANGE := 48.0
+
+var world                       # set by World before add_child (duck-typed)
+var skill := 0.5                # 0 = clumsy, 1 = sharp
+var state: int = State.WANDER
+var target = null
+
+var _think := 0.0
+var _wander_to := Vector3.ZERO
+var _react := 0.0
+var _burst := 0.0
+var _pause := 0.0
+var _strafe := 1.0
+var _strafe_t := 0.0
+var _avoid_t := 0.0
+var _avoid_dir := 1.0
+var _stuck_t := 0.0
+
+
+func _ready() -> void:
+	setup_fighter(display_name, vest_color)
+	gun_damage = 7.0 + skill * 4.0
+	spread_deg = 3.6 - skill * 1.6
+	fire_interval = 0.17
+	reserve = 99999
+	walk_speed = 4.6
+	sprint_speed = 7.4
+	_think = rand_range(0.0, 0.5)
+	_wander_to = global_transform.origin
+	connect("died", self, "_on_died")
+
+
+func _on_died(_victim, _killer) -> void:
+	get_tree().create_timer(10.0).connect("timeout", self, "queue_free")
+
+
+func _physics_process(delta: float) -> void:
+	tick_weapon(delta)
+	if is_dead:
+		move_body(delta, Vector3.ZERO, 0.0, false)
+		return
+	_think -= delta
+	if _think <= 0.0:
+		_think = rand_range(0.25, 0.5)
+		_decide()
+
+	var origin := global_transform.origin
+	var wish := Vector3.ZERO
+	var speed := walk_speed
+	var face := Vector3.ZERO
+	var shoot := false
+
+	match state:
+		State.WANDER:
+			wish = _flat_dir(_wander_to - origin)
+			if origin.distance_to(_wander_to) < 3.0:
+				_pick_wander()
+			face = wish
+		State.STORM:
+			var c: Vector3 = world.storm.center_3d(origin.y)
+			wish = _flat_dir(c - origin)
+			speed = sprint_speed
+			face = wish
+		State.CHASE:
+			if _valid(target):
+				wish = _flat_dir(target.global_transform.origin - origin)
+				speed = sprint_speed
+				face = wish
+		State.ATTACK:
+			if _valid(target):
+				var to_t: Vector3 = target.global_transform.origin - origin
+				var dist := to_t.length()
+				var fwd := _flat_dir(to_t)
+				_strafe_t -= delta
+				if _strafe_t <= 0.0:
+					_strafe_t = rand_range(0.8, 2.4)
+					_strafe = -_strafe
+				var side := fwd.cross(Vector3.UP) * _strafe
+				wish = side * 0.7
+				if dist > 30.0:
+					wish += fwd
+				elif dist < 12.0:
+					wish -= fwd
+				face = fwd
+				_react -= delta
+				shoot = _react <= 0.0 and _line_of_sight(target)
+				if shoot:
+					_burst -= delta
+					if _burst <= 0.0:
+						_pause = rand_range(0.4, 1.2)
+						_burst = rand_range(0.6, 1.2)
+					if _pause > 0.0:
+						_pause -= delta
+						shoot = false
+
+	wish = _avoid_walls(wish, delta)
+	var want_jump := is_on_wall() and is_on_floor() and randf() < 0.08
+	var before := origin
+	move_body(delta, wish, speed, want_jump)
+	_check_stuck(delta, before, wish)
+
+	if face.length() > 0.01:
+		var yaw := atan2(-face.x, -face.z)
+		rotation.y = lerp_angle(rotation.y, yaw, clamp(9.0 * delta, 0.0, 1.0))
+	aim_pitch = 0.0
+	if shoot and _valid(target):
+		var eye := origin + Vector3(0, 1.45, 0)
+		var chest: Vector3 = target.global_transform.origin + Vector3(0, 1.15, 0)
+		var dir := (chest - eye).normalized()
+		aim_pitch = asin(clamp(dir.y, -1.0, 1.0))
+		try_fire(eye, dir)
+	animate(delta)
+
+
+func _decide() -> void:
+	var origin := global_transform.origin
+	if not world.storm.is_inside(origin):
+		state = State.STORM
+		target = null
+		return
+	if state == State.STORM:
+		state = State.WANDER
+		_pick_wander()
+	if not _valid(target) or origin.distance_to(target.global_transform.origin) > SIGHT_RANGE * 1.3:
+		target = _find_target(origin)
+	if target == null:
+		if state != State.WANDER:
+			state = State.WANDER
+			_pick_wander()
+		return
+	var dist := origin.distance_to(target.global_transform.origin)
+	if dist < ATTACK_RANGE and _line_of_sight(target):
+		if state != State.ATTACK:
+			_react = rand_range(0.35, 0.9) * (1.5 - skill)
+			_burst = rand_range(0.4, 0.9)
+		state = State.ATTACK
+	else:
+		state = State.CHASE
+
+
+func _find_target(origin: Vector3):
+	var best = null
+	var best_d := SIGHT_RANGE
+	for f in get_tree().get_nodes_in_group("fighters"):
+		if f == self or f.is_dead:
+			continue
+		var d := origin.distance_to(f.global_transform.origin)
+		if d < best_d and _line_of_sight(f):
+			best_d = d
+			best = f
+	return best
+
+
+func _valid(f) -> bool:
+	return f != null and is_instance_valid(f) and not f.is_dead
+
+
+func _line_of_sight(f) -> bool:
+	var from := global_transform.origin + Vector3(0, 1.5, 0)
+	var to: Vector3 = f.global_transform.origin + Vector3(0, 1.2, 0)
+	return get_world().direct_space_state.intersect_ray(from, to, [self, f], 1).empty()
+
+
+func _pick_wander() -> void:
+	_wander_to = world.random_point_in_safe_zone()
+
+
+func _flat_dir(v: Vector3) -> Vector3:
+	v.y = 0.0
+	return v.normalized() if v.length() > 0.01 else Vector3.ZERO
+
+
+func _avoid_walls(wish: Vector3, delta: float) -> Vector3:
+	if wish.length() < 0.01:
+		return wish
+	_avoid_t -= delta
+	if _avoid_t <= 0.0:
+		var from := global_transform.origin + Vector3(0, 0.7, 0)
+		var hit := get_world().direct_space_state.intersect_ray(from, from + wish.normalized() * 2.6, [self], 1)
+		if hit and abs(hit.normal.y) < 0.6:    # a wall, not the ground
+			_avoid_t = 0.9
+			_avoid_dir = 1.0 if randf() < 0.5 else -1.0
+	if _avoid_t > 0.0:
+		return wish.rotated(Vector3.UP, deg2rad(75.0) * _avoid_dir)
+	return wish
+
+
+func _check_stuck(delta: float, before: Vector3, wish: Vector3) -> void:
+	if wish.length() > 0.1 and global_transform.origin.distance_to(before) < 0.01:
+		_stuck_t += delta
+		if _stuck_t > 1.2:
+			_stuck_t = 0.0
+			_avoid_t = 1.0
+			_avoid_dir = -_avoid_dir
+			if state == State.WANDER:
+				_pick_wander()
+	else:
+		_stuck_t = 0.0
