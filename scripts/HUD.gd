@@ -6,6 +6,7 @@ const Items = preload("res://scripts/Items.gd")
 const Bar = preload("res://scripts/ui/Bar.gd")
 const Hotbar = preload("res://scripts/ui/Hotbar.gd")
 const Compass = preload("res://scripts/ui/Compass.gd")
+const MapScreen = preload("res://scripts/ui/MapScreen.gd")
 const Crosshair = preload("res://scripts/ui/Crosshair.gd")
 const Minimap = preload("res://scripts/ui/Minimap.gd")
 const TouchControls = preload("res://scripts/ui/TouchControls.gd")
@@ -26,6 +27,12 @@ var compass: Control
 var prompt_label: Label
 var bus_label: Label
 var use_bar: Control
+var map_screen: Control
+var poi_label: Label
+var boss_label: Label
+var boss_bar: Control
+var _loc := ""
+var _poi_t := 0.0
 var touch: Control
 var health_bar: Control
 var shield_bar: Control
@@ -188,9 +195,33 @@ func _build() -> void:
 	use_bar.visible = false
 	root.add_child(use_bar)
 
+	poi_label = _label("", Label.ALIGN_CENTER, Color(1.0, 0.95, 0.75))
+	_place(poi_label, 0.5, 0.0, Vector2(-400, 150), Vector2(800, 60))
+	if _big_font:
+		poi_label.add_font_override("font", _big_font)
+	poi_label.modulate.a = 0.0
+	root.add_child(poi_label)
+
+	boss_label = _label("THE WARDEN", Label.ALIGN_CENTER, Color(1.0, 0.55, 0.2))
+	_place(boss_label, 0.5, 0.0, Vector2(-160, 96), Vector2(320, 26))
+	boss_label.visible = false
+	root.add_child(boss_label)
+	boss_bar = Bar.new()
+	boss_bar.fill_color = Color(1.0, 0.4, 0.15)
+	_place(boss_bar, 0.5, 0.0, Vector2(-160, 122), Vector2(320, 16))
+	boss_bar.visible = false
+	root.add_child(boss_bar)
+
+	map_screen = MapScreen.new()
+	_place(map_screen, 0.5, 0.5, Vector2(-290, -290), Vector2(580, 580))
+	map_screen.visible = false
+	root.add_child(map_screen)
+
 	touch = TouchControls.new()
 	touch.visible = Controls.touch_mode
 	touch.hotbar = hotbar
+	touch.minimap = minimap
+	touch.connect("map_pressed", self, "toggle_map")
 	root.add_child(touch)
 	_layout_hotbar()
 
@@ -229,6 +260,7 @@ func bind(world_node) -> void:
 	player.connect("hit_landed", self, "_on_hit_landed")
 	player.connect("picked_up", self, "show_toast")
 	hotbar.set_player(player)
+	map_screen.world = world
 
 
 func _layout_hotbar() -> void:
@@ -238,6 +270,11 @@ func _layout_hotbar() -> void:
 	else:                        # bottom-right like a PC shooter
 		_place(hotbar, 1.0, 1.0, Vector2(-size.x - 16.0, -size.y - 12.0), size)
 	hotbar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+
+func toggle_map() -> void:
+	map_screen.visible = not map_screen.visible
+	Audio.play2d("ui_click", -6.0)
 
 
 func _on_slot_pressed(index: int) -> void:
@@ -303,6 +340,9 @@ func _process(delta: float) -> void:
 	shield_bar.value = player.shield
 	ammo_label.text = _ammo_text()
 	compass.heading = -rad2deg(player.rotation.y)
+	_update_poi(delta)
+	if Input.is_action_just_pressed("map"):
+		toggle_map()
 	_update_prompts()
 	storm_label.text = world.storm.status_text()
 	stats_label.text = "ALIVE %d    KILLS %d" % [world.alive_count(), player.kills]
@@ -335,6 +375,31 @@ func _ammo_text() -> String:
 		"consumable":
 			return Items.CONSUMABLES[item.id].name.to_upper()
 	return "PICKAXE"
+
+
+func _update_poi(delta: float) -> void:
+	var loc: String = world.location_name(player.global_transform.origin)
+	if loc != _loc:
+		_loc = loc
+		var named: bool = loc == "MAPLE SQUARE"
+		for poi in world.pois:
+			if poi.name == loc:
+				named = true
+		if named and player.mode == 0:
+			poi_label.text = loc
+			_poi_t = 3.6
+	if _poi_t > 0.0:
+		_poi_t -= delta
+		poi_label.modulate.a = clamp(min(_poi_t, 3.6 - _poi_t + 0.0) * 2.0 if _poi_t < 3.0 else (3.6 - _poi_t) * 3.0, 0.0, 1.0)
+	else:
+		poi_label.modulate.a = 0.0
+	var b = world.boss
+	var show_boss: bool = b != null and is_instance_valid(b) and not b.is_dead and player.global_transform.origin.distance_to(b.global_transform.origin) < 90.0
+	boss_label.visible = show_boss
+	boss_bar.visible = show_boss
+	if show_boss:
+		boss_bar.max_value = b.max_health + b.max_shield
+		boss_bar.value = b.health + b.shield
 
 
 func _update_prompts() -> void:

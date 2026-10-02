@@ -8,6 +8,8 @@ const SIGHT_RANGE := 75.0
 const ATTACK_RANGE := 48.0
 
 var world                       # set by World before add_child (duck-typed)
+var is_boss := false             # "The Warden": guards a POI with a mythic weapon
+var home := Vector3.ZERO
 var skill := 0.5                # 0 = clumsy, 1 = sharp
 var state: int = State.WANDER
 var target = null
@@ -28,8 +30,17 @@ var _stuck_t := 0.0
 
 func _ready() -> void:
 	damage_scale = 0.45 + skill * 0.2      # bots hit softer than the player's weapons
+	if is_boss:
+		max_health = 300.0
+		max_shield = 100.0
+		damage_scale = 0.85
+		skill = 0.95
+		home = translation
 	setup_fighter(display_name, vest_color)
 	_equip_loadout()
+	if is_boss:
+		shield = 100.0
+		air_pivot.scale = Vector3(1.2, 1.2, 1.2)
 	walk_speed = 4.6
 	sprint_speed = 7.4
 	_think = rand_range(0.0, 0.5)
@@ -39,6 +50,8 @@ func _ready() -> void:
 
 func _equip_loadout() -> void:
 	var w: Dictionary = Items.random_weapon(world.rng, 0)
+	if is_boss:
+		w = Items.make_weapon(["assault", "shotgun", "sniper", "smg"][world.rng.randi() % 4], Items.MYTHIC)
 	give_weapon(w.id, w.rarity)
 	for type in reserves.keys():
 		reserves[type] = 99999
@@ -188,6 +201,11 @@ func _decide() -> void:
 	if state == State.STORM:
 		state = State.WANDER
 		_pick_wander()
+	if is_boss and Vector2(origin.x - home.x, origin.z - home.z).length() > 42.0:
+		state = State.WANDER                 # the boss does not chase far from his post
+		target = null
+		_wander_to = home
+		return
 	if not _valid(target) or origin.distance_to(target.global_transform.origin) > SIGHT_RANGE * 1.3:
 		target = _find_target(origin)
 	if target == null:
@@ -229,6 +247,9 @@ func _line_of_sight(f) -> bool:
 
 
 func _pick_wander() -> void:
+	if is_boss:
+		_wander_to = home + Vector3(world.rng.randf_range(-18.0, 18.0), 0.0, world.rng.randf_range(-18.0, 18.0))
+		return
 	_wander_to = world.random_point_in_safe_zone()
 
 

@@ -10,6 +10,7 @@ var noise := OpenSimplexNoise.new()
 var detail := OpenSimplexNoise.new()
 var _zones := []      # Vector3(x, z, radius)
 var _zone_h := []     # flattened height per zone
+var _roads := []      # [Vector2 a, Vector2 b] segments (x, z)
 
 
 func setup(map_half: float, seed_value: int, cell_size: float) -> void:
@@ -36,6 +37,21 @@ func add_zone(x: float, z: float, radius: float) -> void:
 	_zone_h.append(raw_height(x, z))
 
 
+func add_road(a: Vector2, b: Vector2) -> void:
+	_roads.append([a, b])
+
+
+func road_weight(x: float, z: float) -> float:
+	var best := 99.0
+	var p := Vector2(x, z)
+	for r in _roads:
+		var a: Vector2 = r[0]
+		var ab: Vector2 = r[1] - a
+		var t: float = clamp((p - a).dot(ab) / max(ab.length_squared(), 0.001), 0.0, 1.0)
+		best = min(best, p.distance_to(a + ab * t))
+	return 1.0 - smoothstep(1.6, 3.2, best)
+
+
 func zone_weight(x: float, z: float) -> float:
 	var best := 0.0
 	for zn in _zones:
@@ -46,10 +62,11 @@ func zone_weight(x: float, z: float) -> float:
 
 func height_at(x: float, z: float) -> float:
 	var h := raw_height(x, z)
+	var land := smoothstep(-4.0, 1.0, h)      # zones never raise the open sea floor into a plateau
 	for i in range(_zones.size()):
 		var zn: Vector3 = _zones[i]
 		var d := Vector2(x - zn.x, z - zn.y).length()
-		var t := 1.0 - smoothstep(zn.z * 0.75, zn.z, d)
+		var t := (1.0 - smoothstep(zn.z * 0.75, zn.z, d)) * land
 		if t > 0.0:
 			h = lerp(h, _zone_h[i], t)
 	return h
@@ -127,4 +144,8 @@ func _vertex(heights: Array, i: int, j: int, n: int) -> Array:
 	var zw := zone_weight(x, z)
 	if zw > 0.0 and h > 1.4:
 		col = col.linear_interpolate(Color(0.50, 0.47, 0.33), zw * 0.65)   # packed dirt around buildings
+	if not _roads.empty() and h > 1.2:
+		var rw := road_weight(x, z)
+		if rw > 0.0:
+			col = col.linear_interpolate(Color(0.55, 0.49, 0.38), rw * 0.92)   # dirt roads
 	return [Vector3(x, h, z), col, normal]

@@ -201,6 +201,12 @@ static func chest_loot(kind: String, rng: RandomNumberGenerator) -> Array:
 			types.shuffle()
 			for i in range(2):
 				loot.append(make_ammo(types[i], int(AMMO[types[i]].pack * (1.5 + rng.randf()))))
+		"vault":      # bunker vault: epic+ weapon with a good chance of a mythic
+			var vw := make_weapon(["assault", "sniper", "shotgun", "smg", "pistol"][rng.randi() % 5], MYTHIC if rng.randf() < 0.5 else 4)
+			loot.append(vw)
+			loot.append(ammo_for(vw, rng, 2.5))
+			loot.append(make_consumable("shield_potion", 2))
+			loot.append(make_consumable("medkit", 1))
 		"supply":     # supply drop: top-tier weapons plus shield/heal
 			var w1 := make_weapon(["assault", "sniper", "shotgun", "smg"][rng.randi() % 4], 3 + rng.randi() % 2)
 			if rng.randf() < 0.12:       # 1 in 8 supply drops carries a mythic
@@ -224,4 +230,6 @@ static func chest_color(kind: String) -> Color:
 			return Color(0.45, 0.85, 0.4)
 		"supply":
 			return Color(1.0, 0.3, 0.25)
+		"vault":
+			return Color(1.0, 0.3, 0.08)
 	return Color.white

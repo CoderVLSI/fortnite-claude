@@ -7,7 +7,10 @@ extends Control
 const STICK_RADIUS := 105.0
 const DEAD_ZONE := 0.12
 
+signal map_pressed
+
 var hotbar                  # set by the HUD: taps on it select slots
+var minimap                 # set by the HUD: tapping it opens the full map
 var _stick_id := -1
 var _stick_origin := Vector2.ZERO
 var _stick_pos := Vector2.ZERO
@@ -79,6 +82,9 @@ func _input(event: InputEvent) -> void:
 
 
 func _down(index: int, pos: Vector2) -> void:
+	if minimap != null and minimap.visible and Rect2(minimap.rect_global_position, minimap.rect_size).has_point(pos):
+		emit_signal("map_pressed")
+		return
 	if hotbar != null and hotbar.visible:
 		var slot: int = hotbar.slot_at(pos)
 		if slot >= 0:

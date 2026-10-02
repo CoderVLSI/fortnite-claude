@@ -66,6 +66,14 @@ func _on_player_hit(hit_target, _killed, _headshot) -> void:
 	hits.append(hit_target)
 
 
+func _loot_near(pos: Vector3, radius: float) -> int:
+	var n := 0
+	for i in get_nodes_in_group("interactable"):
+		if i.has_method("setup") and i.global_transform.origin.distance_to(pos) < radius:
+			n += 1
+	return n
+
+
 func _count_loot() -> int:
 	var n := 0
 	for i in get_nodes_in_group("interactable"):
@@ -86,7 +94,7 @@ func _run() -> void:
 
 	var p = world.player
 	check(world.terrain != null and p != null, "world built with terrain and player")
-	check(get_nodes_in_group("fighters").size() == world.profile.bots + 1, "all %d fighters spawned" % (world.profile.bots + 1))
+	check(get_nodes_in_group("fighters").size() == world.profile.bots + 2, "all %d fighters spawned (bots + player + boss)" % (world.profile.bots + 2))
 	check(world.building_positions.size() >= 10, "buildings placed (%d)" % world.building_positions.size())
 	check(get_nodes_in_group("interactable").size() > 40, "chests and floor loot placed (%d)" % get_nodes_in_group("interactable").size())
 	p.max_health = 1000000.0   # keep bots from killing the test player
@@ -248,11 +256,13 @@ func _run() -> void:
 		var pos: Vector3 = p.global_transform.origin + spots[i]
 		var chest = world._add_chest(kinds[i], Vector3(pos.x, world.terrain.height_at(pos.x, pos.z), pos.z), 0.0)
 		yield(_frames(2), "completed")
-		var before := _count_loot()
+		var cpos: Vector3 = chest.global_transform.origin
+		var before := _loot_near(cpos, 6.0)
 		check(chest.can_interact(), "%s can be opened" % kinds[i])
 		chest.interact(p)
 		yield(_frames(2), "completed")
-		check(chest.opened and _count_loot() - before == expected[i], "%s drops %d items (%d)" % [kinds[i], expected[i], _count_loot() - before])
+		var dropped := _loot_near(cpos, 6.0) - before
+		check(chest.opened and dropped == expected[i], "%s drops %d items (%d)" % [kinds[i], expected[i], dropped])
 
 	# --- supply drop falls then becomes openable
 	var drop = world._add_chest("supply", p.global_transform.origin + Vector3(10, 0, 10), 0.0)

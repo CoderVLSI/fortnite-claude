@@ -53,6 +53,8 @@ func _run() -> void:
 	current_scene = world
 	yield(self, "idle_frame")
 	var p = world.player
+	p.max_health = 1000000.0           # keep bots from killing the test player after landing
+	p.health = p.max_health
 
 	check(world.bus != null, "battle bus is spawned")
 	check(p.mode == 1, "player starts on the bus")
@@ -61,7 +63,7 @@ func _run() -> void:
 	for f in get_nodes_in_group("fighters"):
 		if f.mode == 1:
 			riders += 1
-	check(riders == world.profile.bots + 1, "everyone starts on the bus (%d)" % riders)
+	check(riders == world.profile.bots + 1, "everyone but the boss starts on the bus (%d)" % riders)
 	yield(_frames(120), "completed")
 	var bus_pos: Vector3 = world.bus.global_transform.origin
 	check(p.global_transform.origin.distance_to(bus_pos) < 3.0, "player travels with the bus")

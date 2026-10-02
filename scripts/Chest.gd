@@ -7,9 +7,9 @@ extends Spatial
 
 const Items = preload("res://scripts/Items.gd")
 
-const MODELS := {"chest": "chest", "ammo_box": "ammo_box", "supply": "supply"}
-const TITLES := {"chest": "Treasure Chest", "ammo_box": "Ammo Box", "supply": "Supply Drop"}
-const BEAM_HEIGHT := {"chest": 6.0, "ammo_box": 5.0, "supply": 26.0}
+const MODELS := {"chest": "chest", "ammo_box": "ammo_box", "supply": "supply", "vault": "vault"}
+const TITLES := {"chest": "Treasure Chest", "ammo_box": "Ammo Box", "supply": "Supply Drop", "vault": "Vault"}
+const BEAM_HEIGHT := {"chest": 6.0, "ammo_box": 5.0, "supply": 26.0, "vault": 14.0}
 
 export var kind := "chest"
 
@@ -38,6 +38,8 @@ func _ready() -> void:
 		half = Vector3(0.45, 0.25, 0.25)
 	elif kind == "supply":
 		half = Vector3(0.6, 0.45, 0.6)
+	elif kind == "vault":
+		half = Vector3(0.65, 0.42, 0.45)
 	var body := StaticBody.new()
 	body.collision_layer = 1
 	body.collision_mask = 0

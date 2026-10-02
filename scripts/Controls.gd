@@ -36,6 +36,7 @@ func _register_actions() -> void:
 	_key("sprint", KEY_SHIFT)
 	_key("reload", KEY_R)
 	_key("interact", KEY_E)
+	_key("map", KEY_M)
 	for i in range(5):
 		_key("slot_%d" % (i + 1), KEY_1 + i)
 	_mouse("fire", BUTTON_LEFT)

@@ -13,6 +13,7 @@ const LootItem = preload("res://scripts/LootItem.gd")
 const Chest = preload("res://scripts/Chest.gd")
 const Bus = preload("res://scripts/Bus.gd")
 const HUD = preload("res://scripts/HUD.gd")
+const Pois = preload("res://scripts/Pois.gd")
 
 const MAP_HALF := 160.0
 const SEED := 20241002
@@ -38,6 +39,10 @@ var tree_positions := []         # Vector2 (x, z), used to keep spawns out of fo
 var match_over := false
 
 var shared := {}                 # cached meshes/materials shared by loot items
+var pois := []                   # runtime POIs: {id, name, center (Vector2), frame_yaw, def, zone}
+var poi_roads := []              # [Vector2 a, Vector2 b] for the map
+var boss = null
+var _spinners := []
 var _props := {}                 # model name -> {mm, body, hits}
 var _supply_phase := -1
 var _amb_t := 0.0
@@ -58,9 +63,11 @@ func _ready() -> void:
 	terrain.name = "Terrain"
 	terrain.setup(MAP_HALF, SEED, profile.cell)
 	add_child(terrain)
+	_plan_pois()
 	var plan := _plan_buildings()
 	terrain.build()
 	_spawn_buildings(plan)
+	_build_pois()
 	_scatter_props("tree", profile.trees, 0.8, 1.5, 0.45, 3.0, 2.2, "wood")
 	_scatter_props("rock", profile.rocks, 1.0, 2.6, 0.9, 1.4, 1.6, "stone")
 
@@ -72,7 +79,9 @@ func _ready() -> void:
 
 	rng.randomize()      # same island every match, different spawns/loot
 	_spawn_containers_and_loot(plan)
+	_spawn_poi_loot()
 	_spawn_fighters()
+	_spawn_boss()
 	if profile.use_bus:
 		_start_bus()
 
@@ -225,6 +234,201 @@ func _find_mesh(node: Node):
 		if m != null:
 			return m
 	return null
+
+
+# ------------------------------------------------------------------ points of interest
+
+func _locate_poi(def: Dictionary) -> Vector2:
+	var a := deg2rad(def.angle)
+	var dir := Vector2(cos(a), sin(a))
+	if def.mode == "shore":
+		var r_land := 60.0
+		for r in range(60, 155, 2):
+			if terrain.raw_height(dir.x * r, dir.y * r) > 1.5:
+				r_land = float(r)
+		return dir * (r_land - def.inland)
+	var best_r: float = def.rmin
+	var best_score := -1e9
+	var r: float = def.rmin
+	while r <= def.rmax:
+		var c := dir * r
+		var h: float = terrain.raw_height(c.x, c.y)
+		if h > 4.0:
+			var variance := 0.0
+			for k in range(8):
+				var q := c + Vector2(cos(k * PI / 4.0), sin(k * PI / 4.0)) * 16.0
+				variance += abs(terrain.raw_height(q.x, q.y) - h)
+			var score: float = (h * 0.5 if def.mode == "hill" else 0.0) - variance
+			if score > best_score:
+				best_score = score
+				best_r = r
+		r += 3.0
+	return dir * best_r
+
+
+func _plan_pois() -> void:
+	var centers := {"maple": Vector2.ZERO}
+	for def in Pois.POIS:
+		var c := _locate_poi(def)
+		centers[def.id] = c
+		terrain.add_zone(c.x, c.y, def.zone)
+		pois.append({"id": def.id, "name": def.name, "center": c, "frame_yaw": -deg2rad(def.angle), "def": def, "zone": def.zone})
+	for r in Pois.ROADS:
+		terrain.add_road(centers[r[0]], centers[r[1]])
+		poi_roads.append([centers[r[0]], centers[r[1]]])
+
+
+# POI-local (x outward, z tangent) -> world position; y follows the terrain.
+func _poi_point(poi: Dictionary, local: Vector2) -> Vector3:
+	var off := Basis(Vector3.UP, poi.frame_yaw).xform(Vector3(local.x, 0.0, local.y))
+	var x: float = poi.center.x + off.x
+	var z: float = poi.center.y + off.z
+	return Vector3(x, terrain.height_at(x, z), z)
+
+
+func _build_pois() -> void:
+	for poi in pois:
+		var def: Dictionary = poi.def
+		poi["nodes"] = []
+		var idx := 0
+		for pr in def.props:
+			var scene = load(MODEL_DIR + pr.res + ".glb")
+			if scene == null:
+				poi.nodes.append(null)
+				continue
+			var inst: Spatial = scene.instance()
+			var pos := _poi_point(poi, pr.at)
+			pos.y += pr.get("y", 0.0)
+			var yaw: float = poi.frame_yaw + deg2rad(pr.get("yaw", 0.0))
+			if pr.get("face_center", false):
+				var to_c := -Vector2(pr.at.x, pr.at.y)     # local direction to the POI middle
+				if to_c.length() < 0.5:
+					to_c = Vector2(-1, 0)                   # the main building faces the island centre
+				var w := Basis(Vector3.UP, poi.frame_yaw).xform(Vector3(to_c.x, 0, to_c.y))
+				yaw = round(atan2(w.x, w.z) / (PI / 2.0)) * (PI / 2.0)
+			inst.translation = pos
+			inst.rotation.y = yaw
+			add_child(inst)
+			if pr.has("tint"):
+				Items.apply_accent(inst, pr.tint)
+			if not pr.get("decor", false):
+				_add_trimesh_collision(inst, pr.get("harvest", "wood"))
+			if pr.get("building", false):
+				building_positions.append(Vector2(pos.x, pos.z))
+			if pr.has("spin"):
+				var part := inst.find_node("Blades" if pr.spin == "blades" else "Dish", true, false)
+				if part:
+					_spinners.append({"node": part, "kind": pr.spin})
+			poi.nodes.append({"node": inst, "yaw": yaw, "pos": pos, "res": pr.res})
+			idx += 1
+		if def.has("pier"):
+			_build_pier(poi, def.pier)
+		if def.has("helipad"):
+			_build_helipad(_poi_point(poi, def.helipad))
+
+
+func _add_box(pos: Vector3, size: Vector3, color: Color, yaw: float = 0.0, harvest: String = "wood", collide: bool = true) -> Spatial:
+	var body := StaticBody.new()
+	body.collision_layer = 1
+	body.collision_mask = 0
+	if harvest != "":
+		body.set_meta("harvest", harvest)
+	var mi := MeshInstance.new()
+	var cm := CubeMesh.new()
+	cm.size = size
+	mi.mesh = cm
+	var mat := SpatialMaterial.new()
+	mat.albedo_color = color
+	mat.roughness = 0.9
+	mi.material_override = mat
+	body.add_child(mi)
+	if collide:
+		var cs := CollisionShape.new()
+		var sh := BoxShape.new()
+		sh.extents = size / 2.0
+		cs.shape = sh
+		body.add_child(cs)
+	body.translation = pos
+	body.rotation.y = yaw
+	add_child(body)
+	return body
+
+
+func _build_pier(poi: Dictionary, spec: Dictionary) -> void:
+	var top := 1.3
+	var basis := Basis(Vector3.UP, poi.frame_yaw)
+	var length: float = spec.length
+	var width: float = spec.width
+	var from: float = spec.from
+	var wood := Color(0.52, 0.37, 0.21)
+	var c := Vector3(poi.center.x, 0.0, poi.center.y)
+	var deck := c + basis.xform(Vector3(from + length / 2.0, 0, 0))
+	deck.y = top - 0.15
+	_add_box(deck, Vector3(length, 0.3, width), wood, poi.frame_yaw)
+	var tee := c + basis.xform(Vector3(from + length - 1.5, 0, 0))
+	tee.y = top - 0.15
+	_add_box(tee, Vector3(3.0, 0.3, 13.0), wood, poi.frame_yaw)
+	var i := 0.0
+	while i < length:
+		for side in [-1.0, 1.0]:
+			var p := c + basis.xform(Vector3(from + i, 0, side * (width / 2.0 - 0.3)))
+			p.y = (top - 7.0) / 2.0
+			_add_box(p, Vector3(0.5, top + 7.0, 0.5), Color(0.35, 0.25, 0.14), poi.frame_yaw, "wood", false)
+		i += 4.0
+	building_positions.append(Vector2(deck.x, deck.z))
+
+
+func _build_helipad(pos: Vector3) -> void:
+	_add_box(pos + Vector3(0, 0.1, 0), Vector3(14.0, 0.2, 14.0), Color(0.42, 0.43, 0.45), 0.0, "stone")
+	var white := Color(0.95, 0.95, 0.9)
+	_add_box(pos + Vector3(-2.0, 0.22, 0), Vector3(0.9, 0.05, 6.0), white, 0.0, "", false)   # the "H"
+	_add_box(pos + Vector3(2.0, 0.22, 0), Vector3(0.9, 0.05, 6.0), white, 0.0, "", false)
+	_add_box(pos + Vector3(0, 0.22, 0), Vector3(3.2, 0.05, 0.9), white, 0.0, "", false)
+
+
+func _prop_point(poi: Dictionary, entry: Dictionary) -> Array:
+	# returns [world position, world yaw] for a chest/item entry (optionally inside a prop)
+	if entry.has("in") and poi.has("nodes") and entry["in"] < poi.nodes.size() and poi.nodes[entry["in"]] != null:
+		var n: Dictionary = poi.nodes[entry["in"]]
+		var big: bool = n.res == "house_b"
+		var l := Basis(Vector3.UP, n.yaw).xform(Vector3(entry.at.x, 0.0, entry.at.y))
+		return [Vector3(n.pos.x + l.x, n.pos.y + 0.15, n.pos.z + l.z), n.yaw + deg2rad(entry.get("yaw", 0.0))]
+	var p := _poi_point(poi, entry.at)
+	return [p, poi.frame_yaw + deg2rad(entry.get("yaw", 0.0))]
+
+
+func _spawn_poi_loot() -> void:
+	for poi in pois:
+		var def: Dictionary = poi.def
+		for ch in def.get("chests", []):
+			var pp := _prop_point(poi, ch)
+			_add_chest(ch.kind, pp[0], pp[1])
+		for it in def.get("items", []):
+			var p := _poi_point(poi, it)
+			var item: Dictionary = Items.random_weapon(rng, 1) if rng.randf() < 0.55 else Items.random_floor_item(rng)
+			spawn_item(item, p + Vector3(0, 0.1, 0))
+
+
+func _spawn_boss() -> void:
+	for poi in pois:
+		var def: Dictionary = poi.def
+		if not def.has("boss"):
+			continue
+		var p := _poi_point(poi, def.boss.at)
+		var b := Bot.new()
+		b.name = "Warden"
+		b.is_boss = true
+		b.world = self
+		b.display_name = "The Warden"
+		b.vest_color = Color(1.0, 0.72, 0.1)
+		b.skill = 0.95
+		b.map_half = MAP_HALF - 4.0
+		b.translation = p + Vector3(0, 1.0, 0)
+		add_child(b)
+		b.connect("died", self, "_on_fighter_died")
+		boss = b
+		if hud:
+			hud.add_feed("The Warden guards %s - Mythic loot!" % poi.name.capitalize(), Color(1.0, 0.45, 0.15))
 
 
 # ------------------------------------------------------------------ props
@@ -451,6 +655,8 @@ func _start_bus() -> void:
 	bus.setup(start, dir, BUS_LENGTH)
 	bus.connect("finished", self, "_on_bus_finished")
 	for f in get_tree().get_nodes_in_group("fighters"):
+		if "is_boss" in f and f.is_boss:
+			continue
 		f.enter_bus(bus)
 	player.rotation.y = atan2(-dir.x, -dir.z)
 	player.pitch = -0.2
@@ -458,7 +664,8 @@ func _start_bus() -> void:
 
 func _on_bus_finished() -> void:
 	for f in get_tree().get_nodes_in_group("fighters"):
-		f.leave_bus()
+		if f.mode == 1:
+			f.leave_bus()
 	storm.active = true
 
 
@@ -496,6 +703,9 @@ func random_point_near(pos: Vector3, radius: float) -> Vector3:
 
 func location_name(pos: Vector3) -> String:
 	var p := Vector2(pos.x, pos.z)
+	for poi in pois:
+		if p.distance_to(poi.center) < poi.zone + 6.0:
+			return poi.name
 	if p.length() < 62.0:
 		return "MAPLE SQUARE"
 	if _near_building(p, 22.0):
@@ -558,6 +768,12 @@ func _audio_process(delta: float) -> void:
 
 func _process(delta: float) -> void:
 	_audio_process(delta)
+	for sp in _spinners:
+		if is_instance_valid(sp.node):
+			if sp.kind == "blades":
+				sp.node.rotate_object_local(Vector3(0, 0, 1), delta * 0.9)
+			else:
+				sp.node.rotate_y(delta * 0.6)
 	if storm == null or not storm.active or storm.finished:
 		return
 	if storm.waiting and storm.phase != _supply_phase:
