@@ -380,15 +380,18 @@ func move_body(delta: float, wish: Vector3, speed: float, want_jump: bool) -> vo
 	var k: float = clamp(accel * delta, 0.0, 1.0)
 	velocity.x = lerp(velocity.x, wish.x * speed, k)
 	velocity.z = lerp(velocity.z, wish.z * speed, k)
+	var snap := Vector3(0, -0.45, 0)
 	if on_floor:
-		velocity.y = -2.0
+		velocity.y = 0.0                     # the snap keeps us glued to slopes, ramps and stairs
 		if want_jump:
 			velocity.y = jump_speed
+			snap = Vector3.ZERO
 			Audio.play3d("jump", global_transform.origin + Vector3(0, 0.5, 0), -8.0, rand_range(0.95, 1.1))
 	else:
 		velocity.y -= _gravity * delta
+		snap = Vector3.ZERO
 	var vy_before := velocity.y
-	velocity = move_and_slide(velocity, Vector3.UP, true, 4, deg2rad(52.0))
+	velocity = move_and_slide_with_snap(velocity, snap, Vector3.UP, true, 4, deg2rad(52.0))
 	grounded = is_on_floor()
 	if grounded and not _was_grounded and vy_before < -7.0:
 		Audio.play3d("land", global_transform.origin, clamp(-18.0 + (-vy_before) * 1.2, -14.0, -2.0), rand_range(0.95, 1.05))

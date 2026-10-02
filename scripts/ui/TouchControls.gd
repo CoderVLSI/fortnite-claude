@@ -36,6 +36,7 @@ func _layout() -> void:
 		"jump": {"center": Vector2(w - 335, h - 110), "radius": 60.0, "label": "JUMP", "action": "jump"},
 		"reload": {"center": Vector2(w - 305, h - 268), "radius": 54.0, "label": "RELOAD", "action": "reload"},
 		"interact": {"center": Vector2(w - 140, h - 322), "radius": 60.0, "label": "PICK UP", "action": "interact", "hidden": true},
+		"build": {"center": Vector2(w - 480, h - 130), "radius": 50.0, "label": "BUILD", "action": "build_toggle"},
 		"sprint": {"center": Vector2(255, h - 340), "radius": 58.0, "label": "SPRINT", "action": "sprint", "toggle": true},
 	}
 	for b in _buttons.values():

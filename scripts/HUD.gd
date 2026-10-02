@@ -279,7 +279,14 @@ func toggle_map() -> void:
 
 
 func _on_slot_pressed(index: int) -> void:
-	if player:
+	if player == null:
+		return
+	if player.builder.active:
+		if index < 4:
+			player.builder.set_piece(index)
+		else:
+			player.builder.cycle_material(1)
+	else:
 		player.select_slot(index)
 
 
@@ -365,6 +372,8 @@ func _process(delta: float) -> void:
 
 
 func _ammo_text() -> String:
+	if player.builder.active:
+		return "BUILD  " + player.builder.PIECES[player.builder.piece].to_upper() + "  " + player.builder.material.to_upper()
 	var item = player.selected_item()
 	if item == null:
 		return ""
@@ -419,6 +428,10 @@ func _update_prompts() -> void:
 		use_bar.value = player.use_progress()
 	# bus / freefall / glider hints
 	var jump_key := "JUMP" if Controls.touch_mode else "SPACE"
+	if player.builder.active:
+		bus_label.text = "BUILD  click: place   1-4: piece   wheel: material   Q: exit" if not Controls.touch_mode else "BUILD   pick a piece, FIRE places"
+		bus_label.visible = true
+		return
 	match player.mode:
 		MODE_BUS:
 			bus_label.text = "PRESS %s TO DROP FROM THE BUS" % jump_key

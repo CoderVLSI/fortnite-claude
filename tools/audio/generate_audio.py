@@ -356,6 +356,15 @@ def make_items():
 
 # ----------------------------------------------------------------------------- world
 
+def make_build():
+    save("build_place", lp(noise(0.22), 900) * decay(N(0.22), 22) + sine(150, 0.22) * decay(N(0.22), 20) * 0.8 + bp(noise(0.12), 2000, 6000) * decay(N(0.12), 60) * 0.35)
+    crush = bp(noise(0.7), 150, 3500) * decay(N(0.7), 6) + lp(noise(0.7), 400) * decay(N(0.7), 5) * 0.8
+    for i in range(6):
+        place(crush, hp(noise(0.05), 1200) * decay(N(0.05), 80), RNG.uniform(0.02, 0.4), 0.5)
+    save("build_break", crush + sine(70, 0.7) * decay(N(0.7), 7) * 0.5)
+    save("build_toggle", bp(noise(0.25), 400, 3500) * np.sin(np.linspace(0, np.pi, N(0.25))) ** 1.2 * 0.8 + sine(np.linspace(300, 700, N(0.25)), 0.25) * decay(N(0.25), 10) * 0.25)
+
+
 def make_world():
     # bus engine drone + propeller thump (seamless 3 s)
     L = 3.0
@@ -515,6 +524,7 @@ def main():
     make_movement()
     make_items()
     make_world()
+    make_build()
     make_music()
 
 

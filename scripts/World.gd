@@ -14,6 +14,7 @@ const Chest = preload("res://scripts/Chest.gd")
 const Bus = preload("res://scripts/Bus.gd")
 const HUD = preload("res://scripts/HUD.gd")
 const Pois = preload("res://scripts/Pois.gd")
+const BuildPiece = preload("res://scripts/BuildPiece.gd")
 const Vehicle = preload("res://scripts/Vehicle.gd")
 const Boat = preload("res://scripts/Boat.gd")
 
@@ -44,6 +45,7 @@ var shared := {}                 # cached meshes/materials shared by loot items
 var pois := []                   # runtime POIs: {id, name, center (Vector2), frame_yaw, def, zone}
 var poi_roads := []              # [Vector2 a, Vector2 b] for the map
 var boss = null
+var build_slots := {}            # grid key -> BuildPiece
 var _spinners := []
 var _props := {}                 # model name -> {mm, body, hits}
 var _supply_phase := -1
@@ -410,6 +412,15 @@ func _spawn_poi_loot() -> void:
 			var p := _poi_point(poi, it)
 			var item: Dictionary = Items.random_weapon(rng, 1) if rng.randf() < 0.55 else Items.random_floor_item(rng)
 			spawn_item(item, p + Vector3(0, 0.1, 0))
+
+
+func spawn_build(kind: String, material: String, key: String, pos: Vector3, yaw: float) -> Node:
+	var piece := BuildPiece.new()
+	piece.setup(kind, material, key, build_slots)
+	piece.transform = Transform(BuildPiece.piece_basis(kind, yaw), pos)
+	add_child(piece)
+	build_slots[key] = piece
+	return piece
 
 
 func spawn_vehicle(kind: String, pos: Vector3, yaw: float) -> Node:

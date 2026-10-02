@@ -3,6 +3,8 @@ extends "res://scripts/Fighter.gd"
 # camera yaw, inventory/hotbar, interact (loot, chests), and the bus -> freefall ->
 # glider -> ground flow. Weapons fire a hitscan along the crosshair.
 
+const Builder = preload("res://scripts/Builder.gd")
+
 const SHOULDER_OFFSET := Vector3(0.65, 1.55, 0.0)
 const CAMERA_DISTANCE := 3.6
 const INTERACT_RANGE := 3.2
@@ -13,6 +15,7 @@ var head: Spatial
 var spring: SpringArm
 var camera: Camera
 var interact_target = null
+var builder
 var _interact_t := 0.0
 var _audio_ready := false
 var _last_look_time := 0.0
@@ -23,6 +26,10 @@ func _ready() -> void:
 	add_to_group("player")
 	setup_fighter("You", Color(0.22, 0.42, 0.85))
 	_build_camera()
+	builder = Builder.new()
+	builder.name = "Builder"
+	add_child(builder)
+	builder.setup(self, get_parent())
 	Controls.connect("slot_scroll", self, "_on_scroll")
 	connect("hit_landed", self, "_on_hit_landed")
 	connect("slot_changed", self, "_on_slot_changed")
@@ -134,9 +141,17 @@ func _ground_process(delta: float) -> void:
 		sprinting = Input.is_action_pressed("sprint") and move.length() > 0.2
 		if Input.is_action_just_pressed("reload"):
 			start_reload()
+		if Input.is_action_just_pressed("build_toggle"):
+			builder.toggle()
 		for i in range(Items.SLOT_COUNT):
 			if Input.is_action_just_pressed("slot_%d" % (i + 1)):
-				select_slot(i)
+				if builder.active:
+					if i < 4:
+						builder.set_piece(i)
+					else:
+						builder.cycle_material(1)
+				else:
+					select_slot(i)
 		_fire_input(delta)
 		_interact_input(delta)
 	var b := global_transform.basis
@@ -156,6 +171,11 @@ func _ground_process(delta: float) -> void:
 
 
 func _fire_input(delta: float) -> void:
+	if builder.active:
+		if Input.is_action_just_pressed("fire") and _can_aim():
+			builder.place()
+		cancel_use()
+		return
 	var item = selected_item()
 	var firing := Input.is_action_pressed("fire") and _can_aim()
 	if item == null or not firing:
@@ -224,7 +244,10 @@ func _update_air_audio() -> void:
 
 func _on_scroll(direction: int) -> void:
 	if mode == Mode.GROUND and not is_dead and input_enabled:
-		cycle_slot(direction)
+		if builder.active:
+			builder.cycle_material(direction)
+		else:
+			cycle_slot(direction)
 
 
 func _process(delta: float) -> void:
