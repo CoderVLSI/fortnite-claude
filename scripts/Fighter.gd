@@ -75,6 +75,9 @@ var sprinting := false
 var vehicle_steer := 0.0
 var vehicle_hands_on_wheel := true
 var _mantle_t := 0.0
+var _use_snd_t := 0.0
+var _hurt_cd := 0.0
+var _was_grounded := true
 
 var _anim := 0.0
 var _swing := 0.0
@@ -325,6 +328,11 @@ func use_selected(delta: float) -> void:
 	if _use_left <= 0.0:
 		_use_total = c.time
 		_use_left = c.time
+		_use_snd_t = 0.0
+	_use_snd_t -= delta
+	if _use_snd_t <= 0.0:
+		_use_snd_t = 0.95
+		Audio.play3d("consume_bandage" if item.id == "bandage" or item.id == "medkit" else "consume_potion", global_transform.origin + Vector3(0, 1.2, 0), -6.0)
 	_use_left -= delta
 	if _use_left <= 0.0:
 		_use_left = 0.0
@@ -333,6 +341,7 @@ func use_selected(delta: float) -> void:
 		if c.shield > 0.0:
 			shield = min(c.shield_cap, shield + c.shield)
 		item.count -= 1
+		Audio.play3d("shield_up" if c.shield > 0.0 else "heal_up", global_transform.origin + Vector3(0, 1.2, 0), -3.0)
 		emit_signal("picked_up", "Used " + c.name)
 		if item.count <= 0:
 			slots[selected] = null
@@ -358,10 +367,15 @@ func move_body(delta: float, wish: Vector3, speed: float, want_jump: bool) -> vo
 		velocity.y = -2.0
 		if want_jump:
 			velocity.y = jump_speed
+			Audio.play3d("jump", global_transform.origin + Vector3(0, 0.5, 0), -8.0, rand_range(0.95, 1.1))
 	else:
 		velocity.y -= _gravity * delta
+	var vy_before := velocity.y
 	velocity = move_and_slide(velocity, Vector3.UP, true, 4, deg2rad(52.0))
 	grounded = is_on_floor()
+	if grounded and not _was_grounded and vy_before < -7.0:
+		Audio.play3d("land", global_transform.origin, clamp(-18.0 + (-vy_before) * 1.2, -14.0, -2.0), rand_range(0.95, 1.05))
+	_was_grounded = grounded
 	forward_speed = Vector3(velocity.x, 0.0, velocity.z).dot(-global_transform.basis.z)
 	_clamp_to_map()
 
@@ -416,6 +430,7 @@ func deploy_glider() -> void:
 	if mode != Mode.FREEFALL:
 		return
 	mode = Mode.GLIDE
+	Audio.play3d("glider_open", global_transform.origin, -2.0)
 	if glider:
 		glider.visible = true
 		glider.scale = Vector3(0.2, 0.2, 0.2)
@@ -430,6 +445,7 @@ func _land() -> void:
 	if glider:
 		glider.visible = false
 	velocity = Vector3(0, -2.0, 0)
+	Audio.play3d("land", global_transform.origin, -4.0)
 	emit_signal("landed")
 
 
@@ -510,7 +526,25 @@ func mantle_fraction() -> float:
 
 # ------------------------------------------------------------------ combat
 
+func footstep(speed: float) -> void:
+	var o := global_transform.origin
+	if Audio.listener_distance(o) > 45.0:
+		return
+	var snd := "step_grass"
+	if o.y < -0.15:
+		snd = "step_water"
+	elif o.y < 1.6:
+		snd = "step_sand"
+	else:
+		var hit := get_world().direct_space_state.intersect_ray(o + Vector3(0, 0.4, 0), o + Vector3(0, -0.8, 0), [self], 1)
+		if hit and hit.collider != null and hit.collider.has_meta("harvest"):
+			snd = "step_wood"
+	var vol: float = lerp(-18.0, -8.0, clamp(speed / 8.0, 0.0, 1.0))
+	Audio.play3d(snd, o, vol, rand_range(0.9, 1.12))
+
+
 func tick_weapon(delta: float) -> void:
+	_hurt_cd = max(0.0, _hurt_cd - delta)
 	_fire_cd = max(0.0, _fire_cd - delta)
 	if _reload_left > 0.0:
 		_reload_left -= delta
@@ -533,6 +567,8 @@ func start_reload() -> void:
 	if item.mag >= mag_size or reserves[ammo_type] <= 0:
 		return
 	_reload_left = reload_time
+	var snd := "pump" if item.id == "shotgun" else ("bolt" if item.id == "sniper" else "reload")
+	Audio.play3d(snd, global_transform.origin + Vector3(0, 1.2, 0), -4.0)
 
 
 func muzzle_position() -> Vector3:
@@ -552,10 +588,16 @@ func try_fire(aim_from: Vector3, aim_dir: Vector3) -> bool:
 	if item.kind != "weapon":
 		return false
 	if item.mag <= 0:
+		if is_in_group("player"):
+			Audio.play2d("dry_fire", -4.0)
 		start_reload()
 		return false
 	_fire_cd = fire_interval
 	item.mag -= 1
+	var snd := "shot_" + ("rifle" if item.id == "assault" else item.id)
+	if item.rarity == Items.MYTHIC:
+		snd = "shot_mythic"
+	Audio.play3d(snd, muzzle_position(), -2.0 if is_in_group("player") else -6.0, rand_range(0.96, 1.04))
 	for i in range(pellets):
 		_fire_ray(aim_from, aim_dir, i < 3)
 	if animator != null:
@@ -586,15 +628,19 @@ func _fire_ray(aim_from: Vector3, aim_dir: Vector3, show_tracer: bool) -> void:
 func _swing_pickaxe(aim_from: Vector3, aim_dir: Vector3) -> bool:
 	_fire_cd = fire_interval
 	_swing = 0.3
+	Audio.play3d("swing", global_transform.origin + Vector3(0, 1.3, 0), -4.0, rand_range(0.9, 1.1))
 	var hit := get_world().direct_space_state.intersect_ray(aim_from, aim_from + aim_dir * weapon_range, [self], 3)
 	if not hit:
 		return true
 	var target = hit.collider
 	if target != null and target.has_method("take_damage"):
+		Audio.play3d("hit_flesh", hit.position, -2.0)
 		var was_alive: bool = not target.is_dead
 		target.take_damage(gun_damage, self)
 		emit_signal("hit_landed", target, was_alive and target.is_dead, false)
 	elif target != null and target.has_meta("harvest"):
+		var kind: String = target.get_meta("harvest")
+		Audio.play3d("hit_" + kind if kind != "metal" else "hit_metal", hit.position, 0.0, rand_range(0.92, 1.08))
 		for w in get_tree().get_nodes_in_group("world"):
 			w.harvest_hit(target, hit.shape, target.get_meta("harvest"), self)
 	return true
@@ -633,6 +679,12 @@ func take_damage(amount: float, source = null) -> void:
 	if is_dead or mode == Mode.BUS:
 		return
 	cancel_use()
+	if _hurt_cd <= 0.0 and amount >= 1.0:
+		_hurt_cd = 0.3
+		if is_in_group("player"):
+			Audio.play2d("hurt", -3.0, rand_range(0.95, 1.05))
+		else:
+			Audio.play3d("hurt", global_transform.origin + Vector3(0, 1.4, 0), -4.0, rand_range(0.85, 1.25))
 	var remaining := amount
 	if shield > 0.0:
 		var absorbed: float = min(shield, remaining)
@@ -651,6 +703,7 @@ func _die(killer) -> void:
 	mode = Mode.GROUND
 	if glider:
 		glider.visible = false
+	Audio.play3d("death", global_transform.origin + Vector3(0, 1.0, 0), -2.0, rand_range(0.85, 1.1))
 	if killer != null and "kills" in killer and killer != self:
 		killer.kills += 1
 	if model:

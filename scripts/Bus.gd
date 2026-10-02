@@ -34,6 +34,7 @@ func _ready() -> void:
 			var p := m.get_node_or_null(n)
 			if p:
 				_props.append(p)
+	Audio.make_loop3d("bus_loop", self, 4.0, 450.0)
 
 
 func _process(delta: float) -> void:

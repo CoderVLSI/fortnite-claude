@@ -14,6 +14,8 @@ var spring: SpringArm
 var camera: Camera
 var interact_target = null
 var _interact_t := 0.0
+var _audio_ready := false
+var combat_until := 0.0     # seconds (ticks) until which the music stays in "combat"
 
 
 func _ready() -> void:
@@ -21,6 +23,9 @@ func _ready() -> void:
 	setup_fighter("You", Color(0.22, 0.42, 0.85))
 	_build_camera()
 	Controls.connect("slot_scroll", self, "_on_scroll")
+	connect("hit_landed", self, "_on_hit_landed")
+	connect("slot_changed", self, "_on_slot_changed")
+	_audio_ready = true
 
 
 func _build_camera() -> void:
@@ -45,6 +50,7 @@ func _build_camera() -> void:
 
 func _physics_process(delta: float) -> void:
 	tick_weapon(delta)
+	_update_air_audio()
 	if is_dead:
 		velocity = Vector3(0, velocity.y, 0)
 		move_body(delta, Vector3.ZERO, 0.0, false)
@@ -135,6 +141,32 @@ func _find_interactable():
 			best_d = d
 			best = n
 	return best
+
+
+func _on_hit_landed(_target, killed: bool, _headshot: bool) -> void:
+	Audio.play2d("hitmarker", -4.0)
+	if killed:
+		Audio.play2d("kill_ding", -2.0)
+	combat_until = OS.get_ticks_msec() / 1000.0 + 8.0
+
+
+func _on_slot_changed() -> void:
+	if _audio_ready:
+		Audio.play2d("ui_slot", -8.0)
+
+
+func _update_air_audio() -> void:
+	var wind := Audio.SILENT_DB
+	var glide := Audio.SILENT_DB
+	if not is_dead:
+		match mode:
+			Mode.FREEFALL:
+				wind = clamp(-16.0 + abs(velocity.y) * 0.25, -16.0, -3.0)
+			Mode.GLIDE:
+				glide = -10.0
+				wind = -22.0
+	Audio.ambient("wind_loop", wind)
+	Audio.ambient("glider_loop", glide)
 
 
 func _on_scroll(direction: int) -> void:

@@ -89,6 +89,7 @@ func _process(delta: float) -> void:
 	if translation.y <= ground_y:
 		translation.y = ground_y
 		falling = false
+		Audio.play3d("land", global_transform.origin, -2.0)
 		if _balloon:
 			var tween := Tween.new()
 			add_child(tween)
@@ -113,6 +114,10 @@ func interact(_by) -> void:
 	open()
 
 
+func _chime(tier: int) -> void:
+	Audio.play3d("rarity_%d" % (tier + 1), global_transform.origin + Vector3(0, 1.0, 0), -3.0)
+
+
 func open() -> void:
 	if opened:
 		return
@@ -125,7 +130,13 @@ func open() -> void:
 		add_child(tween)
 		tween.interpolate_property(_lid, "rotation:x", 0.0, -1.9, 0.45, Tween.TRANS_BACK, Tween.EASE_OUT)
 		tween.start()
+	Audio.play3d("ammo_box_open" if kind == "ammo_box" else "chest_open", global_transform.origin + Vector3(0, 0.5, 0), 0.0)
 	var loot := Items.chest_loot(kind, rng)
+	var best := 0
+	for it in loot:
+		best = int(max(best, Items.rarity_of(it) if it.kind == "weapon" else 0))
+	if best >= 1:
+		get_tree().create_timer(0.45).connect("timeout", self, "_chime", [best])
 	var n := loot.size()
 	for i in range(n):
 		var a := PI * (0.2 + 0.6 * float(i) / max(n - 1, 1))      # fan out on the open (front, +Z) side

@@ -252,6 +252,7 @@ func _on_touch_mode(enabled: bool) -> void:
 
 
 func _on_restart() -> void:
+	Audio.play2d("ui_click")
 	get_tree().reload_current_scene()
 
 
@@ -280,6 +281,8 @@ func add_feed(text: String, color: Color = Color.white) -> void:
 
 
 func show_end(victory: bool, placement: int, kills: int) -> void:
+	Audio.stop_all_ambients()
+	Audio.music("music_victory" if victory else "music_defeat", 0.4)
 	end_title.text = "LAST ONE STANDING!" if victory else "ELIMINATED"
 	end_title.add_color_override("font_color", Color(1.0, 0.85, 0.3) if victory else Color(1.0, 0.45, 0.4))
 	end_stats.text = "Placed #%d\nEliminations: %d" % [placement, kills]

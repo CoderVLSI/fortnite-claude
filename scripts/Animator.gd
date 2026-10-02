@@ -131,7 +131,10 @@ func _pose_ground(f, delta: float) -> void:
 	if abs(f.forward_speed) > 0.4:
 		dir = sign(f.forward_speed)
 	if moving:
+		var before := sin(phase)
 		phase += delta * spd * 2.0 * dir
+		if sign(before) != sign(sin(phase)) and spd > 1.2:
+			f.footstep(spd)
 	var amp: float = lerp(0.30, 0.95, clamp(spd / 8.0, 0.0, 1.0))
 	var s := sin(phase)
 	var c := cos(phase)

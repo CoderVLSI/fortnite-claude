@@ -391,6 +391,18 @@ func _run() -> void:
 	cam.make_current()
 	yield(_shot("aerial_town"), "completed")
 
+	# --- audio events fired during all of the above
+	var audio = root.get_node("Audio")
+	for snd in ["shot_rifle", "reload", "hitmarker", "chest_open", "ammo_box_open", "loot_pickup", "hit_wood", "consume_potion", "shield_up", "heal_up", "swing"]:
+		check(audio.count_of(snd) > 0, "sound played: " + snd)
+	var steps := 0
+	for k in audio.stats.keys():
+		if k.begins_with("step_"):
+			steps += audio.stats[k]
+	check(steps > 0, "footsteps play while walking (%d)" % steps)
+	check(audio.current_music() == "music_game", "in-game music is playing (%s)" % audio.current_music())
+	check(audio.count_of("ambient_loop") > 0 and audio.count_of("waves_loop") > 0, "ambient loops started")
+
 	print("SMOKE_RESULT failures=", failures.size())
 	for f in failures:
 		print("  - ", f)

@@ -121,11 +121,13 @@ func get_move() -> Vector2:
 
 # Look delta in radians (x = yaw, y = pitch), consuming accumulated pointer motion.
 func consume_look(delta: float) -> Vector2:
-	var l := mouse_look * MOUSE_SENSITIVITY + touch_look * TOUCH_SENSITIVITY
+	var l := (mouse_look * MOUSE_SENSITIVITY + touch_look * TOUCH_SENSITIVITY) * Settings.look_sensitivity
 	mouse_look = Vector2.ZERO
 	touch_look = Vector2.ZERO
 	l.x += (Input.get_action_strength("look_right") - Input.get_action_strength("look_left")) * STICK_LOOK_SPEED * delta
 	l.y += (Input.get_action_strength("look_down") - Input.get_action_strength("look_up")) * STICK_LOOK_SPEED * delta
+	if Settings.invert_y:
+		l.y = -l.y
 	return l
 
 

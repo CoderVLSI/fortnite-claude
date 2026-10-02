@@ -40,6 +40,10 @@ var match_over := false
 var shared := {}                 # cached meshes/materials shared by loot items
 var _props := {}                 # model name -> {mm, body, hits}
 var _supply_phase := -1
+var _amb_t := 0.0
+var _bird_t := 6.0
+var _music_t := 0.0
+var _last_waiting := true
 
 
 func _ready() -> void:
@@ -76,6 +80,8 @@ func _ready() -> void:
 	hud.name = "HUD"
 	add_child(hud)
 	hud.bind(self)
+	player.connect("damaged", self, "_on_player_damaged")
+	Audio.music("music_bus" if profile.use_bus else "music_game", 0.5)
 	if not Controls.touch_mode and not ("--no-capture" in OS.get_cmdline_args()):
 		Controls.capture_mouse(true)
 
@@ -499,7 +505,59 @@ func location_name(pos: Vector3) -> String:
 	return "OPEN FIELDS"
 
 
-func _process(_delta: float) -> void:
+func _on_player_damaged(_amount, source) -> void:
+	if source != null:
+		player.combat_until = OS.get_ticks_msec() / 1000.0 + 8.0
+
+
+func _audio_process(delta: float) -> void:
+	if player == null or storm == null or match_over:
+		return
+	var pp: Vector3 = player.global_transform.origin
+	_amb_t -= delta
+	if _amb_t <= 0.0:
+		_amb_t = 0.2
+		var airborne: bool = player.mode == 1 or player.mode == 2 or player.mode == 3
+		Audio.ambient("ambient_loop", -30.0 if airborne else -22.0)
+		var h: float = terrain.height_at(pp.x, pp.z)
+		var waves := Audio.SILENT_DB
+		if not airborne:
+			if h < 5.0:
+				waves = lerp(-8.0, -20.0, clamp(h / 5.0, 0.0, 1.0))
+			elif Vector2(pp.x, pp.z).length() > MAP_HALF * 0.7:
+				waves = -24.0
+		Audio.ambient("waves_loop", waves)
+		var storm_db := Audio.SILENT_DB
+		if storm.active:
+			var inside: float = storm.radius - Vector2(pp.x - storm.center.x, pp.z - storm.center.y).length()
+			if inside < 45.0:
+				storm_db = lerp(-5.0, -34.0, clamp(inside / 45.0, 0.0, 1.0))
+		Audio.ambient("storm_loop", storm_db)
+	_bird_t -= delta
+	if _bird_t <= 0.0:
+		_bird_t = rng.randf_range(5.0, 12.0)
+		if player.mode == 0 and terrain.height_at(pp.x, pp.z) > 3.0:
+			var a := rng.randf() * TAU
+			var r := rng.randf_range(14.0, 28.0)
+			Audio.play3d("bird_%d" % (1 + rng.randi() % 3), pp + Vector3(cos(a) * r, 7.0, sin(a) * r), -11.0, rng.randf_range(0.9, 1.15))
+	if storm.active and _last_waiting and not storm.waiting and not storm.finished:
+		Audio.play2d("storm_warn", -3.0)
+		if hud:
+			hud.add_feed("The storm is closing in!", Color(0.8, 0.6, 1.0))
+	_last_waiting = storm.waiting
+	_music_t -= delta
+	if _music_t <= 0.0:
+		_music_t = 0.5
+		var want := "music_game"
+		if player.mode == 1 or player.mode == 2 or player.mode == 3:
+			want = "music_bus"
+		elif OS.get_ticks_msec() / 1000.0 < player.combat_until:
+			want = "music_combat"
+		Audio.music(want, 2.0)
+
+
+func _process(delta: float) -> void:
+	_audio_process(delta)
 	if storm == null or not storm.active or storm.finished:
 		return
 	if storm.waiting and storm.phase != _supply_phase:

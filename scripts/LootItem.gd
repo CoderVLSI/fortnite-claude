@@ -8,6 +8,7 @@ var item: Dictionary = {}
 var _model: Spatial
 var _t := rand_range(0.0, 6.0)
 var _rest_y := 0.0
+var _announced := false
 
 
 func setup(it: Dictionary) -> void:
@@ -81,12 +82,19 @@ func _process(delta: float) -> void:
 
 
 func _physics_process(_delta: float) -> void:
-	if item.kind != "ammo" or Engine.get_physics_frames() % 5 != 0:
+	if Engine.get_physics_frames() % 5 != 0:
 		return
 	for p in get_tree().get_nodes_in_group("player"):
-		if not p.is_dead and p.global_transform.origin.distance_to(global_transform.origin) < 1.9:
+		if p.is_dead:
+			continue
+		var d: float = p.global_transform.origin.distance_to(global_transform.origin)
+		if item.kind == "ammo" and d < 1.9:
 			interact(p)
 			return
+		var r := Items.rarity_of(item)
+		if not _announced and item.kind == "weapon" and r >= 3 and d < 16.0:
+			_announced = true            # a rare weapon "hums" as you get near
+			Audio.play3d("rarity_%d" % (r + 1), global_transform.origin + Vector3(0, 1.0, 0), -5.0)
 
 
 func can_interact() -> bool:
@@ -105,7 +113,12 @@ func interact(by) -> void:
 	var res: Dictionary = by.pickup(item)
 	by.emit_signal("picked_up", res.text)
 	if not res.ok:
+		Audio.play2d("ui_error", -4.0)
 		return
+	Audio.play2d("ammo_pickup" if item.kind == "ammo" else "loot_pickup", -3.0)
+	var rar := Items.rarity_of(item)
+	if item.kind == "weapon" and rar >= 1:
+		Audio.play2d("rarity_%d" % (rar + 1), -6.0)
 	if res.dropped != null:
 		for w in get_tree().get_nodes_in_group("world"):
 			w.spawn_item(res.dropped, global_transform.origin + Vector3(0.9, 0.0, 0.0))

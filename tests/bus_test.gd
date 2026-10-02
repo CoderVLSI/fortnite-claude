@@ -118,6 +118,13 @@ func _run() -> void:
 				landed += 1
 	check(landed >= alive * 0.7, "most fighters have landed (%d of %d)" % [landed, alive])
 
+	var audio = root.get_node("Audio")
+	check(audio.count_of("bus_loop") > 0, "bus engine loop started")
+	check(audio.count_of("wind_loop") > 0 and audio.count_of("glider_open") > 0, "wind and glider sounds played")
+	check(audio.count_of("music:music_bus") > 0, "bus music played during the flight")
+	yield(_frames(60 * 4), "completed")
+	check(audio.current_music() in ["music_game", "music_combat"], "music switches from the bus theme to a ground theme after landing (%s)" % audio.current_music())
+
 	print("BUS_RESULT failures=", failures.size())
 	for f in failures:
 		print("  - ", f)

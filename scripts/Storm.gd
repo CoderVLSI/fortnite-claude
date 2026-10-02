@@ -84,6 +84,8 @@ func _process(delta: float) -> void:
 		for f in get_tree().get_nodes_in_group("fighters"):
 			if not f.is_dead and not is_inside(f.global_transform.origin):
 				f.take_damage(damage_per_second, null)
+				if f.is_in_group("player"):
+					Audio.play2d("storm_hit", -4.0)
 
 
 func is_inside(p: Vector3) -> bool:
