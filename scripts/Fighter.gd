@@ -22,6 +22,13 @@ enum Mode { GROUND, BUS, FREEFALL, GLIDE, SWIM, MANTLE, VEHICLE }
 const MODEL_PATH := "res://assets/models/player.glb"
 const GLIDER_PATH := "res://assets/models/glider.glb"
 const DEPLOY_ALTITUDE := 75.0
+const WATER_LEVEL := 0.0
+const SWIM_ENTER := -0.75          # feet below this -> swimming (depth > 0.75 m)
+const SWIM_EXIT := -0.55           # feet above this while on the floor -> wading again
+const SWIM_FEET_Y := -1.05         # swimmers float with their feet this far below the surface
+const MANTLE_MAX := 2.3
+const MANTLE_MIN := 0.7
+const MANTLE_MAX_FROM_GROUND := 2.6   # a jump does not let you climb a higher wall
 
 export var max_health := 100.0
 export var max_shield := 100.0
@@ -75,6 +82,13 @@ var sprinting := false
 var vehicle_steer := 0.0
 var vehicle_hands_on_wheel := true
 var _mantle_t := 0.0
+var _mantle_from := Vector3.ZERO
+var _mantle_to := Vector3.ZERO
+var _mantle_dir := Vector3.FORWARD
+var _mantle_dur := 0.6
+var _mantle_cd := 0.0
+var _ripple_t := 0.0
+var _stroke_sign := 1.0
 var _use_snd_t := 0.0
 var _hurt_cd := 0.0
 var _was_grounded := true
@@ -378,6 +392,8 @@ func move_body(delta: float, wish: Vector3, speed: float, want_jump: bool) -> vo
 	_was_grounded = grounded
 	forward_speed = Vector3(velocity.x, 0.0, velocity.z).dot(-global_transform.basis.z)
 	_clamp_to_map()
+	if mode == Mode.GROUND and global_transform.origin.y < SWIM_ENTER:
+		enter_swim()
 
 
 func _clamp_to_map() -> void:
@@ -388,6 +404,134 @@ func _clamp_to_map() -> void:
 		o = Vector3(0, 40, 0)
 		velocity = Vector3.ZERO
 	global_transform.origin = o
+
+
+# ------------------------------------------------------------------ swimming
+
+func enter_swim() -> void:
+	mode = Mode.SWIM
+	velocity.y *= 0.2
+	cancel_use()
+	var o := global_transform.origin
+	Audio.play3d("splash", Vector3(o.x, WATER_LEVEL, o.z), -2.0, rand_range(0.95, 1.05))
+	_ripple(3.5)
+
+
+# One swim step. wish is a horizontal direction (length <= 1); speed in m/s.
+func swim_physics(delta: float, wish: Vector3, speed: float) -> void:
+	var k: float = clamp(4.0 * delta, 0.0, 1.0)
+	velocity.x = lerp(velocity.x, wish.x * speed, k)
+	velocity.z = lerp(velocity.z, wish.z * speed, k)
+	var bob := sin(OS.get_ticks_msec() / 1000.0 * 2.0 + float(get_instance_id() % 7)) * 0.04
+	var floor_y := floor_y_below()
+	# float at the surface, but never below the sea floor: swimmers glide up the beach
+	var target_y: float = max(SWIM_FEET_Y + bob, floor_y + 0.03)
+	velocity.y = clamp((target_y - global_transform.origin.y) * 8.0, -4.0, 4.0)
+	velocity = move_and_slide(velocity, Vector3.UP, false, 4, deg2rad(65.0))
+	grounded = is_on_floor()
+	forward_speed = Vector3(velocity.x, 0.0, velocity.z).dot(-global_transform.basis.z)
+	_clamp_to_map()
+	_ripple_t -= delta
+	if _ripple_t <= 0.0 and Vector2(velocity.x, velocity.z).length() > 0.8:
+		_ripple_t = 0.45
+		_ripple(1.8)
+	if floor_y > SWIM_EXIT and global_transform.origin.y > SWIM_EXIT - 0.15:
+		mode = Mode.GROUND
+
+
+func floor_y_below() -> float:
+	var o := global_transform.origin
+	var hit := get_world().direct_space_state.intersect_ray(o + Vector3(0, 0.6, 0), o + Vector3(0, -6.0, 0), [self], 1)
+	return hit.position.y if hit else -999.0
+
+
+func swim_stroke() -> void:
+	Audio.play3d("swim_stroke", global_transform.origin + Vector3(0, 0.3, 0), -9.0, rand_range(0.9, 1.1))
+
+
+func _ripple(spread: float) -> void:
+	if get_parent() == null:
+		return
+	var mi := MeshInstance.new()
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = 0.5
+	mesh.bottom_radius = 0.5
+	mesh.height = 0.02
+	mesh.radial_segments = 20
+	mesh.rings = 1
+	var mat := SpatialMaterial.new()
+	mat.flags_unshaded = true
+	mat.flags_transparent = true
+	mat.albedo_color = Color(1, 1, 1, 0.55)
+	mi.mesh = mesh
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance.SHADOW_CASTING_SETTING_OFF
+	get_parent().add_child(mi)
+	var o := global_transform.origin
+	mi.global_transform.origin = Vector3(o.x, WATER_LEVEL + 0.04, o.z)
+	mi.scale = Vector3(0.4, 1.0, 0.4)
+	var tw := Tween.new()
+	mi.add_child(tw)
+	tw.interpolate_property(mi, "scale", Vector3(0.4, 1.0, 0.4), Vector3(spread, 1.0, spread), 1.0, Tween.TRANS_QUAD, Tween.EASE_OUT)
+	tw.interpolate_property(mat, "albedo_color:a", 0.55, 0.0, 1.0)
+	tw.start()
+	get_tree().create_timer(1.1).connect("timeout", mi, "queue_free")
+
+
+# ------------------------------------------------------------------ mantling
+
+# Climb onto a ledge in front of us. dir = facing / movement direction. Returns true if started.
+func try_mantle(dir: Vector3) -> bool:
+	if is_dead or mode != Mode.GROUND or _mantle_cd > 0.0:
+		return false
+	dir.y = 0.0
+	if dir.length() < 0.1:
+		return false
+	dir = dir.normalized()
+	var o := global_transform.origin
+	var space := get_world().direct_space_state
+	var chest := o + Vector3(0, 0.95, 0)
+	var wall := space.intersect_ray(chest, chest + dir * 0.95, [self], 1)
+	if not wall or abs(wall.normal.y) > 0.35:
+		return false
+	var probe: Vector3 = wall.position - wall.normal * 0.4
+	var from := probe + Vector3(0, MANTLE_MAX + 0.35, 0)
+	var top := space.intersect_ray(from, from + Vector3(0, -(MANTLE_MAX + 0.45), 0), [self], 1)
+	if not top or top.normal.y < 0.7:
+		return false
+	var rise: float = top.position.y - o.y
+	if rise < MANTLE_MIN or rise > MANTLE_MAX:
+		return false
+	var gd := ground_distance()
+	if gd < 6.0 and rise + gd > MANTLE_MAX_FROM_GROUND:
+		return false
+	if space.intersect_ray(top.position + Vector3(0, 0.1, 0), top.position + Vector3(0, 1.85, 0), [self], 1):
+		return false                      # no headroom up there
+	mode = Mode.MANTLE
+	_mantle_from = o
+	_mantle_to = top.position + Vector3(0, 0.05, 0)
+	_mantle_dir = dir
+	_mantle_dur = 0.5 + 0.16 * rise
+	_mantle_t = 0.0
+	velocity = Vector3.ZERO
+	collision_mask = 0
+	Audio.play3d("mantle", o + Vector3(0, 1.0, 0), -4.0)
+	return true
+
+
+func mantle_physics(delta: float) -> void:
+	_mantle_t += delta / _mantle_dur
+	var t: float = clamp(_mantle_t, 0.0, 1.0)
+	var rise: float = smoothstep(0.0, 0.75, t)
+	var fwd: float = smoothstep(0.35, 1.0, t)
+	var p := Vector3(lerp(_mantle_from.x, _mantle_to.x, fwd), lerp(_mantle_from.y, _mantle_to.y, rise), lerp(_mantle_from.z, _mantle_to.z, fwd))
+	global_transform.origin = p
+	if _mantle_t >= 1.0:
+		mode = Mode.GROUND
+		collision_mask = 1 | 2
+		velocity = _mantle_dir * 2.0
+		_mantle_cd = 0.5
+		_mantle_t = 0.0
 
 
 # ------------------------------------------------------------------ bus / freefall / glider
@@ -544,6 +688,7 @@ func footstep(speed: float) -> void:
 
 
 func tick_weapon(delta: float) -> void:
+	_mantle_cd = max(0.0, _mantle_cd - delta)
 	_hurt_cd = max(0.0, _hurt_cd - delta)
 	_fire_cd = max(0.0, _fire_cd - delta)
 	if _reload_left > 0.0:

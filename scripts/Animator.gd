@@ -315,6 +315,9 @@ func _pose_swim(f, delta: float) -> void:
 	var moving: bool = spd > 0.8
 	swim_phase += delta * (3.0 + spd * 1.2)
 	var s := sin(swim_phase)
+	if moving and sign(s) != f._stroke_sign:
+		f._stroke_sign = sign(s)
+		f.swim_stroke()
 	if moving:       # freestyle: arms alternate over the head, legs flutter-kick
 		var a: float = swim_phase
 		_to("ShoulderL", Vector3(-2.6 + 2.8 * sin(a), 0, -0.2))

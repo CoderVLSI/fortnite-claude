@@ -64,6 +64,13 @@ func _physics_process(delta: float) -> void:
 			if input_enabled and Input.is_action_just_pressed("jump"):
 				leave_bus()
 			interact_target = null
+		Mode.SWIM:
+			_swim_process(delta)
+		Mode.MANTLE:
+			mantle_physics(delta)
+			aim_pitch = 0.0
+			animate(delta)
+			interact_target = null
 		Mode.FREEFALL, Mode.GLIDE:
 			air_input = Controls.get_move() if input_enabled else Vector2.ZERO
 			if mode == Mode.FREEFALL and input_enabled and Input.is_action_just_pressed("jump"):
@@ -74,6 +81,17 @@ func _physics_process(delta: float) -> void:
 			interact_target = null
 		_:
 			_ground_process(delta)
+
+
+func _swim_process(delta: float) -> void:
+	var move := Controls.get_move() if input_enabled else Vector2.ZERO
+	sprinting = input_enabled and Input.is_action_pressed("sprint") and move.length() > 0.2
+	var b := global_transform.basis
+	var wish := b.x * move.x + b.z * move.y
+	swim_physics(delta, wish, 5.4 if sprinting else 3.4)
+	aim_pitch = 0.0
+	animate(delta)
+	interact_target = null
 
 
 func _ground_process(delta: float) -> void:
@@ -93,6 +111,10 @@ func _ground_process(delta: float) -> void:
 	var b := global_transform.basis
 	if not input_enabled:
 		sprinting = false
+	if input_enabled and want_jump and move.y < -0.3 and try_mantle(-b.z * -move.y + b.x * move.x):
+		return
+	if input_enabled and not grounded and move.y < -0.3 and try_mantle(-b.z):
+		return                             # jumped / fell against a ledge: grab it
 	var wish := b.x * move.x + b.z * move.y    # move.y > 0 is backwards, and basis.z points backwards
 	var speed := sprint_speed if sprinting else walk_speed
 	if is_using():
@@ -192,6 +214,8 @@ func _process(delta: float) -> void:
 			dist = 5.2
 			offset = Vector3(0.0, 1.9, 0.0)
 	var k: float = clamp(3.0 * delta, 0.0, 1.0)
+	var run_fov: float = 80.0 if (sprinting and mode == Mode.GROUND and speed_ratio() > 0.8) else (74.0 if mode == Mode.SWIM else 72.0)
+	camera.fov = lerp(camera.fov, run_fov, clamp(5.0 * delta, 0.0, 1.0))
 	spring.spring_length = lerp(spring.spring_length, dist, k)
 	head.translation = head.translation.linear_interpolate(offset, k)
 
@@ -204,6 +228,10 @@ func _look(delta: float) -> void:
 
 func _can_aim() -> bool:
 	return Controls.touch_mode or Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED
+
+
+func speed_ratio() -> float:
+	return Vector2(velocity.x, velocity.z).length() / sprint_speed
 
 
 func aim_origin_and_dir() -> Array:

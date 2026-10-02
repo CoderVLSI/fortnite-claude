@@ -56,6 +56,13 @@ func _physics_process(delta: float) -> void:
 		move_body(delta, Vector3.ZERO, 0.0, false)
 		animate(delta)
 		return
+	if mode == Mode.SWIM:
+		_swim_logic(delta)
+		return
+	if mode == Mode.MANTLE:
+		mantle_physics(delta)
+		animate(delta)
+		return
 	if mode != Mode.GROUND:
 		_air_logic(delta)
 		return
@@ -131,6 +138,18 @@ func _physics_process(delta: float) -> void:
 		var dir := (chest - eye).normalized()
 		aim_pitch = asin(clamp(dir.y, -1.0, 1.0))
 		try_fire(eye, dir)
+	animate(delta)
+
+
+func _swim_logic(delta: float) -> void:
+	# head for the island centre until we can stand again
+	var to := Vector3(0, 0, 0) - global_transform.origin
+	to.y = 0.0
+	var wish := to.normalized()
+	rotation.y = lerp_angle(rotation.y, atan2(-wish.x, -wish.z), clamp(5.0 * delta, 0.0, 1.0))
+	sprinting = false
+	swim_physics(delta, wish, 3.4)
+	aim_pitch = 0.0
 	animate(delta)
 
 
@@ -236,6 +255,9 @@ func _avoid_walls(wish: Vector3, delta: float) -> Vector3:
 func _check_stuck(delta: float, before: Vector3, wish: Vector3) -> void:
 	if wish.length() > 0.1 and global_transform.origin.distance_to(before) < 0.01:
 		_stuck_t += delta
+		if _stuck_t > 0.5 and try_mantle(-global_transform.basis.z):
+			_stuck_t = 0.0
+			return
 		if _stuck_t > 1.2:
 			_stuck_t = 0.0
 			_avoid_t = 1.0
