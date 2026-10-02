@@ -72,17 +72,24 @@ loot crate to `assets/models/`.
 
 ## Build for Android
 
-Needs Godot export templates 3.5.2, the Android SDK and a debug keystore:
+Needs the Godot 3.5.2 export templates, the Android SDK and a debug keystore.
 
-```
-tools/setup_android.sh        # creates a debug keystore, prints the Editor Settings to fill in
-godot --path . --export-debug "Android" build/android/StormIsland.apk
-adb install -r build/android/StormIsland.apk
-```
+* **Your own machine:** `tools/setup_android.sh` (keystore + the Editor Settings to fill in), install the
+  templates from the editor, then `godot --path . --export-debug "Android" build/android/StormIsland-debug.apk`.
+* **Locked-down box / cloud sandbox** (godotengine.org and GitHub releases blocked, Docker Hub reachable):
+  `tools/fetch_export_toolchain.sh` pulls the templates + Android SDK out of the public
+  `barichello/godot-ci:3.5.2` image and configures signing; then `tools/build_android.sh`.
+* **CI:** `.github/workflows/build.yml` exports Android, Windows and Linux with that same image
+  (not yet run on GitHub).
 
-Or let GitHub Actions do it: `.github/workflows/build.yml` exports Android, Windows and Linux
-builds using the `barichello/godot-ci` image (the workflow was not run in the authoring sandbox,
-so expect to tweak a path on the first run).
+Install with `adb install -r build/android/StormIsland-debug.apk`. The APK is debug-signed; make a release
+keystore before publishing anywhere.
+
+## Linux build + screenshot tests
+
+`tools/test_linux_build.sh` exports the **"Linux Test"** preset (a normal Linux build that also packs
+`tests/`) and runs the smoke test from the exported binary under Xvfb, saving screenshots to
+`tests/out/linux-build/`. The normal "Linux/X11" preset leaves the tests out.
 
 ## Status / not done yet
 
