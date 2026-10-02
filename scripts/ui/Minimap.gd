@@ -27,6 +27,17 @@ func _draw() -> void:
 	if storm.waiting and not storm.finished:
 		draw_arc(mid + storm.next_center * s, storm.next_radius * s, 0, TAU, 48, Color(1, 1, 1, 0.9), 1.5)
 
+	for sup in get_tree().get_nodes_in_group("supply"):
+		if is_instance_valid(sup) and not sup.opened:
+			var sp := Vector2(sup.global_transform.origin.x, sup.global_transform.origin.z)
+			draw_rect(Rect2(mid + sp * s - Vector2(4, 4), Vector2(8, 8)), Color(1.0, 0.3, 0.25))
+			draw_rect(Rect2(mid + sp * s - Vector2(4, 4), Vector2(8, 8)), Color.white, false, 1.5)
+	if world.bus != null and is_instance_valid(world.bus):
+		var bp := Vector2(world.bus.global_transform.origin.x, world.bus.global_transform.origin.z)
+		var bd := Vector2(world.bus.direction.x, world.bus.direction.z)
+		draw_line(mid + bp * s - bd * 8.0, mid + bp * s + bd * 8.0, Color(1.0, 0.7, 0.2), 4.0)
+		draw_circle(mid + bp * s + bd * 8.0, 3.5, Color(1.0, 0.95, 0.6))
+
 	var p = world.player
 	var pp := Vector2(p.global_transform.origin.x, p.global_transform.origin.z)
 	for f in get_tree().get_nodes_in_group("fighters"):
@@ -40,4 +51,9 @@ func _draw() -> void:
 	var perp := Vector2(-fwd.y, fwd.x)
 	var c := mid + pp * s
 	draw_colored_polygon(PoolVector2Array([c + fwd * 9.0, c - fwd * 5.0 + perp * 5.5, c - fwd * 5.0 - perp * 5.5]), Color(1, 1, 1))
+	var font := get_font("font", "Label")
+	var loc: String = world.location_name(p.global_transform.origin)
+	draw_rect(Rect2(Vector2(0, rect_size.y - 24), Vector2(rect_size.x, 24)), Color(0, 0, 0, 0.55))
+	var nw := font.get_string_size(loc).x
+	draw_string(font, Vector2((rect_size.x - nw) / 2.0, rect_size.y - 6), loc, Color.white)
 	draw_rect(Rect2(Vector2.ZERO, rect_size), Color(1, 1, 1, 0.6), false, 2.0)

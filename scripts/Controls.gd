@@ -4,6 +4,7 @@ extends Node
 # ever asks `Input.is_action_pressed("fire")` and friends.
 
 signal touch_mode_changed(enabled)
+signal slot_scroll(direction)   # +1 next item, -1 previous (mouse wheel / gamepad bumpers)
 
 const MOVE_ACTIONS = ["move_forward", "move_back", "move_left", "move_right"]
 
@@ -35,6 +36,8 @@ func _register_actions() -> void:
 	_key("sprint", KEY_SHIFT)
 	_key("reload", KEY_R)
 	_key("interact", KEY_E)
+	for i in range(5):
+		_key("slot_%d" % (i + 1), KEY_1 + i)
 	_mouse("fire", BUTTON_LEFT)
 	# Gamepad: left stick = move, right stick = look, R2/RB = fire, A = jump.
 	_axis("move_left", JOY_AXIS_0, -1.0)
@@ -48,8 +51,9 @@ func _register_actions() -> void:
 	_pad("jump", JOY_XBOX_A)
 	_pad("reload", JOY_XBOX_X)
 	_pad("sprint", JOY_BUTTON_8)  # left stick click
-	_pad("fire", JOY_R)
+	_pad("fire", JOY_R2)
 	_axis("fire", JOY_AXIS_7, 1.0)  # right trigger
+	_pad("interact", JOY_XBOX_Y)
 
 
 func _add(action: String, event: InputEvent) -> void:
@@ -86,6 +90,12 @@ func _pad(action: String, button: int) -> void:
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
 		mouse_look += event.relative
+	elif event is InputEventMouseButton and event.pressed and event.button_index == BUTTON_WHEEL_UP:
+		emit_signal("slot_scroll", -1)
+	elif event is InputEventMouseButton and event.pressed and event.button_index == BUTTON_WHEEL_DOWN:
+		emit_signal("slot_scroll", 1)
+	elif event is InputEventJoypadButton and event.pressed and (event.button_index == JOY_L or event.button_index == JOY_R):
+		emit_signal("slot_scroll", 1 if event.button_index == JOY_R else -1)
 	elif event is InputEventScreenTouch and not touch_mode:
 		set_touch_mode(true)  # a real touchscreen appeared (e.g. touch laptop)
 	elif event is InputEventJoypadButton or event is InputEventKey:

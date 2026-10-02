@@ -21,6 +21,7 @@ var damage_per_second := 0.0
 var next_center := Vector2.ZERO
 var next_radius := 100.0
 var finished := false
+var active := true          # false while the battle bus is still flying
 
 var _from_center := Vector2.ZERO
 var _from_radius := 0.0
@@ -56,7 +57,7 @@ func _begin_shrink() -> void:
 
 
 func _process(delta: float) -> void:
-	if finished:
+	if finished or not active:
 		return
 	time_left -= delta
 	if not waiting:
@@ -104,6 +105,8 @@ func skip_to(target_phase: int) -> void:
 
 
 func status_text() -> String:
+	if not active:
+		return "Battle bus in flight"
 	if finished:
 		return "Final circle"
 	var secs := int(ceil(max(time_left, 0.0)))

@@ -7,6 +7,7 @@ extends Control
 const STICK_RADIUS := 105.0
 const DEAD_ZONE := 0.12
 
+var hotbar                  # set by the HUD: taps on it select slots
 var _stick_id := -1
 var _stick_origin := Vector2.ZERO
 var _stick_pos := Vector2.ZERO
@@ -30,11 +31,18 @@ func _layout() -> void:
 	_buttons = {
 		"fire": {"center": Vector2(w - 150, h - 150), "radius": 82.0, "label": "FIRE", "action": "fire", "look_drag": true},
 		"jump": {"center": Vector2(w - 335, h - 110), "radius": 60.0, "label": "JUMP", "action": "jump"},
-		"reload": {"center": Vector2(w - 135, h - 330), "radius": 58.0, "label": "RELOAD", "action": "reload"},
+		"reload": {"center": Vector2(w - 305, h - 268), "radius": 54.0, "label": "RELOAD", "action": "reload"},
+		"interact": {"center": Vector2(w - 140, h - 322), "radius": 60.0, "label": "PICK UP", "action": "interact", "hidden": true},
 		"sprint": {"center": Vector2(255, h - 340), "radius": 58.0, "label": "SPRINT", "action": "sprint", "toggle": true},
 	}
 	for b in _buttons.values():
 		b["id"] = -1
+
+
+func set_interact(show: bool) -> void:
+	if _buttons.has("interact") and _buttons["interact"].get("hidden", false) == show:
+		_buttons["interact"]["hidden"] = not show
+		update()
 
 
 func _stick_home() -> Vector2:
@@ -71,7 +79,14 @@ func _input(event: InputEvent) -> void:
 
 
 func _down(index: int, pos: Vector2) -> void:
+	if hotbar != null and hotbar.visible:
+		var slot: int = hotbar.slot_at(pos)
+		if slot >= 0:
+			hotbar.emit_signal("slot_pressed", slot)
+			return
 	for b in _buttons.values():
+		if b.get("hidden", false):
+			continue
 		if pos.distance_to(b["center"]) <= b["radius"] * 1.2 and b["id"] == -1:
 			b["id"] = index
 			if b.get("toggle", false):
@@ -158,8 +173,12 @@ func _draw() -> void:
 	draw_circle(knob, 44.0, Color(1, 1, 1, 0.30 if _stick_id == -1 else 0.55))
 
 	for b in _buttons.values():
+		if b.get("hidden", false):
+			continue
 		var active: bool = b["id"] != -1 or (b.get("toggle", false) and _sprint_toggle)
 		var tint := Color(1.0, 0.35, 0.3) if b["action"] == "fire" else Color(1, 1, 1)
+		if b["action"] == "interact":
+			tint = Color(1.0, 0.85, 0.3)
 		draw_circle(b["center"], b["radius"], Color(tint.r, tint.g, tint.b, 0.40 if active else 0.16))
 		draw_arc(b["center"], b["radius"], 0, TAU, 40, Color(tint.r, tint.g, tint.b, 0.65), 3.0)
 		var tw := font.get_string_size(b["label"]).x

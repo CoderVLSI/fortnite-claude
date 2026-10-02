@@ -2,19 +2,30 @@ extends CanvasLayer
 # Builds and updates the whole HUD in code: bars, ammo, minimap, storm timer,
 # kill feed, damage flash, end screen and the touch controls.
 
+const Items = preload("res://scripts/Items.gd")
 const Bar = preload("res://scripts/ui/Bar.gd")
+const Hotbar = preload("res://scripts/ui/Hotbar.gd")
+const Compass = preload("res://scripts/ui/Compass.gd")
 const Crosshair = preload("res://scripts/ui/Crosshair.gd")
 const Minimap = preload("res://scripts/ui/Minimap.gd")
 const TouchControls = preload("res://scripts/ui/TouchControls.gd")
 const FONT_PATH := "res://assets/fonts/DejaVuSans-Bold.ttf"
 
 const MAP_SIZE := 190.0
+const MODE_BUS := 1         # mirrors Fighter.Mode
+const MODE_FREEFALL := 2
+const MODE_GLIDE := 3
 
 var world
 var player
 var root: Control
 var crosshair: Control
 var minimap: Control
+var hotbar: Control
+var compass: Control
+var prompt_label: Label
+var bus_label: Label
+var use_bar: Control
 var touch: Control
 var health_bar: Control
 var shield_bar: Control
@@ -115,12 +126,16 @@ func _build() -> void:
 	_place(stats_label, 1.0, 0.0, Vector2(-296, MAP_SIZE + 20), Vector2(280, 30))
 	root.add_child(stats_label)
 
+	compass = Compass.new()
+	_place(compass, 0.5, 0.0, Vector2(-220, 8), Vector2(440, 30))
+	root.add_child(compass)
+
 	storm_label = _label("", Label.ALIGN_CENTER, Color(0.85, 0.7, 1.0))
-	_place(storm_label, 0.5, 0.0, Vector2(-230, 14), Vector2(460, 34))
+	_place(storm_label, 0.5, 0.0, Vector2(-230, 58), Vector2(460, 30))
 	root.add_child(storm_label)
 
 	warn_label = _label("YOU ARE IN THE STORM", Label.ALIGN_CENTER, Color(1.0, 0.45, 0.9))
-	_place(warn_label, 0.5, 0.0, Vector2(-230, 50), Vector2(460, 30))
+	_place(warn_label, 0.5, 0.0, Vector2(-230, 90), Vector2(460, 30))
 	warn_label.visible = false
 	root.add_child(warn_label)
 
@@ -152,9 +167,32 @@ func _build() -> void:
 	hint_label.visible = false
 	root.add_child(hint_label)
 
+	hotbar = Hotbar.new()
+	root.add_child(hotbar)
+	hotbar.connect("slot_pressed", self, "_on_slot_pressed")
+
+	prompt_label = _label("", Label.ALIGN_CENTER)
+	_place(prompt_label, 0.5, 0.5, Vector2(-260, 70), Vector2(520, 32))
+	prompt_label.visible = false
+	root.add_child(prompt_label)
+
+	bus_label = _label("", Label.ALIGN_CENTER, Color(1.0, 0.92, 0.55))
+	_place(bus_label, 0.5, 0.5, Vector2(-330, -150), Vector2(660, 34))
+	bus_label.visible = false
+	root.add_child(bus_label)
+
+	use_bar = Bar.new()
+	use_bar.fill_color = Color(1.0, 0.85, 0.3)
+	use_bar.max_value = 1.0
+	_place(use_bar, 0.5, 0.5, Vector2(-90, 46), Vector2(180, 12))
+	use_bar.visible = false
+	root.add_child(use_bar)
+
 	touch = TouchControls.new()
 	touch.visible = Controls.touch_mode
+	touch.hotbar = hotbar
 	root.add_child(touch)
+	_layout_hotbar()
 
 	_build_end_panel()
 
@@ -190,9 +228,25 @@ func bind(world_node) -> void:
 	player.connect("damaged", self, "_on_player_damaged")
 	player.connect("hit_landed", self, "_on_hit_landed")
 	player.connect("picked_up", self, "show_toast")
+	hotbar.set_player(player)
+
+
+func _layout_hotbar() -> void:
+	var size: Vector2 = Hotbar.wanted_size()
+	if Controls.touch_mode:      # centre, above the ammo readout: keeps the thumbs' corners free
+		_place(hotbar, 0.5, 1.0, Vector2(-size.x / 2.0, -size.y - 150.0), size)
+	else:                        # bottom-right like a PC shooter
+		_place(hotbar, 1.0, 1.0, Vector2(-size.x - 16.0, -size.y - 12.0), size)
+	hotbar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+
+func _on_slot_pressed(index: int) -> void:
+	if player:
+		player.select_slot(index)
 
 
 func _on_touch_mode(enabled: bool) -> void:
+	_layout_hotbar()
 	if touch:
 		touch.visible = enabled and not end_panel.visible
 
@@ -244,14 +298,13 @@ func _process(delta: float) -> void:
 	health_bar.value = player.health
 	shield_bar.max_value = player.max_shield
 	shield_bar.value = player.shield
-	if player.is_reloading():
-		ammo_label.text = "RELOADING..."
-	else:
-		ammo_label.text = "%d  |  %d" % [player.ammo, player.reserve]
+	ammo_label.text = _ammo_text()
+	compass.heading = -rad2deg(player.rotation.y)
+	_update_prompts()
 	storm_label.text = world.storm.status_text()
 	stats_label.text = "ALIVE %d    KILLS %d" % [world.alive_count(), player.kills]
 
-	var outside: bool = not player.is_dead and not world.storm.is_inside(player.global_transform.origin)
+	var outside: bool = world.storm.active and not player.is_dead and not world.storm.is_inside(player.global_transform.origin)
 	warn_label.visible = outside
 	storm_rect.color.a = (0.16 + sin(_t * 5.0) * 0.04) if outside else 0.0
 	_flash = max(0.0, _flash - delta * 2.5)
@@ -265,3 +318,47 @@ func _process(delta: float) -> void:
 
 	hint_label.visible = (not Controls.touch_mode) and (not end_panel.visible) \
 		and Input.get_mouse_mode() != Input.MOUSE_MODE_CAPTURED
+
+
+func _ammo_text() -> String:
+	var item = player.selected_item()
+	if item == null:
+		return ""
+	match item.kind:
+		"weapon":
+			if player.is_reloading():
+				return "RELOADING..."
+			return "%d  |  %d" % [item.mag, player.get_reserve()]
+		"consumable":
+			return Items.CONSUMABLES[item.id].name.to_upper()
+	return "PICKAXE"
+
+
+func _update_prompts() -> void:
+	# interact prompt for the nearest loot / chest
+	var target = player.interact_target
+	var has_target: bool = target != null and is_instance_valid(target) and not player.is_dead
+	if has_target:
+		var key := "" if Controls.touch_mode else "[E] "
+		prompt_label.text = key + target.prompt_text()
+		prompt_label.add_color_override("font_color", target.prompt_color())
+	prompt_label.visible = has_target
+	touch.set_interact(has_target)
+	# consumable progress
+	use_bar.visible = player.is_using()
+	if use_bar.visible:
+		use_bar.value = player.use_progress()
+	# bus / freefall / glider hints
+	var jump_key := "JUMP" if Controls.touch_mode else "SPACE"
+	match player.mode:
+		MODE_BUS:
+			bus_label.text = "PRESS %s TO DROP FROM THE BUS" % jump_key
+			bus_label.visible = true
+		MODE_FREEFALL:
+			bus_label.text = "FREEFALL  %dm   (%s: open glider)" % [int(player.ground_distance()), jump_key]
+			bus_label.visible = true
+		MODE_GLIDE:
+			bus_label.text = "GLIDING  %dm" % int(player.ground_distance())
+			bus_label.visible = true
+		_:
+			bus_label.visible = false

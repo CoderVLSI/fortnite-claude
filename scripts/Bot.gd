@@ -12,6 +12,8 @@ var skill := 0.5                # 0 = clumsy, 1 = sharp
 var state: int = State.WANDER
 var target = null
 
+var jump_at := 200.0            # distance along the bus route at which this bot drops
+var land_target := Vector3.ZERO
 var _think := 0.0
 var _wander_to := Vector3.ZERO
 var _react := 0.0
@@ -25,16 +27,23 @@ var _stuck_t := 0.0
 
 
 func _ready() -> void:
+	damage_scale = 0.45 + skill * 0.2      # bots hit softer than the player's weapons
 	setup_fighter(display_name, vest_color)
-	gun_damage = 7.0 + skill * 4.0
-	spread_deg = 3.6 - skill * 1.6
-	fire_interval = 0.17
-	reserve = 99999
+	_equip_loadout()
 	walk_speed = 4.6
 	sprint_speed = 7.4
 	_think = rand_range(0.0, 0.5)
 	_wander_to = global_transform.origin
 	connect("died", self, "_on_died")
+
+
+func _equip_loadout() -> void:
+	var w: Dictionary = Items.random_weapon(world.rng, 0)
+	give_weapon(w.id, w.rarity)
+	for type in reserves.keys():
+		reserves[type] = 99999
+	# bots reload instantly-ish and never run dry
+	spread_deg += (1.0 - skill) * 1.5
 
 
 func _on_died(_victim, _killer) -> void:
@@ -45,6 +54,9 @@ func _physics_process(delta: float) -> void:
 	tick_weapon(delta)
 	if is_dead:
 		move_body(delta, Vector3.ZERO, 0.0, false)
+		return
+	if mode != Mode.GROUND:
+		_air_logic(delta)
 		return
 	_think -= delta
 	if _think <= 0.0:
@@ -84,9 +96,10 @@ func _physics_process(delta: float) -> void:
 					_strafe = -_strafe
 				var side := fwd.cross(Vector3.UP) * _strafe
 				wish = side * 0.7
-				if dist > 30.0:
+				var prefer: float = min(30.0, weapon_range * 0.55)
+				if dist > prefer:
 					wish += fwd
-				elif dist < 12.0:
+				elif dist < prefer * 0.4:
 					wish -= fwd
 				face = fwd
 				_react -= delta
@@ -119,6 +132,32 @@ func _physics_process(delta: float) -> void:
 	animate(delta)
 
 
+func _air_logic(delta: float) -> void:
+	if mode == Mode.BUS:
+		follow_bus()
+		if bus != null and bus.traveled >= jump_at:
+			_pick_landing(bus.global_transform.origin)
+			rotation.y = atan2(-(land_target.x - global_transform.origin.x), -(land_target.z - global_transform.origin.z))
+			leave_bus()
+		return
+	var to := land_target - global_transform.origin
+	to.y = 0.0
+	var dist := to.length()
+	if dist > 1.0:
+		var yaw := atan2(-to.x, -to.z)
+		rotation.y = lerp_angle(rotation.y, yaw, clamp(4.0 * delta, 0.0, 1.0))
+	air_input = Vector2(0, -1) if dist > 14.0 else Vector2(0, 1 if mode == Mode.FREEFALL else 0)
+	if mode == Mode.FREEFALL and ground_distance() < DEPLOY_ALTITUDE + 10.0:
+		deploy_glider()
+	air_physics(delta)
+	aim_pitch = 0.0
+	animate(delta)
+
+
+func _pick_landing(from_pos: Vector3) -> void:
+	land_target = world.random_point_near(from_pos, 85.0)
+
+
 func _decide() -> void:
 	var origin := global_transform.origin
 	if not world.storm.is_inside(origin):
@@ -136,7 +175,7 @@ func _decide() -> void:
 			_pick_wander()
 		return
 	var dist := origin.distance_to(target.global_transform.origin)
-	if dist < ATTACK_RANGE and _line_of_sight(target):
+	if dist < min(ATTACK_RANGE, weapon_range * 0.85) and _line_of_sight(target):
 		if state != State.ATTACK:
 			_react = rand_range(0.35, 0.9) * (1.5 - skill)
 			_burst = rand_range(0.4, 0.9)

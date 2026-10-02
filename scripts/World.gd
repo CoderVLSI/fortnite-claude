@@ -1,20 +1,25 @@
 extends Spatial
-# Main scene. Builds the island (terrain, town, houses, trees, rocks, loot),
-# spawns the player and bots, runs the shrinking storm and decides the match
-# result. Quality is chosen per platform: Android gets fewer bots/trees and no
-# real-time shadows.
+# Main scene. Builds the island (terrain, town, houses, trees, rocks, chests, floor loot),
+# spawns the player and bots on the battle bus, runs the shrinking storm and supply drops,
+# and decides the match result. Quality is chosen per platform: Android gets fewer
+# bots/trees and no real-time shadows.
 
+const Items = preload("res://scripts/Items.gd")
 const Terrain = preload("res://scripts/Terrain.gd")
 const Storm = preload("res://scripts/Storm.gd")
 const Player = preload("res://scripts/Player.gd")
 const Bot = preload("res://scripts/Bot.gd")
-const Loot = preload("res://scripts/Loot.gd")
+const LootItem = preload("res://scripts/LootItem.gd")
+const Chest = preload("res://scripts/Chest.gd")
+const Bus = preload("res://scripts/Bus.gd")
 const HUD = preload("res://scripts/HUD.gd")
 
 const MAP_HALF := 160.0
 const SEED := 20241002
 const MODEL_DIR := "res://assets/models/"
 const HOUSES := ["house_a", "house_b"]
+const BUS_ALTITUDE := 260.0
+const BUS_LENGTH := 480.0
 const BOT_NAMES := ["Rook", "Nova", "Echo", "Blitz", "Sable", "Juno", "Kestrel", "Moxie", "Vesper", "Dash",
 	"Onyx", "Pixel", "Zephyr", "Ember", "Gizmo", "Havoc", "Indigo", "Lynx", "Maverick", "Nimbus",
 	"Orbit", "Pepper", "Quill", "Riot", "Sprout"]
@@ -27,12 +32,18 @@ var terrain
 var storm
 var player
 var hud
+var bus = null
 var building_positions := []     # Vector2 (x, z) for the minimap
 var tree_positions := []         # Vector2 (x, z), used to keep spawns out of foliage
 var match_over := false
 
+var shared := {}                 # cached meshes/materials shared by loot items
+var _props := {}                 # model name -> {mm, body, hits}
+var _supply_phase := -1
+
 
 func _ready() -> void:
+	add_to_group("world")
 	rng.seed = SEED
 	profile = _make_profile()
 	if not profile.mobile:
@@ -46,17 +57,20 @@ func _ready() -> void:
 	var plan := _plan_buildings()
 	terrain.build()
 	_spawn_buildings(plan)
-	_scatter_props("tree", profile.trees, 0.8, 1.5, 0.45, 3.0, 2.2)
-	_scatter_props("rock", profile.rocks, 1.0, 2.6, 0.9, 1.4, 1.6)
+	_scatter_props("tree", profile.trees, 0.8, 1.5, 0.45, 3.0, 2.2, "wood")
+	_scatter_props("rock", profile.rocks, 1.0, 2.6, 0.9, 1.4, 1.6, "stone")
 
 	storm = Storm.new()
 	storm.name = "Storm"
+	storm.active = not profile.use_bus
 	add_child(storm)
 	storm.setup(MAP_HALF - 8.0, rng)
 
 	rng.randomize()      # same island every match, different spawns/loot
-	_spawn_loot(plan)
+	_spawn_containers_and_loot(plan)
 	_spawn_fighters()
+	if profile.use_bus:
+		_start_bus()
 
 	hud = HUD.new()
 	hud.name = "HUD"
@@ -75,9 +89,11 @@ func _make_profile() -> Dictionary:
 		"trees": 170 if mobile else 420,
 		"rocks": 22 if mobile else 55,
 		"outlying": 9 if mobile else 14,
-		"crates": 14 if mobile else 26,
+		"floor_items": 22 if mobile else 38,
+		"outdoor_chests": 3 if mobile else 5,
 		"shadows": not mobile,
 		"cell": 4.0 if mobile else 3.0,
+		"use_bus": not ("--no-bus" in args),
 	}
 	for a in args:
 		if a.begins_with("--bots="):
@@ -105,7 +121,7 @@ func _setup_environment() -> void:
 	env.fog_enabled = true
 	env.fog_color = Color(0.74, 0.85, 0.96)
 	env.fog_depth_begin = 150.0
-	env.fog_depth_end = 430.0
+	env.fog_depth_end = 520.0
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.adjustment_enabled = true
 	env.adjustment_saturation = 1.18
@@ -124,7 +140,7 @@ func _setup_environment() -> void:
 	var water := MeshInstance.new()
 	water.name = "Water"
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(1600, 1600)
+	plane.size = Vector2(2000, 2000)
 	water.mesh = plane
 	var wm := SpatialMaterial.new()
 	wm.albedo_color = Color(0.10, 0.48, 0.68, 0.86)
@@ -182,15 +198,17 @@ func _spawn_buildings(plan: Array) -> void:
 		inst.translation = Vector3(p.x, terrain.height_at(p.x, p.y), p.y)
 		inst.rotation.y = entry.yaw
 		add_child(inst)
-		_add_trimesh_collision(inst)
+		_add_trimesh_collision(inst, "metal" if entry.res == "tower" else "wood")
 		building_positions.append(p)
 
 
-func _add_trimesh_collision(node: Node) -> void:
+func _add_trimesh_collision(node: Node, harvest_kind: String) -> void:
 	if node is MeshInstance:
 		node.create_trimesh_collision()
 	for c in node.get_children():
-		_add_trimesh_collision(c)
+		if c is StaticBody:
+			c.set_meta("harvest", harvest_kind)
+		_add_trimesh_collision(c, harvest_kind)
 
 
 func _find_mesh(node: Node):
@@ -205,7 +223,7 @@ func _find_mesh(node: Node):
 
 # ------------------------------------------------------------------ props
 
-func _scatter_props(model: String, count: int, smin: float, smax: float, col_radius: float, col_height: float, min_h: float) -> void:
+func _scatter_props(model: String, count: int, smin: float, smax: float, col_radius: float, col_height: float, min_h: float, harvest_kind: String) -> void:
 	var scene = load(MODEL_DIR + model + ".glb")
 	if scene == null:
 		return
@@ -249,6 +267,7 @@ func _scatter_props(model: String, count: int, smin: float, smax: float, col_rad
 	body.name = model.capitalize() + "Colliders"
 	body.collision_layer = 1
 	body.collision_mask = 0
+	body.set_meta("harvest", harvest_kind)
 	add_child(body)
 	for i in range(transforms.size()):
 		var cyl := CylinderShape.new()
@@ -258,34 +277,96 @@ func _scatter_props(model: String, count: int, smin: float, smax: float, col_rad
 		cs.shape = cyl
 		cs.translation = transforms[i].origin + Vector3(0, cyl.height / 2.0, 0)
 		body.add_child(cs)
+	_props[body.name] = {"mm": mm, "body": body, "hits": {}, "transforms": transforms}
 
 
-# ------------------------------------------------------------------ loot & fighters
+# Pickaxe hit on a harvestable thing. Trees / rocks run out after a few swings.
+func harvest_hit(body, shape_idx: int, kind: String, by) -> void:
+	by.add_material(kind, 8 + rng.randi() % 5)
+	if not _props.has(body.name):
+		return
+	var data: Dictionary = _props[body.name]
+	var hits: int = data.hits.get(shape_idx, 0) + 1
+	data.hits[shape_idx] = hits
+	if hits >= 5 and shape_idx < data.body.get_child_count():
+		var gone := Transform(Basis().scaled(Vector3(0.0001, 0.0001, 0.0001)), data.transforms[shape_idx].origin)
+		data.mm.set_instance_transform(shape_idx, gone)
+		data.body.get_child(shape_idx).set_deferred("disabled", true)
 
-func _spawn_loot(plan: Array) -> void:
+
+# ------------------------------------------------------------------ containers, loot, fighters
+
+func _interior_point(entry: Dictionary, local: Vector3) -> Vector3:
+	var p: Vector2 = entry.pos
+	var big: bool = entry.res == HOUSES[1]
+	var l := Vector3(local.x * (1.25 if big else 1.0), 0.0, local.z * (1.15 if big else 1.0)).rotated(Vector3.UP, entry.yaw)
+	return Vector3(p.x + l.x, terrain.height_at(p.x, p.y) + 0.15, p.y + l.z)
+
+
+func _spawn_containers_and_loot(plan: Array) -> void:
 	for entry in plan:
 		if not entry.house:
 			continue
-		var local := Vector3(2.0, 0.0, -1.0).rotated(Vector3.UP, entry.yaw)
-		var p: Vector2 = entry.pos
-		_add_loot(Vector3(p.x + local.x, terrain.height_at(p.x, p.y) + 0.15, p.y + local.z))
+		if rng.randf() < 0.85:
+			_add_chest("chest", _interior_point(entry, Vector3(-2.7, 0, -2.3)), entry.yaw)
+		if rng.randf() < 0.4:
+			_add_chest("ammo_box", _interior_point(entry, Vector3(2.7, 0, -2.5)), entry.yaw)
+		for local in [Vector3(2.5, 0, 1.2), Vector3(-2.4, 0, 1.5)]:
+			var it: Dictionary = Items.random_weapon(rng) if rng.randf() < 0.5 else Items.random_floor_item(rng)
+			spawn_item(it, _interior_point(entry, local) + Vector3(0, 0.1, 0))
+
 	var placed := 0
 	var tries := 0
-	while placed < profile.crates and tries < 200:
+	while placed < profile.floor_items and tries < 400:
 		tries += 1
-		var p := Vector2(rng.randf_range(-1.0, 1.0), rng.randf_range(-1.0, 1.0)) * MAP_HALF * 0.75
+		var p := Vector2(rng.randf_range(-1.0, 1.0), rng.randf_range(-1.0, 1.0)) * MAP_HALF * 0.78
 		var h: float = terrain.height_at(p.x, p.y)
-		if h < 2.5 or _near_building(p, 8.0):
+		if h < 2.5 or _near_tree(p, 2.5):
 			continue
-		_add_loot(Vector3(p.x, h + 0.1, p.y))
+		spawn_item(Items.random_floor_item(rng), Vector3(p.x, h + 0.1, p.y))
+		placed += 1
+	placed = 0
+	tries = 0
+	while placed < profile.outdoor_chests and tries < 300:
+		tries += 1
+		var p := Vector2(rng.randf_range(-1.0, 1.0), rng.randf_range(-1.0, 1.0)) * MAP_HALF * 0.74
+		var h: float = terrain.height_at(p.x, p.y)
+		if h < 2.5 or _near_building(p, 12.0) or _near_tree(p, 3.0):
+			continue
+		_add_chest("chest" if placed % 2 == 0 else "ammo_box", Vector3(p.x, h, p.y), rng.randf() * TAU)
 		placed += 1
 
 
-func _add_loot(pos: Vector3, kind: String = "") -> void:
-	var loot := Loot.new()
-	loot.kind = kind if kind != "" else Loot.KINDS[rng.randi() % Loot.KINDS.size()]
-	loot.translation = pos
-	add_child(loot)
+func _add_chest(kind: String, pos: Vector3, yaw: float) -> Node:
+	var c := Chest.new()
+	c.kind = kind
+	c.translation = pos
+	c.rotation.y = yaw
+	add_child(c)
+	return c
+
+
+func spawn_item(item: Dictionary, pos: Vector3) -> Node:
+	var li := LootItem.new()
+	li.setup(item)
+	li.translation = pos
+	add_child(li)
+	return li
+
+
+func _drop_inventory(victim) -> void:
+	var pos: Vector3 = victim.global_transform.origin
+	var n := 0
+	for i in range(1, victim.slots.size()):
+		var it = victim.slots[i]
+		if it == null:
+			continue
+		var a := float(n) * 1.7
+		spawn_item(it.duplicate(), pos + Vector3(cos(a), 0.2, sin(a)) * 1.1)
+		n += 1
+		if it.kind == "weapon":
+			var ammo := Items.make_ammo(Items.WEAPONS[it.id].ammo, Items.AMMO[Items.WEAPONS[it.id].ammo].pack)
+			spawn_item(ammo, pos + Vector3(cos(a + 1.0), 0.2, sin(a + 1.0)) * 1.4)
 
 
 func _near_building(p: Vector2, dist: float) -> bool:
@@ -347,9 +428,32 @@ func _spawn_fighters() -> void:
 		bot.skill = rng.randf_range(0.2, 0.85)
 		bot.map_half = MAP_HALF - 4.0
 		bot.translation = _spawn_point(p)
+		bot.jump_at = rng.randf_range(110.0, 380.0)
 		add_child(bot)
 		bot.rotation.y = rng.randf() * TAU
 		bot.connect("died", self, "_on_fighter_died")
+
+
+func _start_bus() -> void:
+	var a := rng.randf() * TAU
+	var dir := Vector3(cos(a), 0.0, sin(a))
+	var perp := Vector3(-dir.z, 0.0, dir.x)
+	var start := -dir * (BUS_LENGTH / 2.0) + perp * rng.randf_range(-45.0, 45.0) + Vector3(0, BUS_ALTITUDE, 0)
+	bus = Bus.new()
+	bus.name = "Bus"
+	add_child(bus)
+	bus.setup(start, dir, BUS_LENGTH)
+	bus.connect("finished", self, "_on_bus_finished")
+	for f in get_tree().get_nodes_in_group("fighters"):
+		f.enter_bus(bus)
+	player.rotation.y = atan2(-dir.x, -dir.z)
+	player.pitch = -0.2
+
+
+func _on_bus_finished() -> void:
+	for f in get_tree().get_nodes_in_group("fighters"):
+		f.leave_bus()
+	storm.active = true
 
 
 func alive_count() -> int:
@@ -371,6 +475,47 @@ func random_point_in_safe_zone() -> Vector3:
 	return Vector3(storm.center.x, 10.0, storm.center.y)
 
 
+func random_point_near(pos: Vector3, radius: float) -> Vector3:
+	for i in range(14):
+		var a := rng.randf() * TAU
+		var r := sqrt(rng.randf()) * radius
+		var p := Vector2(pos.x + cos(a) * r, pos.z + sin(a) * r)
+		if p.length() > MAP_HALF * 0.8:
+			continue
+		var h: float = terrain.height_at(p.x, p.y)
+		if h > 2.0:
+			return Vector3(p.x, h, p.y)
+	return random_point_in_safe_zone()
+
+
+func location_name(pos: Vector3) -> String:
+	var p := Vector2(pos.x, pos.z)
+	if p.length() < 62.0:
+		return "MAPLE SQUARE"
+	if _near_building(p, 22.0):
+		return "LONE HOUSE"
+	if terrain.height_at(p.x, p.y) < 1.5:
+		return "SHORELINE"
+	return "OPEN FIELDS"
+
+
+func _process(_delta: float) -> void:
+	if storm == null or not storm.active or storm.finished:
+		return
+	if storm.waiting and storm.phase != _supply_phase:
+		_supply_phase = storm.phase
+		if storm.phase % 2 == 0:
+			_spawn_supply()
+
+
+func _spawn_supply() -> void:
+	var p := random_point_in_safe_zone()
+	var c := _add_chest("supply", p, rng.randf() * TAU)
+	c.start_fall(150.0, p.y)
+	if hud:
+		hud.add_feed("A supply drop is on its way!", Color(1.0, 0.45, 0.35))
+
+
 func _on_fighter_died(victim, killer) -> void:
 	var alive := alive_count()
 	var text := ""
@@ -386,7 +531,7 @@ func _on_fighter_died(victim, killer) -> void:
 			color = Color(1.0, 0.45, 0.4)
 	if hud:
 		hud.add_feed(text, color)
-	_add_loot(victim.global_transform.origin + Vector3(0, 0.3, 0))
+	_drop_inventory(victim)
 
 	if match_over:
 		return
