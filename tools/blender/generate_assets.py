@@ -81,7 +81,7 @@ class Part:
             return
         self.box(((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2), (x1 - x0, y1 - y0, z1 - z0), mat)
 
-    def cone(self, center, r_bottom, r_top, depth, mat, segments=8, scale_xy=(1.0, 1.0), rot_z=0.0):
+    def cone(self, center, r_bottom, r_top, depth, mat, segments=8, scale_xy=(1.0, 1.0), rot_z=0.0, axis="Z"):
         kwargs = dict(cap_ends=True, cap_tris=False, segments=segments, depth=depth)
         try:
             ret = bmesh.ops.create_cone(self.bm, radius1=r_bottom, radius2=r_top, **kwargs)
@@ -90,6 +90,7 @@ class Part:
         verts = ret["verts"]
         m = (
             Matrix.Translation(Vector(center) - self.origin)
+            @ (Matrix.Rotation(-math.pi / 2, 4, "X") if axis == "Y" else Matrix.Identity(4))
             @ Matrix.Diagonal((scale_xy[0], scale_xy[1], 1.0, 1.0))
             @ Matrix.Rotation(rot_z, 4, "Z")
         )
@@ -147,52 +148,6 @@ def export(name, objects):
 # --------------------------------------------------------------------------- assets
 
 
-def make_player():
-    skin = material("skin", (0.80, 0.52, 0.36))
-    vest = material("vest", (0.30, 0.42, 0.22))
-    pants = material("pants", (0.32, 0.22, 0.14))
-    boots = material("boots", (0.10, 0.09, 0.08))
-    hair = material("hair", (0.07, 0.05, 0.04))
-    objs = []
-
-    torso = Part("Torso")
-    torso.box((0, 0, 1.18), (0.50, 0.28, 0.62), vest)
-    torso.box((0, 0.0, 0.84), (0.46, 0.26, 0.10), pants)  # belt/hips
-    objs.append(torso.build())
-
-    head = Part("Head", origin=(0, 0, 1.50))
-    head.box((0, 0, 1.64), (0.26, 0.26, 0.28), skin)
-    head.box((0, -0.01, 1.80), (0.29, 0.29, 0.09), hair)
-    head.box((0, 0.15, 1.77), (0.29, 0.10, 0.04), hair)  # cap brim, faces forward
-    objs.append(head.build())
-
-    for side, sx in (("L", -1), ("R", 1)):
-        hip = (sx * 0.13, 0, 0.88)
-        leg = Part("Leg" + side, origin=hip)
-        leg.box((sx * 0.13, 0, 0.46), (0.21, 0.23, 0.86), pants)
-        leg.box((sx * 0.13, 0.03, 0.06), (0.23, 0.31, 0.12), boots)
-        objs.append(leg.build())
-
-        shoulder = (sx * 0.36, 0, 1.45)
-        arm = Part("Arm" + side, origin=shoulder)
-        arm.box((sx * 0.36, 0, 1.20), (0.15, 0.17, 0.50), vest)
-        arm.box((sx * 0.36, 0, 0.93), (0.13, 0.15, 0.14), skin)
-        objs.append(arm.build())
-    export("player", objs)
-
-
-def make_rifle():
-    dark = material("gun_dark", (0.12, 0.12, 0.14), rough=0.4)
-    wood = material("gun_wood", (0.35, 0.20, 0.10))
-    steel = material("gun_steel", (0.30, 0.31, 0.34), rough=0.35)
-    gun = Part("Rifle")
-    gun.box((0, 0.30, 0), (0.07, 0.62, 0.11), dark)
-    gun.box((0, 0.78, 0.02), (0.04, 0.36, 0.04), steel)
-    gun.box((0, -0.12, -0.03), (0.06, 0.26, 0.13), wood)
-    gun.box((0, 0.28, -0.15), (0.05, 0.10, 0.20), dark)
-    gun.box((0, 0.38, 0.08), (0.04, 0.22, 0.045), steel)
-    muzzle = empty("Muzzle", (0, 0.97, 0.02))
-    export("rifle", [gun.build(), muzzle])
 
 
 def make_tree():
@@ -309,69 +264,243 @@ def make_tower():
     export("tower", [tower.build()])
 
 
-# ------------------------------------------------------------- weapons & items
+# ------------------------------------------------------------- character rig
+# A real joint hierarchy (empties) with meshes parented to the joints, so the game can bend
+# knees/elbows, swing arms and parent the weapon to the right hand.
+
+JW = {}  # joint name -> world position at rest
 
 
-def _gun_materials():
-    return (
-        material("gun_dark", (0.12, 0.12, 0.14), rough=0.4),
-        material("gun_wood", (0.35, 0.20, 0.10)),
-        material("gun_steel", (0.30, 0.31, 0.34), rough=0.35),
+def joint(name, world, parent=None):
+    j = empty(name, (0, 0, 0))
+    JW[name] = Vector(world)
+    j.location = Vector(world) - (JW[parent.name] if parent else Vector((0, 0, 0)))
+    if parent:
+        j.parent = parent
+    return j
+
+
+def part_on(j, name, fn):
+    p = Part(name, origin=JW[j.name])
+    fn(p)
+    ob = p.build(location=(0.0, 0.0, 0.0))
+    ob.parent = j
+    return ob
+
+
+def make_player():
+    skin = material("skin", (0.80, 0.52, 0.36))
+    vest = material("vest", (0.30, 0.42, 0.22))
+    pants = material("pants", (0.32, 0.22, 0.14))
+    boots = material("boots", (0.10, 0.09, 0.08))
+    hair = material("hair", (0.07, 0.05, 0.04))
+    glove = material("glove", (0.14, 0.14, 0.16))
+    pack = material("pack", (0.27, 0.23, 0.17))
+    eyes = material("eyes", (0.05, 0.05, 0.08))
+    objs = []
+
+    hips = joint("Hips", (0, 0, 0.93))
+    objs.append(hips)
+    objs.append(part_on(hips, "PelvisMesh", lambda p: p.box((0, 0, 0.93), (0.40, 0.24, 0.20), pants)))
+
+    spine = joint("Spine", (0, 0, 1.03), hips)
+    objs.append(spine)
+
+    def torso(p):
+        p.box((0, 0, 1.27), (0.50, 0.28, 0.50), vest)
+        p.box((0, 0, 1.06), (0.46, 0.26, 0.08), pack)              # belt
+        p.box((0, -0.19, 1.28), (0.36, 0.10, 0.36), pack)          # backpack (rear is -Y)
+        p.box((0, 0.15, 1.20), (0.34, 0.05, 0.20), pack)           # chest pouches
+    objs.append(part_on(spine, "TorsoMesh", torso))
+
+    head = joint("Head", (0, 0, 1.53), spine)
+    objs.append(head)
+
+    def head_mesh(p):
+        p.box((0, 0, 1.67), (0.26, 0.26, 0.28), skin)
+        p.box((0, -0.01, 1.83), (0.28, 0.28, 0.09), hair)
+        p.box((0, 0.15, 1.80), (0.29, 0.10, 0.04), hair)           # cap brim, faces forward (+Y)
+        p.box((-0.06, 0.131, 1.69), (0.04, 0.012, 0.04), eyes)
+        p.box((0.06, 0.131, 1.69), (0.04, 0.012, 0.04), eyes)
+    objs.append(part_on(head, "HeadMesh", head_mesh))
+
+    for side, sx in (("L", -1), ("R", 1)):
+        sh = joint("Shoulder" + side, (sx * 0.34, 0, 1.47), spine)
+        objs.append(sh)
+        objs.append(part_on(sh, "UpperArm" + side, lambda p, sx=sx: p.box((sx * 0.34, 0, 1.31), (0.15, 0.16, 0.32), vest)))
+        el = joint("Elbow" + side, (sx * 0.34, 0, 1.15), sh)
+        objs.append(el)
+
+        def fore(p, sx=sx):
+            p.box((sx * 0.34, 0, 0.99), (0.13, 0.14, 0.30), skin)
+            p.box((sx * 0.34, 0, 0.82), (0.13, 0.13, 0.10), glove)
+        objs.append(part_on(el, "Forearm" + side, fore))
+        objs.append(joint("Hand" + side, (sx * 0.34, 0, 0.84), el))
+
+        hp = joint("Hip" + side, (sx * 0.13, 0, 0.88), hips)
+        objs.append(hp)
+        objs.append(part_on(hp, "Thigh" + side, lambda p, sx=sx: p.box((sx * 0.13, 0, 0.67), (0.20, 0.22, 0.44), pants)))
+        kn = joint("Knee" + side, (sx * 0.13, 0, 0.45), hp)
+        objs.append(kn)
+
+        def shin(p, sx=sx):
+            p.box((sx * 0.13, 0, 0.25), (0.18, 0.20, 0.40), pants)
+            p.box((sx * 0.13, 0.03, 0.06), (0.20, 0.30, 0.12), boots)
+        objs.append(part_on(kn, "Shin" + side, shin))
+    export("player", objs)
+
+
+# ------------------------------------------------------------- weapons (detailed)
+# Origin = the grip (where the right hand holds it), barrel points +Y (Godot -Z).
+# Surfaces using the "accent" material get tinted with the item's rarity colour in game.
+
+
+def _gun_mats():
+    return dict(
+        dark=material("gun_dark", (0.10, 0.10, 0.12), rough=0.45),
+        steel=material("gun_steel", (0.34, 0.35, 0.38), rough=0.30),
+        wood=material("gun_wood", (0.36, 0.20, 0.09)),
+        poly=material("gun_poly", (0.20, 0.21, 0.23), rough=0.6),
+        accent=material("accent", (0.60, 0.60, 0.65), rough=0.35),
+        glass=material("scope_glass", (0.25, 0.55, 0.95), rough=0.1, emit=(0.1, 0.3, 0.8), emit_strength=0.6),
+        brass=material("gun_brass", (0.85, 0.65, 0.2), rough=0.3),
     )
 
 
-def make_pistol():
-    dark, wood, steel = _gun_materials()
-    g = Part("Pistol")
-    g.box((0, 0.12, 0.03), (0.06, 0.34, 0.09), steel)
-    g.box((0, 0.0, -0.08), (0.05, 0.10, 0.20), dark, rot=(0.25, 0, 0))
-    g.box((0, 0.30, 0.03), (0.035, 0.12, 0.035), dark)
-    export("pistol", [g.build(), empty("Muzzle", (0, 0.37, 0.03))])
+def _trigger_guard(g, m, y=0.04, z=-0.075):
+    g.box((0, y, z), (0.02, 0.10, 0.012), m["steel"])
+    g.box((0, y - 0.045, z + 0.025), (0.02, 0.012, 0.06), m["steel"])
+    g.box((0, y + 0.03, z + 0.03), (0.012, 0.014, 0.05), m["dark"])    # trigger
+
+
+def make_assault():
+    m = _gun_mats()
+    g = Part("Rifle")
+    g.box((0, 0.17, 0.03), (0.075, 0.44, 0.105), m["dark"])                      # receiver
+    g.box((0, 0.17, 0.095), (0.04, 0.40, 0.016), m["steel"])                     # top rail
+    g.box((0.039, 0.18, 0.035), (0.006, 0.22, 0.03), m["accent"])                # rarity strip
+    g.box((-0.039, 0.18, 0.035), (0.006, 0.22, 0.03), m["accent"])
+    g.box((0, 0.56, 0.02), (0.082, 0.30, 0.09), m["poly"])                       # handguard
+    g.box((0, 0.56, 0.075), (0.036, 0.28, 0.012), m["steel"])                    # handguard rail
+    g.cone((0, 0.86, 0.025), 0.016, 0.016, 0.34, m["steel"], segments=8, axis="Y")  # barrel
+    g.cone((0, 1.05, 0.025), 0.024, 0.024, 0.07, m["dark"], segments=8, axis="Y")   # muzzle brake
+    g.box((0, 0.97, 0.062), (0.012, 0.012, 0.035), m["steel"])                   # front sight post
+    g.cone((0, 0.58, 0.075), 0.011, 0.011, 0.26, m["steel"], segments=6, axis="Y")  # gas tube
+    g.box((0, 0.12, 0.125), (0.055, 0.09, 0.05), m["dark"])                      # red-dot housing
+    g.box((0, 0.165, 0.125), (0.04, 0.008, 0.04), m["glass"])
+    g.box((0, -0.19, 0.01), (0.06, 0.34, 0.10), m["wood"])                       # stock
+    g.box((0, -0.36, -0.005), (0.065, 0.03, 0.13), m["dark"])                    # butt plate
+    g.box((0, -0.06, -0.085), (0.05, 0.07, 0.16), m["poly"], rot=(0.25, 0, 0))   # pistol grip
+    g.box((0, 0.20, -0.125), (0.052, 0.085, 0.17), m["dark"], rot=(-0.12, 0, 0))     # magazine (curved: 2 pieces)
+    g.box((0, 0.225, -0.255), (0.052, 0.085, 0.10), m["dark"], rot=(-0.32, 0, 0))
+    g.box((0.045, 0.14, 0.055), (0.012, 0.05, 0.02), m["steel"])                 # charging handle
+    _trigger_guard(g, m)
+    export("rifle", [g.build(), empty("Muzzle", (0, 1.10, 0.025))])
 
 
 def make_smg():
-    dark, wood, steel = _gun_materials()
+    m = _gun_mats()
     g = Part("Smg")
-    g.box((0, 0.22, 0), (0.07, 0.50, 0.12), dark)
-    g.box((0, 0.58, 0.02), (0.04, 0.24, 0.04), steel)
-    g.box((0, 0.20, -0.20), (0.05, 0.08, 0.30), dark)
-    g.box((0, -0.05, -0.04), (0.05, 0.18, 0.10), dark, rot=(0.3, 0, 0))
-    g.box((0, 0.30, 0.08), (0.04, 0.16, 0.04), steel)
-    export("smg", [g.build(), empty("Muzzle", (0, 0.72, 0.02))])
+    g.box((0, 0.14, 0.03), (0.07, 0.34, 0.10), m["dark"])                        # body
+    g.box((0, 0.14, 0.088), (0.04, 0.30, 0.014), m["steel"])                     # rail
+    g.box((0.036, 0.15, 0.035), (0.006, 0.18, 0.03), m["accent"])
+    g.box((-0.036, 0.15, 0.035), (0.006, 0.18, 0.03), m["accent"])
+    g.box((0, 0.40, 0.03), (0.06, 0.20, 0.07), m["poly"])                        # shroud
+    g.cone((0, 0.62, 0.03), 0.026, 0.026, 0.22, m["dark"], segments=8, axis="Y")     # suppressor
+    g.box((0, 0.08, 0.115), (0.04, 0.07, 0.04), m["dark"])                       # red dot
+    g.box((0, 0.112, 0.115), (0.03, 0.008, 0.03), m["glass"])
+    g.box((0, -0.10, 0.04), (0.012, 0.22, 0.012), m["steel"])                    # folded stock wire
+    g.box((0, -0.21, 0.04), (0.05, 0.02, 0.07), m["dark"])
+    g.box((0, -0.05, -0.085), (0.05, 0.065, 0.15), m["poly"], rot=(0.3, 0, 0))   # grip
+    g.box((0, 0.20, -0.17), (0.045, 0.07, 0.29), m["dark"])                      # long straight mag
+    g.box((0, 0.20, -0.32), (0.05, 0.075, 0.025), m["steel"])
+    g.box((0, 0.42, -0.045), (0.035, 0.05, 0.08), m["poly"])                     # foregrip
+    _trigger_guard(g, m)
+    export("smg", [g.build(), empty("Muzzle", (0, 0.74, 0.03))])
 
 
 def make_shotgun():
-    dark, wood, steel = _gun_materials()
+    m = _gun_mats()
     g = Part("Shotgun")
-    g.box((0, 0.30, 0.0), (0.08, 0.60, 0.11), dark)
-    g.box((0, 0.88, 0.01), (0.06, 0.60, 0.06), steel)
-    g.box((0, 0.78, -0.07), (0.07, 0.30, 0.07), wood)
-    g.box((0, -0.14, -0.03), (0.07, 0.30, 0.14), wood)
-    export("shotgun", [g.build(), empty("Muzzle", (0, 1.19, 0.01))])
+    g.box((0, 0.14, 0.03), (0.075, 0.36, 0.10), m["dark"])                       # receiver
+    g.box((0.039, 0.14, 0.035), (0.006, 0.18, 0.03), m["accent"])
+    g.box((-0.039, 0.14, 0.035), (0.006, 0.18, 0.03), m["accent"])
+    g.cone((0, 0.66, 0.045), 0.02, 0.02, 0.70, m["steel"], segments=8, axis="Y")     # barrel
+    g.cone((0, 0.62, -0.005), 0.025, 0.025, 0.58, m["dark"], segments=8, axis="Y")  # magazine tube
+    g.box((0, 0.58, -0.005), (0.07, 0.24, 0.07), m["wood"])                      # pump
+    g.box((0, 1.02, 0.07), (0.012, 0.012, 0.025), m["brass"])                    # bead sight
+    g.box((0, 0.10, 0.092), (0.03, 0.10, 0.012), m["steel"])
+    g.box((0, -0.18, 0.0), (0.062, 0.34, 0.12), m["wood"], rot=(-0.06, 0, 0))    # stock
+    g.box((0, -0.36, -0.01), (0.07, 0.03, 0.15), m["dark"])
+    g.box((0, -0.04, -0.075), (0.045, 0.06, 0.12), m["wood"], rot=(0.25, 0, 0))
+    _trigger_guard(g, m, y=0.03)
+    export("shotgun", [g.build(), empty("Muzzle", (0, 1.02, 0.045))])
 
 
 def make_sniper():
-    dark, wood, steel = _gun_materials()
-    scope = material("scope_glass", (0.2, 0.5, 0.9), rough=0.1)
+    m = _gun_mats()
     g = Part("Sniper")
-    g.box((0, 0.35, 0), (0.07, 0.80, 0.11), dark)
-    g.box((0, 1.05, 0.01), (0.04, 0.70, 0.04), steel)
-    g.box((0, -0.18, -0.04), (0.07, 0.38, 0.15), wood)
-    g.box((0, 0.40, 0.12), (0.06, 0.34, 0.06), dark)
-    g.box((0, 0.57, 0.12), (0.075, 0.03, 0.075), scope)
-    g.box((0, 0.23, 0.12), (0.075, 0.03, 0.075), scope)
-    export("sniper", [g.build(), empty("Muzzle", (0, 1.41, 0.01))])
+    g.box((0, 0.20, 0.03), (0.07, 0.48, 0.10), m["dark"])                        # receiver
+    g.box((0.037, 0.2, 0.035), (0.006, 0.26, 0.03), m["accent"])
+    g.box((-0.037, 0.2, 0.035), (0.006, 0.26, 0.03), m["accent"])
+    g.cone((0, 0.88, 0.035), 0.017, 0.017, 0.80, m["steel"], segments=8, axis="Y")   # long barrel
+    g.cone((0, 1.30, 0.035), 0.028, 0.028, 0.10, m["dark"], segments=8, axis="Y")    # muzzle brake
+    g.box((0, 0.58, -0.005), (0.07, 0.30, 0.07), m["poly"])                      # forend
+    g.box((0.055, 0.12, 0.05), (0.012, 0.09, 0.012), m["steel"])                 # bolt handle
+    g.box((0.07, 0.12, 0.05), (0.03, 0.02, 0.03), m["dark"])                     # bolt knob
+    # scope
+    g.cone((0, 0.26, 0.135), 0.032, 0.032, 0.34, m["dark"], segments=10, axis="Y")
+    g.cone((0, 0.12, 0.135), 0.042, 0.042, 0.08, m["dark"], segments=10, axis="Y")
+    g.cone((0, 0.43, 0.135), 0.048, 0.048, 0.10, m["dark"], segments=10, axis="Y")
+    g.box((0, 0.435, 0.135), (0.07, 0.005, 0.07), m["glass"])
+    g.box((0, 0.20, 0.09), (0.02, 0.03, 0.05), m["steel"])
+    g.box((0, 0.33, 0.09), (0.02, 0.03, 0.05), m["steel"])
+    g.box((0, -0.22, 0.015), (0.065, 0.40, 0.11), m["wood"], rot=(-0.04, 0, 0))   # stock with cheek riser
+    g.box((0, -0.15, 0.085), (0.05, 0.16, 0.03), m["wood"])
+    g.box((0, -0.42, -0.005), (0.07, 0.03, 0.14), m["dark"])
+    g.box((0, -0.06, -0.08), (0.045, 0.065, 0.14), m["wood"], rot=(0.25, 0, 0))
+    g.box((0, 0.22, -0.10), (0.045, 0.08, 0.10), m["dark"])                      # magazine
+    g.box((-0.03, 0.78, -0.03), (0.01, 0.22, 0.01), m["steel"], rot=(0, 0, -0.5))   # folded bipod
+    g.box((0.03, 0.78, -0.03), (0.01, 0.22, 0.01), m["steel"], rot=(0, 0, 0.5))
+    _trigger_guard(g, m)
+    export("sniper", [g.build(), empty("Muzzle", (0, 1.36, 0.035))])
+
+
+def make_pistol():
+    m = _gun_mats()
+    g = Part("Pistol")
+    g.box((0, 0.10, 0.05), (0.04, 0.30, 0.055), m["steel"])                      # slide
+    g.box((0, 0.10, 0.012), (0.035, 0.26, 0.03), m["dark"])                      # frame
+    g.box((0.022, 0.10, 0.05), (0.004, 0.12, 0.02), m["accent"])
+    g.box((-0.022, 0.10, 0.05), (0.004, 0.12, 0.02), m["accent"])
+    g.cone((0, 0.27, 0.05), 0.011, 0.011, 0.05, m["dark"], segments=8, axis="Y")     # barrel tip
+    g.box((0, -0.03, -0.05), (0.04, 0.07, 0.14), m["poly"], rot=(0.22, 0, 0))    # grip
+    g.box((0, 0.24, 0.083), (0.012, 0.012, 0.015), m["steel"])                   # front sight
+    g.box((0, -0.04, 0.083), (0.03, 0.012, 0.015), m["steel"])                   # rear sight
+    g.box((0, 0.17, -0.025), (0.03, 0.10, 0.025), m["dark"])                     # rail under the barrel
+    _trigger_guard(g, m, y=0.06, z=-0.03)
+    export("pistol", [g.build(), empty("Muzzle", (0, 0.30, 0.05))])
 
 
 def make_pickaxe():
     wood = material("pick_wood", (0.45, 0.28, 0.12))
-    steel = material("pick_steel", (0.62, 0.64, 0.68), rough=0.35)
+    steel = material("pick_steel", (0.66, 0.68, 0.72), rough=0.3)
+    dark = material("pick_dark", (0.15, 0.15, 0.18))
+    accent = material("accent", (0.60, 0.60, 0.65), rough=0.35)
     p = Part("Pickaxe")
-    p.box((0, 0.30, 0), (0.05, 0.75, 0.05), wood)
-    p.box((0, 0.66, 0), (0.05, 0.08, 0.10), steel)
-    p.box((0, 0.68, 0.17), (0.05, 0.08, 0.30), steel, rot=(0.35, 0, 0))
-    p.box((0, 0.68, -0.17), (0.05, 0.08, 0.30), steel, rot=(-0.35, 0, 0))
+    p.box((0, 0.30, 0), (0.045, 0.80, 0.045), wood)
+    p.box((0, -0.12, 0), (0.05, 0.05, 0.05), dark)
+    p.box((0, 0.68, 0), (0.06, 0.09, 0.09), dark)                                 # head socket
+    for sgn in (-1, 1):
+        p.box((0, 0.70, sgn * 0.12), (0.045, 0.07, 0.20), steel, rot=(sgn * 0.25, 0, 0))
+        p.box((0, 0.70, sgn * 0.27), (0.04, 0.06, 0.14), steel, rot=(sgn * 0.7, 0, 0))
+        p.box((0, 0.71, sgn * 0.34), (0.03, 0.04, 0.08), steel, rot=(sgn * 1.0, 0, 0))
+    p.box((0.026, 0.46, 0), (0.008, 0.20, 0.03), accent)
     export("pickaxe", [p.build()])
+
+
+# ------------------------------------------------------------- weapons & items
+
 
 
 def make_bandage():
@@ -522,7 +651,7 @@ def main():
     reset_scene()
     make_player()
     reset_scene()
-    make_rifle()
+    make_assault()
     reset_scene()
     make_tree()
     reset_scene()

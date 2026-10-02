@@ -8,6 +8,7 @@ extends KinematicBody
 # move_body() (ground) or air_physics() (freefall / glider) from _physics_process().
 
 const Items = preload("res://scripts/Items.gd")
+const Animator = preload("res://scripts/Animator.gd")
 
 signal died(victim, killer)
 signal damaged(amount, source)
@@ -16,12 +17,10 @@ signal picked_up(text)
 signal slot_changed
 signal landed
 
-enum Mode { GROUND, BUS, FREEFALL, GLIDE }
+enum Mode { GROUND, BUS, FREEFALL, GLIDE, SWIM, MANTLE, VEHICLE }
 
 const MODEL_PATH := "res://assets/models/player.glb"
 const GLIDER_PATH := "res://assets/models/glider.glb"
-const LIMB_NAMES := ["Torso", "Head", "LegL", "LegR", "ArmL", "ArmR"]
-const HAND_POS := Vector3(0.17, 1.20, -0.30)
 const DEPLOY_ALTITUDE := 75.0
 
 export var max_health := 100.0
@@ -69,7 +68,13 @@ var air_pivot: Spatial
 var glider: Spatial
 var held: Spatial
 var muzzle: Spatial
-var limbs := {}
+var animator
+var grounded := true
+var forward_speed := 0.0
+var sprinting := false
+var vehicle_steer := 0.0
+var vehicle_hands_on_wheel := true
+var _mantle_t := 0.0
 
 var _anim := 0.0
 var _swing := 0.0
@@ -102,7 +107,7 @@ func setup_fighter(fighter_name: String, color: Color) -> void:
 
 
 func _build_model() -> void:
-	# air_pivot sits at the body centre so the diving pose rotates around it;
+	# air_pivot sits at the body centre so the diving / swimming pose rotates around it;
 	# model hangs below it so its own origin stays at the feet (death tip-over).
 	air_pivot = Spatial.new()
 	air_pivot.name = "AirPivot"
@@ -112,16 +117,15 @@ func _build_model() -> void:
 	model = scene.instance() if scene != null else _fallback_model()
 	model.translation = Vector3(0, -0.9, 0)
 	air_pivot.add_child(model)
-	for n in LIMB_NAMES:
-		var node := model.get_node_or_null(n)
-		if node:
-			limbs[n] = node
+	animator = Animator.new()
+	animator.setup(model)
 	var vest := SpatialMaterial.new()
 	vest.albedo_color = vest_color
 	vest.roughness = 0.9
-	for n in ["Torso", "ArmL", "ArmR"]:
-		if limbs.has(n) and limbs[n] is MeshInstance:
-			limbs[n].set_surface_material(0, vest)   # surface 0 is the vest colour
+	for n in ["TorsoMesh", "UpperArmL", "UpperArmR"]:
+		var node := model.find_node(n, true, false)
+		if node != null and node is MeshInstance:
+			node.set_surface_material(0, vest)   # surface 0 is the vest colour
 
 	var gl = load(GLIDER_PATH)
 	if gl != null:
@@ -206,13 +210,14 @@ func _equip_model(item) -> void:
 	if scene == null:
 		return
 	held = scene.instance()
-	model.add_child(held)
-	held.translation = HAND_POS
+	var hand: Node = animator.nodes.get("HandR", model) if animator != null else model
+	hand.add_child(held)
+	held.translation = Vector3(0, -0.02, -0.04)
 	if item.kind == "consumable":
-		held.scale = Vector3(1.5, 1.5, 1.5)
-		held.translation = Vector3(0.12, 1.15, -0.38)
-	elif item.kind == "pickaxe":
-		held.translation = Vector3(0.20, 1.05, -0.28)
+		held.scale = Vector3(0.75, 0.75, 0.75)
+	else:
+		held.scale = Vector3(1.0, 1.0, 1.0)
+	Items.apply_accent(held, Items.color_of(item))
 	muzzle = held.get_node_or_null("Muzzle")
 
 
@@ -356,6 +361,8 @@ func move_body(delta: float, wish: Vector3, speed: float, want_jump: bool) -> vo
 	else:
 		velocity.y -= _gravity * delta
 	velocity = move_and_slide(velocity, Vector3.UP, true, 4, deg2rad(52.0))
+	grounded = is_on_floor()
+	forward_speed = Vector3(velocity.x, 0.0, velocity.z).dot(-global_transform.basis.z)
 	_clamp_to_map()
 
 
@@ -459,56 +466,46 @@ func _air_pose(delta: float) -> void:
 		return
 	var tilt := 0.0
 	var roll := 0.0
-	if mode == Mode.FREEFALL:
-		tilt = -1.25 if air_input.y <= 0.5 else -0.7
-		roll = -air_input.x * 0.35
-	elif mode == Mode.GLIDE:
-		tilt = -0.12 + (-0.2 if air_input.y < -0.5 else 0.0)
-		roll = -air_input.x * 0.25
+	var lift := 0.0
+	match mode:
+		Mode.FREEFALL:
+			tilt = -1.25 if air_input.y <= 0.5 else -0.7
+			roll = -air_input.x * 0.35
+		Mode.GLIDE:
+			tilt = -0.12 + (-0.2 if air_input.y < -0.5 else 0.0)
+			roll = -air_input.x * 0.25
+		Mode.SWIM:
+			var swimming_fast := Vector2(velocity.x, velocity.z).length() > 0.8
+			tilt = -1.38 if swimming_fast else -0.05
+			lift = -0.15 if swimming_fast else 0.0
+		Mode.MANTLE:
+			tilt = -0.25
 	var k: float = clamp(6.0 * delta, 0.0, 1.0)
 	air_pivot.rotation.x = lerp(air_pivot.rotation.x, tilt, k)
 	air_pivot.rotation.z = lerp(air_pivot.rotation.z, roll, k)
+	air_pivot.translation.y = lerp(air_pivot.translation.y, 0.9 + lift, k)
 
 
 # ------------------------------------------------------------------ animation
 
 func animate(delta: float) -> void:
-	if is_dead or not limbs.has("LegL"):
+	if animator == null:
 		return
 	_air_pose(delta)
 	_swing = max(0.0, _swing - delta)
-	if mode == Mode.FREEFALL:
-		limbs["LegL"].rotation.x = 0.25
-		limbs["LegR"].rotation.x = 0.1
-		limbs["ArmR"].rotation.x = -0.6
-		limbs["ArmL"].rotation.x = -0.6
-		return
-	if mode == Mode.GLIDE:
-		limbs["LegL"].rotation.x = 0.1
-		limbs["LegR"].rotation.x = 0.1
-		limbs["ArmR"].rotation.x = 2.7
-		limbs["ArmL"].rotation.x = 2.7
-		return
-	var speed := Vector2(velocity.x, velocity.z).length()
-	_anim += delta * (3.0 + speed * 1.1)
-	var amount: float = clamp(speed / 3.0, 0.0, 1.0)
-	var swing := sin(_anim) * 0.75 * amount
-	limbs["LegL"].rotation.x = swing
-	limbs["LegR"].rotation.x = -swing
-	var item = selected_item()
-	var raise := 1.25 + aim_pitch * 0.9
-	if item != null and item.kind == "pickaxe":
-		raise = 0.55 + (sin(_swing / 0.3 * PI) * 1.5 if _swing > 0.0 else 0.0)
-	elif item == null or item.kind == "consumable":
-		raise = 0.9
-	limbs["ArmR"].rotation.x = raise
-	limbs["ArmL"].rotation.x = raise - 0.15 if (item != null and item.kind == "weapon") else swing * -0.6
-	if held and item != null and item.kind == "weapon":
-		held.rotation.x = aim_pitch
-	elif held:
-		held.rotation.x = 0.0
-	if limbs.has("Torso"):
-		limbs["Torso"].translation.y = abs(sin(_anim)) * 0.03 * amount
+	animator.update(self, delta)
+
+
+func reload_fraction_left() -> float:
+	return clamp(_reload_left / max(reload_time, 0.01), 0.0, 1.0)
+
+
+func swing_fraction() -> float:
+	return _swing / 0.3
+
+
+func mantle_fraction() -> float:
+	return clamp(_mantle_t, 0.0, 1.0)
 
 
 # ------------------------------------------------------------------ combat
@@ -561,6 +558,8 @@ func try_fire(aim_from: Vector3, aim_dir: Vector3) -> bool:
 	item.mag -= 1
 	for i in range(pellets):
 		_fire_ray(aim_from, aim_dir, i < 3)
+	if animator != null:
+		animator.kick(1.0 if pellets == 1 else 1.4)
 	if item.mag == 0:
 		start_reload()
 	return true

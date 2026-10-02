@@ -48,6 +48,7 @@ func _physics_process(delta: float) -> void:
 	if is_dead:
 		velocity = Vector3(0, velocity.y, 0)
 		move_body(delta, Vector3.ZERO, 0.0, false)
+		animate(delta)
 		return
 	if input_enabled:
 		_look(delta)
@@ -72,7 +73,6 @@ func _physics_process(delta: float) -> void:
 func _ground_process(delta: float) -> void:
 	var move := Vector2.ZERO
 	var want_jump := false
-	var sprinting := false
 	if input_enabled:
 		move = Controls.get_move()
 		want_jump = Input.is_action_pressed("jump")
@@ -85,6 +85,8 @@ func _ground_process(delta: float) -> void:
 		_fire_input(delta)
 		_interact_input(delta)
 	var b := global_transform.basis
+	if not input_enabled:
+		sprinting = false
 	var wish := b.x * move.x + b.z * move.y    # move.y > 0 is backwards, and basis.z points backwards
 	var speed := sprint_speed if sprinting else walk_speed
 	if is_using():

@@ -13,7 +13,11 @@ const RARITIES := [
 	{"name": "Rare", "color": Color(0.25, 0.55, 1.00), "mult": 1.12},
 	{"name": "Epic", "color": Color(0.70, 0.35, 0.95), "mult": 1.18},
 	{"name": "Legendary", "color": Color(1.00, 0.72, 0.15), "mult": 1.25},
+	{"name": "Mythic", "color": Color(1.00, 0.30, 0.08), "mult": 1.40},
 ]
+const MYTHIC := 5            # never rolled randomly: boss drops, vault chests, rare supply drops
+const MYTHIC_NAMES := {"pistol": "Hand Cannon", "smg": "Hornet SMG", "assault": "Stormcaller AR",
+	"shotgun": "Dragonbreath Shotgun", "sniper": "Eclipse Rifle"}
 const RARITY_WEIGHTS := [50, 28, 14, 6, 2]
 
 const WEAPONS := {
@@ -55,7 +59,10 @@ static func pickaxe() -> Dictionary:
 
 
 static func make_weapon(id: String, rarity: int = 0) -> Dictionary:
-	return {"kind": "weapon", "id": id, "rarity": rarity, "mag": WEAPONS[id].mag}
+	var mag: int = WEAPONS[id].mag
+	if rarity == MYTHIC:
+		mag = int(ceil(mag * 1.5))
+	return {"kind": "weapon", "id": id, "rarity": rarity, "mag": mag}
 
 
 static func make_consumable(id: String, count: int = 1) -> Dictionary:
@@ -86,6 +93,8 @@ static func color_of(item: Dictionary) -> Color:
 static func name_of(item: Dictionary) -> String:
 	match item.kind:
 		"weapon":
+			if item.rarity == MYTHIC:
+				return "Mythic " + MYTHIC_NAMES[item.id]
 			return "%s %s" % [RARITIES[item.rarity].name, WEAPONS[item.id].name]
 		"consumable":
 			var n: String = CONSUMABLES[item.id].name
@@ -109,7 +118,29 @@ static func model_of(item: Dictionary) -> String:
 static func weapon_stats(item: Dictionary) -> Dictionary:
 	var s: Dictionary = WEAPONS[item.id].duplicate()
 	s.damage = s.damage * RARITIES[item.rarity].mult
+	if item.rarity == MYTHIC:        # mythics also fire faster, hold more, and are more accurate
+		s.mag = int(ceil(s.mag * 1.5))
+		s.interval = s.interval * 0.85
+		s.spread = s.spread * 0.6
+		s.reload = s.reload * 0.8
 	return s
+
+
+# Tint every surface using the "accent" material (see tools/blender) with the item colour.
+static func apply_accent(node: Node, color: Color) -> void:
+	if node is MeshInstance and node.mesh != null:
+		for i in range(node.mesh.get_surface_count()):
+			var m = node.mesh.surface_get_material(i)
+			if m != null and m.resource_name == "accent":
+				var tinted := SpatialMaterial.new()
+				tinted.albedo_color = color
+				tinted.roughness = 0.35
+				tinted.emission_enabled = true
+				tinted.emission = color
+				tinted.emission_energy = 0.8
+				node.set_surface_material(i, tinted)
+	for c in node.get_children():
+		apply_accent(c, color)
 
 
 static func roll_rarity(rng: RandomNumberGenerator, bonus: int = 0) -> int:
@@ -123,7 +154,7 @@ static func roll_rarity(rng: RandomNumberGenerator, bonus: int = 0) -> int:
 			tier = i
 			break
 		r -= RARITY_WEIGHTS[i]
-	return int(min(tier + bonus, RARITIES.size() - 1))
+	return int(min(tier + bonus, 4))
 
 
 static func random_weapon(rng: RandomNumberGenerator, bonus: int = 0) -> Dictionary:
@@ -172,6 +203,8 @@ static func chest_loot(kind: String, rng: RandomNumberGenerator) -> Array:
 				loot.append(make_ammo(types[i], int(AMMO[types[i]].pack * (1.5 + rng.randf()))))
 		"supply":     # supply drop: top-tier weapons plus shield/heal
 			var w1 := make_weapon(["assault", "sniper", "shotgun", "smg"][rng.randi() % 4], 3 + rng.randi() % 2)
+			if rng.randf() < 0.12:       # 1 in 8 supply drops carries a mythic
+				w1 = make_weapon(["assault", "sniper", "shotgun", "smg", "pistol"][rng.randi() % 5], MYTHIC)
 			var w2 := random_weapon(rng, 2)
 			loot.append(w1)
 			loot.append(w2)

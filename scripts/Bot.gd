@@ -54,6 +54,7 @@ func _physics_process(delta: float) -> void:
 	tick_weapon(delta)
 	if is_dead:
 		move_body(delta, Vector3.ZERO, 0.0, false)
+		animate(delta)
 		return
 	if mode != Mode.GROUND:
 		_air_logic(delta)
@@ -113,6 +114,7 @@ func _physics_process(delta: float) -> void:
 						_pause -= delta
 						shoot = false
 
+	sprinting = speed > walk_speed + 0.5
 	wish = _avoid_walls(wish, delta)
 	var want_jump := is_on_wall() and is_on_floor() and randf() < 0.08
 	var before := origin
