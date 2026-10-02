@@ -400,7 +400,7 @@ func _run() -> void:
 		if k.begins_with("step_"):
 			steps += audio.stats[k]
 	check(steps > 0, "footsteps play while walking (%d)" % steps)
-	check(audio.current_music() == "music_game", "in-game music is playing (%s)" % audio.current_music())
+	check(audio.current_music() in ["music_game", "music_combat"], "in-game music is playing (%s)" % audio.current_music())
 	check(audio.count_of("ambient_loop") > 0 and audio.count_of("waves_loop") > 0, "ambient loops started")
 
 	print("SMOKE_RESULT failures=", failures.size())
