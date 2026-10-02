@@ -13,6 +13,7 @@ const LootItem = preload("res://scripts/LootItem.gd")
 const Chest = preload("res://scripts/Chest.gd")
 const Bus = preload("res://scripts/Bus.gd")
 const HUD = preload("res://scripts/HUD.gd")
+const Menu = preload("res://scripts/Menu.gd")
 const Pois = preload("res://scripts/Pois.gd")
 const BuildPiece = preload("res://scripts/BuildPiece.gd")
 const Vehicle = preload("res://scripts/Vehicle.gd")
@@ -45,6 +46,8 @@ var shared := {}                 # cached meshes/materials shared by loot items
 var pois := []                   # runtime POIs: {id, name, center (Vector2), frame_yaw, def, zone}
 var poi_roads := []              # [Vector2 a, Vector2 b] for the map
 var boss = null
+var menu
+var sun: DirectionalLight
 var build_slots := {}            # grid key -> BuildPiece
 var _spinners := []
 var _props := {}                 # model name -> {mm, body, hits}
@@ -59,9 +62,8 @@ func _ready() -> void:
 	add_to_group("world")
 	rng.seed = SEED
 	profile = _make_profile()
-	if not profile.mobile:
-		get_viewport().msaa = Viewport.MSAA_4X
 	_setup_environment()
+	apply_quality()
 
 	terrain = Terrain.new()
 	terrain.name = "Terrain"
@@ -95,9 +97,33 @@ func _ready() -> void:
 	add_child(hud)
 	hud.bind(self)
 	player.connect("damaged", self, "_on_player_damaged")
+	menu = Menu.new()
+	menu.name = "Menu"
+	add_child(menu)
+	menu.bind(self)
+	hud.root.visible = false
+	if "--skip-menu" in OS.get_cmdline_args() or Settings.autostart:
+		Settings.autostart = false
+		menu.start_game()
+	else:
+		menu.show_title()
+
+
+# Called by the menu when the player presses Play (or immediately with --skip-menu).
+func on_game_started() -> void:
+	hud.root.visible = true
 	Audio.music("music_bus" if profile.use_bus else "music_game", 0.5)
-	if not Controls.touch_mode and not ("--no-capture" in OS.get_cmdline_args()):
-		Controls.capture_mouse(true)
+	if boss != null and is_instance_valid(boss):
+		for poi in pois:
+			if poi.def.has("boss"):
+				hud.add_feed("The Warden guards %s - Mythic loot!" % poi.name.capitalize(), Color(1.0, 0.45, 0.15))
+
+
+func apply_quality() -> void:
+	var q: int = Settings.quality
+	if sun != null:
+		sun.shadow_enabled = q >= 1 and not profile.get("force_no_shadows", false)
+	get_viewport().msaa = Viewport.MSAA_4X if q >= 2 else (Viewport.MSAA_2X if q == 1 and not profile.mobile else Viewport.MSAA_DISABLED)
 
 
 func _make_profile() -> Dictionary:
@@ -149,11 +175,11 @@ func _setup_environment() -> void:
 	we.environment = env
 	add_child(we)
 
-	var sun := DirectionalLight.new()
+	sun = DirectionalLight.new()
 	sun.name = "Sun"
 	sun.rotation_degrees = Vector3(-50.0, -35.0, 0.0)
 	sun.light_energy = 0.95
-	sun.shadow_enabled = profile.shadows
+	sun.shadow_enabled = Settings.quality >= 1
 	sun.directional_shadow_max_distance = 90.0
 	add_child(sun)
 
@@ -485,8 +511,6 @@ func _spawn_boss() -> void:
 		add_child(b)
 		b.connect("died", self, "_on_fighter_died")
 		boss = b
-		if hud:
-			hud.add_feed("The Warden guards %s - Mythic loot!" % poi.name.capitalize(), Color(1.0, 0.45, 0.15))
 
 
 # ------------------------------------------------------------------ props
@@ -876,9 +900,7 @@ func _on_fighter_died(victim, killer) -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if Controls.touch_mode or match_over:
+	if Controls.touch_mode or match_over or get_tree().paused:
 		return
 	if event is InputEventMouseButton and event.pressed and Input.get_mouse_mode() != Input.MOUSE_MODE_CAPTURED:
 		Controls.capture_mouse(true)
-	elif event is InputEventKey and event.pressed and event.scancode == KEY_ESCAPE:
-		Controls.capture_mouse(false)

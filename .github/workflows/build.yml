@@ -26,12 +26,19 @@ jobs:
           mv /root/.local/share/godot/templates/${GODOT_VERSION}.stable ~/.local/share/godot/templates/${GODOT_VERSION}.stable
 
       - name: Import assets
-        run: godot --path . --editor --quit || true
+        run: |
+          godot --path . --editor --quit || true
+          sleep 1
+          godot --path . --editor --quit || true     # a second pass finishes any import the first one cut short
 
-      - name: Run smoke test
+      - name: Run tests
         run: |
           mkdir -p tests/out
-          xvfb-run -a godot --path . --audio-driver Dummy -s res://tests/smoke_test.gd -- --no-capture --mobile
+          for t in "smoke_test --no-bus" "bus_test" "movement_test --no-bus" "vehicle_test --no-bus" "build_test --no-bus" "poi_test --no-bus"; do
+            set -- $t
+            name=$1; shift
+            xvfb-run -a godot --path . --audio-driver Dummy -s res://tests/${name}.gd -- --no-capture --skip-menu "$@"
+          done
 
       - name: Configure Android signing (debug keystore)
         run: |

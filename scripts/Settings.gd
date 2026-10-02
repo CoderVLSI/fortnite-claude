@@ -11,6 +11,7 @@ var look_sensitivity := 1.0       # multiplier on the base mouse / touch sensiti
 var invert_y := false
 var quality := 1                  # 0 low, 1 medium, 2 high (picked by platform on first run)
 var show_fps := false
+var autostart := false            # runtime only: skip the title screen after "Play again"
 
 
 func _ready() -> void:

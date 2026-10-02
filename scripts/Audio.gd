@@ -77,9 +77,21 @@ func _stream(name: String):
 	if st != null and (name.ends_with("_loop") or (name.begins_with("music_") and not name.ends_with("victory") and not name.ends_with("defeat"))):
 		st.loop_mode = AudioStreamSample.LOOP_FORWARD
 		st.loop_begin = 0
-		st.loop_end = st.data.size() / 2        # 16-bit mono
+		st.loop_end = _sample_count(st)
 	_cache[name] = st
 	return st
+
+
+# Number of sample frames in an imported stream (PCM 8/16-bit or IMA-ADPCM, mono or stereo).
+func _sample_count(st: AudioStreamSample) -> int:
+	var bytes: int = st.data.size()
+	var frames: int = bytes
+	match st.format:
+		AudioStreamSample.FORMAT_16_BITS:
+			frames = bytes / 2
+		AudioStreamSample.FORMAT_IMA_ADPCM:
+			frames = bytes * 2
+	return frames / (2 if st.stereo else 1)
 
 
 func _count(name: String) -> void:
@@ -141,6 +153,11 @@ func ambient(name: String, db: float, pitch: float = 1.0) -> void:
 
 func stop_ambient(name: String) -> void:
 	ambient(name, SILENT_DB)
+
+
+func set_paused(on: bool) -> void:
+	for p in _pool3d + _pool2d + _ambients.values():
+		p.stream_paused = on
 
 
 func stop_all_ambients() -> void:

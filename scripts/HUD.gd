@@ -29,6 +29,7 @@ var prompt_label: Label
 var bus_label: Label
 var use_bar: Control
 var map_screen: Control
+var pause_btn: Button
 var poi_label: Label
 var boss_label: Label
 var boss_bar: Control
@@ -213,6 +214,14 @@ func _build() -> void:
 	boss_bar.visible = false
 	root.add_child(boss_bar)
 
+	pause_btn = Button.new()
+	pause_btn.text = "II"
+	_place(pause_btn, 1.0, 0.0, Vector2(-MAP_SIZE - 86, 16), Vector2(58, 58))
+	pause_btn.mouse_filter = Control.MOUSE_FILTER_STOP
+	pause_btn.visible = Controls.touch_mode
+	pause_btn.connect("pressed", self, "_on_pause_pressed")
+	root.add_child(pause_btn)
+
 	map_screen = MapScreen.new()
 	_place(map_screen, 0.5, 0.5, Vector2(-290, -290), Vector2(580, 580))
 	map_screen.visible = false
@@ -290,7 +299,14 @@ func _on_slot_pressed(index: int) -> void:
 		player.select_slot(index)
 
 
+func _on_pause_pressed() -> void:
+	if world != null and world.menu != null:
+		world.menu.toggle_pause()
+
+
 func _on_touch_mode(enabled: bool) -> void:
+	if pause_btn:
+		pause_btn.visible = enabled
 	_layout_hotbar()
 	if touch:
 		touch.visible = enabled and not end_panel.visible
@@ -298,6 +314,7 @@ func _on_touch_mode(enabled: bool) -> void:
 
 func _on_restart() -> void:
 	Audio.play2d("ui_click")
+	Settings.autostart = true
 	get_tree().reload_current_scene()
 
 

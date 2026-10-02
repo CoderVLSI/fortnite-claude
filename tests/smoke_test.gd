@@ -129,7 +129,11 @@ func _run() -> void:
 	p.give_weapon("assault", 2, 120)
 	check(p.selected_item() != null and p.selected_item().id == "assault" and p.selected == 1, "weapon goes to slot 2 and is auto-selected")
 	check(p.get_ammo() == 30 and p.get_reserve() == 120, "rifle has a full magazine and reserve ammo")
-	var target = world.get_node("Bot0")
+	var target = null
+	for f in get_nodes_in_group("fighters"):            # any bot that is still alive
+		if f != p and not f.is_dead and not f.is_boss:
+			target = f
+			break
 	target.set_physics_process(false)
 	p.pitch = 0.0
 	p.head.rotation.x = 0.0
@@ -163,10 +167,20 @@ func _run() -> void:
 	check(p.get_ammo() == 30, "reload refills the magazine from reserve")
 
 	# --- kill: credited, and the bot's weapon + ammo drop as floor loot
+	var kill_target = null
+	for f in get_nodes_in_group("fighters"):          # a bot that is still alive (others may have killed Bot0)
+		if f != p and not f.is_dead and not f.is_boss:
+			kill_target = f
+			break
+	check(kill_target != null, "a living bot is available for the kill test")
+	kill_target.set_physics_process(false)
+	kill_target.health = 100.0
+	kill_target.shield = 0.0
 	var kills_before: int = p.kills
 	var loot_before := _count_loot()
-	target.take_damage(1000.0, p)
+	kill_target.take_damage(1000.0, p)
 	yield(_frames(2), "completed")
+	target = kill_target
 	check(target.is_dead and p.kills == kills_before + 1, "kill is credited to the player")
 	check(_count_loot() >= loot_before + 2, "a dead bot drops its weapon and ammo")
 
@@ -412,6 +426,9 @@ func _run() -> void:
 	check(steps > 0, "footsteps play while walking (%d)" % steps)
 	check(audio.current_music() in ["music_game", "music_combat"], "in-game music is playing (%s)" % audio.current_music())
 	check(audio.count_of("ambient_loop") > 0 and audio.count_of("waves_loop") > 0, "ambient loops started")
+	for loop_name in ["bus_loop", "music_game", "storm_loop"]:
+		var st = audio._stream(loop_name)
+		check(st != null and abs(float(st.loop_end) / st.mix_rate - st.get_length()) < 0.05, "%s loops over its whole length (%.2fs of %.2fs)" % [loop_name, float(st.loop_end) / st.mix_rate, st.get_length()])
 
 	print("SMOKE_RESULT failures=", failures.size())
 	for f in failures:
