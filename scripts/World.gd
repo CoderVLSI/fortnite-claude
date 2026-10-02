@@ -14,6 +14,8 @@ const Chest = preload("res://scripts/Chest.gd")
 const Bus = preload("res://scripts/Bus.gd")
 const HUD = preload("res://scripts/HUD.gd")
 const Pois = preload("res://scripts/Pois.gd")
+const Vehicle = preload("res://scripts/Vehicle.gd")
+const Boat = preload("res://scripts/Boat.gd")
 
 const MAP_HALF := 160.0
 const SEED := 20241002
@@ -82,6 +84,7 @@ func _ready() -> void:
 	_spawn_poi_loot()
 	_spawn_fighters()
 	_spawn_boss()
+	_spawn_vehicles()
 	if profile.use_bus:
 		_start_bus()
 
@@ -407,6 +410,50 @@ func _spawn_poi_loot() -> void:
 			var p := _poi_point(poi, it)
 			var item: Dictionary = Items.random_weapon(rng, 1) if rng.randf() < 0.55 else Items.random_floor_item(rng)
 			spawn_item(item, p + Vector3(0, 0.1, 0))
+
+
+func spawn_vehicle(kind: String, pos: Vector3, yaw: float) -> Node:
+	var v: Node
+	if kind == "boat":
+		v = Boat.new()
+	else:
+		v = Vehicle.new()
+		v.kind = kind
+	v.translation = pos
+	v.rotation.y = yaw
+	add_child(v)
+	return v
+
+
+func _spawn_vehicles() -> void:
+	for poi in pois:
+		for def in poi.def.get("vehicles", []):
+			var p := _poi_point(poi, def.at)
+			var yaw: float = poi.frame_yaw + deg2rad(def.get("yaw", 0.0))
+			if def.kind == "boat":
+				var found := false
+				for step in range(0, 28, 2):          # slide out to open water
+					var q := _poi_point(poi, def.at + Vector2(step, 0))
+					if q.y < -1.8:
+						p = Vector3(q.x, Terrain.WATER_LEVEL + 0.4, q.z)
+						found = true
+						break
+				if not found:
+					continue
+			else:
+				p.y += 1.2
+			spawn_vehicle(def.kind, p, yaw)
+	# a few extra along the roads
+	for i in range(2 if profile.mobile else 4):
+		var seg: Array = poi_roads[rng.randi() % poi_roads.size()]
+		var t := rng.randf_range(0.25, 0.75)
+		var base: Vector2 = seg[0].linear_interpolate(seg[1], t)
+		var dir: Vector2 = (seg[1] - seg[0]).normalized()
+		var side := Vector2(-dir.y, dir.x) * 3.0
+		var q := base + side
+		var h: float = terrain.height_at(q.x, q.y)
+		if h > 2.0:
+			spawn_vehicle("quad" if i % 2 == 1 else "buggy", Vector3(q.x, h + 1.2, q.y), atan2(-dir.x, -dir.y))
 
 
 func _spawn_boss() -> void:

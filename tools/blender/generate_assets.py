@@ -90,7 +90,7 @@ class Part:
         verts = ret["verts"]
         m = (
             Matrix.Translation(Vector(center) - self.origin)
-            @ (Matrix.Rotation(-math.pi / 2, 4, "X") if axis == "Y" else Matrix.Identity(4))
+            @ (Matrix.Rotation(-math.pi / 2, 4, "X") if axis == "Y" else (Matrix.Rotation(math.pi / 2, 4, "Y") if axis == "X" else Matrix.Identity(4)))
             @ Matrix.Diagonal((scale_xy[0], scale_xy[1], 1.0, 1.0))
             @ Matrix.Rotation(rot_z, 4, "Z")
         )
@@ -880,6 +880,106 @@ def make_vault():
     export("vault", [base.build(), lid.build()])
 
 
+# ------------------------------------------------------------- vehicles
+# Origin = ground level under the middle of the vehicle, forward = +Y (Godot -Z).
+# Wheels are separate objects centred on the axle so the game can spin/steer them.
+
+
+def _wheel(name, x, y, z, radius, width, tire, hub):
+    w = Part(name, origin=(x, y, z))
+    w.cone((x, y, z), radius, radius, width, tire, segments=14, axis="X")
+    w.cone((x + (width / 2 + 0.01) * (1 if x > 0 else -1), y, z), radius * 0.55, radius * 0.55, 0.04, hub, segments=10, axis="X")
+    for k in range(4):                                          # lug marks so the spin is visible
+        a = k * math.pi / 2
+        w.box((x + (width / 2 + 0.03) * (1 if x > 0 else -1), y + math.cos(a) * radius * 0.35, z + math.sin(a) * radius * 0.35),
+              (0.03, 0.06, 0.06), tire)
+    return w.build()
+
+
+def make_buggy():
+    accent = material("accent", (0.9, 0.35, 0.1), rough=0.5)
+    dark = material("bg_dark", (0.12, 0.12, 0.14), rough=0.6)
+    steel = material("bg_steel", (0.55, 0.57, 0.6), rough=0.35)
+    seat = material("bg_seat", (0.15, 0.17, 0.22))
+    tire = material("bg_tire", (0.07, 0.07, 0.08), rough=0.9)
+    hub = material("bg_hub", (0.7, 0.72, 0.75), rough=0.3)
+    lamp = material("bg_lamp", (1.0, 0.95, 0.7), emit=(1.0, 0.9, 0.5), emit_strength=1.5)
+    b = Part("Body")
+    b.box((0, 0, 0.62), (1.5, 3.1, 0.22), dark)                       # chassis plate
+    b.box((0, -0.15, 0.85), (1.7, 2.2, 0.34), accent)                 # tub
+    b.box((0, 1.25, 0.82), (1.5, 0.95, 0.30), accent)                 # hood
+    b.box((0, 1.78, 0.68), (1.75, 0.14, 0.22), steel)                 # front bumper
+    b.box((0, -1.78, 0.68), (1.7, 0.14, 0.22), steel)                 # rear bumper
+    b.box((0, -1.5, 0.98), (1.1, 0.55, 0.55), dark)                   # engine
+    for ex in (-0.3, 0.3):
+        b.cone((ex, -1.85, 1.0), 0.05, 0.05, 0.4, steel, segments=6, axis="Y")   # exhausts
+    for sx in (-1, 1):                                                  # roll cage
+        b.box((sx * 0.78, 0.45, 1.3), (0.07, 0.07, 1.0), steel)
+        b.box((sx * 0.78, -1.05, 1.3), (0.07, 0.07, 1.0), steel)
+        b.box((sx * 0.78, -0.3, 1.8), (0.07, 1.5, 0.07), steel)
+    b.box((0, 0.45, 1.8), (1.6, 0.07, 0.07), steel)
+    b.box((0, -1.05, 1.8), (1.6, 0.07, 0.07), steel)
+    for sx in (-0.4, 0.4):                                              # seats
+        b.box((sx, -0.35, 1.0), (0.5, 0.55, 0.12), seat)
+        b.box((sx, -0.65, 1.3), (0.5, 0.12, 0.55), seat)
+    b.box((-0.4, 0.3, 1.2), (0.4, 0.05, 0.4), dark, rot=(0.9, 0, 0))   # steering wheel
+    for sx in (-0.55, 0.55):
+        b.box((sx, 1.75, 0.85), (0.28, 0.06, 0.2), lamp)
+    objs = [b.build()]
+    for name, x, y in (("WheelFL", -0.95, 1.15), ("WheelFR", 0.95, 1.15), ("WheelRL", -0.95, -1.15), ("WheelRR", 0.95, -1.15)):
+        objs.append(_wheel(name, x, y, 0.45, 0.45, 0.4, tire, hub))
+    export("buggy", objs)
+
+
+def make_quad():
+    accent = material("accent", (0.15, 0.55, 0.85), rough=0.5)
+    dark = material("qd_dark", (0.12, 0.12, 0.14), rough=0.6)
+    steel = material("qd_steel", (0.55, 0.57, 0.6), rough=0.35)
+    seat = material("qd_seat", (0.1, 0.1, 0.12))
+    tire = material("qd_tire", (0.07, 0.07, 0.08), rough=0.9)
+    hub = material("qd_hub", (0.7, 0.72, 0.75), rough=0.3)
+    lamp = material("qd_lamp", (1.0, 0.95, 0.7), emit=(1.0, 0.9, 0.5), emit_strength=1.5)
+    b = Part("Body")
+    b.box((0, 0, 0.62), (0.75, 1.5, 0.22), dark)
+    b.box((0, 0.35, 0.82), (0.8, 0.8, 0.3), accent)                   # tank / front body
+    b.box((0, -0.45, 0.86), (0.55, 0.85, 0.12), seat)                  # seat
+    b.box((0, -0.82, 0.7), (0.6, 0.35, 0.3), dark)                     # rear
+    b.box((0, 0.5, 1.15), (0.08, 0.08, 0.5), steel, rot=(0.4, 0, 0))   # steering column
+    b.box((0, 0.7, 1.35), (1.0, 0.07, 0.07), steel)                    # handlebars
+    b.box((0, 0.85, 0.95), (0.3, 0.08, 0.18), lamp)
+    for sx in (-1, 1):
+        b.box((sx * 0.6, 0.7, 0.62), (0.08, 0.5, 0.06), steel)         # front guards
+        b.box((sx * 0.6, -0.7, 0.62), (0.08, 0.5, 0.06), steel)
+    objs = [b.build()]
+    for name, x, y in (("WheelFL", -0.62, 0.7), ("WheelFR", 0.62, 0.7), ("WheelRL", -0.62, -0.7), ("WheelRR", 0.62, -0.7)):
+        objs.append(_wheel(name, x, y, 0.38, 0.38, 0.32, tire, hub))
+    export("quad", objs)
+
+
+def make_boat():
+    accent = material("accent", (0.9, 0.9, 0.92), rough=0.4)
+    hull = material("bt_hull", (0.15, 0.3, 0.55), rough=0.45)
+    dark = material("bt_dark", (0.12, 0.12, 0.14))
+    seat = material("bt_seat", (0.85, 0.82, 0.75))
+    glass = material("bt_glass", (0.7, 0.88, 1.0), rough=0.1)
+    steel = material("bt_steel", (0.55, 0.57, 0.6), rough=0.35)
+    b = Part("Body")
+    b.box((0, -0.2, 0.25), (1.7, 3.2, 0.5), hull)                      # hull block
+    b.box((0, 1.95, 0.25), (1.5, 1.0, 0.5), hull, rot=(0, 0, 0.0))
+    for sx in (-1, 1):                                                  # pointed bow from two wedges
+        b.box((sx * 0.38, 2.15, 0.28), (0.9, 1.3, 0.46), hull, rot_z=-sx * 0.45)
+    b.box((0, -0.2, 0.52), (1.5, 3.0, 0.08), accent)                   # deck
+    b.box((0, 0.35, 0.95), (1.0, 0.5, 0.6), accent)                    # console
+    b.box((0, 0.7, 1.3), (1.0, 0.06, 0.45), glass, rot=(0.7, 0, 0))    # windshield
+    for sx in (-0.4, 0.4):
+        b.box((sx, -0.55, 0.85), (0.5, 0.5, 0.3), seat)
+        b.box((sx, -0.85, 1.1), (0.5, 0.1, 0.45), seat)
+    b.box((0, -1.9, 0.75), (0.35, 0.3, 0.7), dark)                     # outboard motor
+    b.box((0, -2.0, 0.2), (0.1, 0.5, 0.8), steel)
+    b.box((0, -2.0, 0.0), (0.7, 0.06, 0.12), steel)                    # propeller blade
+    export("boat", [b.build()])
+
+
 def main():
     reset_scene()
     make_player()
@@ -903,6 +1003,9 @@ def main():
         fn()
     for fn in (make_poi_buildings, make_container, make_silo, make_windmill, make_lighthouse, make_watchtower, make_crane,
                make_chimney, make_tank, make_haystack, make_fence, make_sandbags, make_radar, make_vault):
+        reset_scene()
+        fn()
+    for fn in (make_buggy, make_quad, make_boat):
         reset_scene()
         fn()
     reset_scene()

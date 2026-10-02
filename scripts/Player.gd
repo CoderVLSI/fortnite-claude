@@ -15,6 +15,7 @@ var camera: Camera
 var interact_target = null
 var _interact_t := 0.0
 var _audio_ready := false
+var _last_look_time := 0.0
 var combat_until := 0.0     # seconds (ticks) until which the music stays in "combat"
 
 
@@ -64,6 +65,8 @@ func _physics_process(delta: float) -> void:
 			if input_enabled and Input.is_action_just_pressed("jump"):
 				leave_bus()
 			interact_target = null
+		Mode.VEHICLE:
+			_vehicle_process(delta)
 		Mode.SWIM:
 			_swim_process(delta)
 		Mode.MANTLE:
@@ -81,6 +84,34 @@ func _physics_process(delta: float) -> void:
 			interact_target = null
 		_:
 			_ground_process(delta)
+
+
+func _vehicle_process(delta: float) -> void:
+	if vehicle == null or not is_instance_valid(vehicle) or vehicle.exploded:
+		exit_vehicle(true)
+		return
+	follow_vehicle()
+	var v = vehicle
+	var yaw: float = v.global_transform.basis.get_euler().y
+	air_pivot.rotation.y = wrapf(yaw - rotation.y, -PI, PI)
+	if vehicle_seat == 0 and input_enabled:
+		v.input_move = Controls.get_move()
+		v.handbrake = Input.is_action_pressed("jump")
+		v.boost = Input.is_action_pressed("sprint")
+		if Input.is_action_just_pressed("reload"):
+			Audio.play3d("car_horn", v.global_transform.origin, 2.0)
+		vehicle_steer = clamp(v.steer_visual * 2.0 if "steer_visual" in v else v.input_move.x * -0.5, -1.0, 1.0)
+	else:
+		vehicle_steer = 0.0
+		if vehicle_seat == 0:
+			v.input_move = Vector2.ZERO
+	vehicle_hands_on_wheel = vehicle_seat == 0
+	if input_enabled and OS.get_ticks_msec() / 1000.0 - _last_look_time > 1.3:
+		rotation.y = lerp_angle(rotation.y, yaw, clamp(1.8 * delta, 0.0, 1.0))
+	aim_pitch = 0.0
+	animate(delta)
+	if input_enabled and Input.is_action_just_pressed("interact"):
+		exit_vehicle(false)
 
 
 func _swim_process(delta: float) -> void:
@@ -213,6 +244,9 @@ func _process(delta: float) -> void:
 		Mode.GLIDE:
 			dist = 5.2
 			offset = Vector3(0.0, 1.9, 0.0)
+		Mode.VEHICLE:
+			dist = 8.5
+			offset = Vector3(0.0, 2.5, 0.0)
 	var k: float = clamp(3.0 * delta, 0.0, 1.0)
 	var run_fov: float = 80.0 if (sprinting and mode == Mode.GROUND and speed_ratio() > 0.8) else (74.0 if mode == Mode.SWIM else 72.0)
 	camera.fov = lerp(camera.fov, run_fov, clamp(5.0 * delta, 0.0, 1.0))
@@ -222,6 +256,8 @@ func _process(delta: float) -> void:
 
 func _look(delta: float) -> void:
 	var l := Controls.consume_look(delta)
+	if l.length() > 0.002:
+		_last_look_time = OS.get_ticks_msec() / 1000.0
 	rotation.y -= l.x
 	pitch = clamp(pitch - l.y, -1.15, 1.15)
 

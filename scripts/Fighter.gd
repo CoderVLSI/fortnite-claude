@@ -23,6 +23,7 @@ const MODEL_PATH := "res://assets/models/player.glb"
 const GLIDER_PATH := "res://assets/models/glider.glb"
 const DEPLOY_ALTITUDE := 75.0
 const WATER_LEVEL := 0.0
+const BODY_MASK := 1 | 2 | 8          # world, fighters, vehicles
 const SWIM_ENTER := -0.75          # feet below this -> swimming (depth > 0.75 m)
 const SWIM_EXIT := -0.55           # feet above this while on the floor -> wading again
 const SWIM_FEET_Y := -1.05         # swimmers float with their feet this far below the surface
@@ -79,6 +80,8 @@ var animator
 var grounded := true
 var forward_speed := 0.0
 var sprinting := false
+var vehicle = null
+var vehicle_seat := 0
 var vehicle_steer := 0.0
 var vehicle_hands_on_wheel := true
 var _mantle_t := 0.0
@@ -108,7 +111,7 @@ func setup_fighter(fighter_name: String, color: Color) -> void:
 	vest_color = color
 	health = max_health
 	collision_layer = 2
-	collision_mask = 1 | 2
+	collision_mask = BODY_MASK
 	add_to_group("fighters")
 
 	var capsule := CapsuleShape.new()   # Godot 3 capsules lie along Z: rotate upright
@@ -478,6 +481,44 @@ func _ripple(spread: float) -> void:
 	get_tree().create_timer(1.1).connect("timeout", mi, "queue_free")
 
 
+# ------------------------------------------------------------------ vehicles
+
+func enter_vehicle(v, seat: int) -> void:
+	cancel_use()
+	vehicle = v
+	vehicle_seat = seat
+	mode = Mode.VEHICLE
+	collision_layer = 0
+	collision_mask = 0
+	velocity = Vector3.ZERO
+	sprinting = false
+	Audio.play3d("door", global_transform.origin, -2.0)
+
+
+func exit_vehicle(eject: bool = false) -> void:
+	if mode != Mode.VEHICLE:
+		return
+	var v = vehicle
+	var seat := vehicle_seat
+	mode = Mode.GROUND
+	collision_layer = 2
+	collision_mask = BODY_MASK
+	if v != null and is_instance_valid(v):
+		global_transform.origin = v.exit_position(seat)
+		velocity = v.linear_velocity * (0.6 if eject else 0.25)
+		v.release_seat(seat)
+	vehicle = null
+	air_pivot.rotation = Vector3.ZERO
+	air_pivot.translation = Vector3(0, 0.9, 0)
+	grounded = false
+	Audio.play3d("door", global_transform.origin, -2.0)
+
+
+func follow_vehicle() -> void:
+	if vehicle != null and is_instance_valid(vehicle):
+		global_transform.origin = vehicle.seat_position(vehicle_seat)
+
+
 # ------------------------------------------------------------------ mantling
 
 # Climb onto a ledge in front of us. dir = facing / movement direction. Returns true if started.
@@ -528,7 +569,7 @@ func mantle_physics(delta: float) -> void:
 	global_transform.origin = p
 	if _mantle_t >= 1.0:
 		mode = Mode.GROUND
-		collision_mask = 1 | 2
+		collision_mask = BODY_MASK
 		velocity = _mantle_dir * 2.0
 		_mantle_cd = 0.5
 		_mantle_t = 0.0
@@ -551,7 +592,7 @@ func leave_bus() -> void:
 		return
 	mode = Mode.FREEFALL
 	collision_layer = 2
-	collision_mask = 1 | 2
+	collision_mask = BODY_MASK
 	if air_pivot:
 		air_pivot.visible = true
 	var drift: Vector3 = bus.direction * 8.0 if bus != null else Vector3.ZERO
@@ -755,7 +796,7 @@ func try_fire(aim_from: Vector3, aim_dir: Vector3) -> bool:
 func _fire_ray(aim_from: Vector3, aim_dir: Vector3, show_tracer: bool) -> void:
 	var dir := _spread(aim_dir)
 	var to := aim_from + dir * weapon_range
-	var hit := get_world().direct_space_state.intersect_ray(aim_from, to, [self], 3)
+	var hit := get_world().direct_space_state.intersect_ray(aim_from, to, [self], 11)
 	var end := to
 	if hit:
 		end = hit.position
@@ -774,7 +815,7 @@ func _swing_pickaxe(aim_from: Vector3, aim_dir: Vector3) -> bool:
 	_fire_cd = fire_interval
 	_swing = 0.3
 	Audio.play3d("swing", global_transform.origin + Vector3(0, 1.3, 0), -4.0, rand_range(0.9, 1.1))
-	var hit := get_world().direct_space_state.intersect_ray(aim_from, aim_from + aim_dir * weapon_range, [self], 3)
+	var hit := get_world().direct_space_state.intersect_ray(aim_from, aim_from + aim_dir * weapon_range, [self], 11)
 	if not hit:
 		return true
 	var target = hit.collider

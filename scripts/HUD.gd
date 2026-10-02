@@ -16,6 +16,7 @@ const MAP_SIZE := 190.0
 const MODE_BUS := 1         # mirrors Fighter.Mode
 const MODE_FREEFALL := 2
 const MODE_GLIDE := 3
+const MODE_VEHICLE := 6
 
 var world
 var player
@@ -411,7 +412,7 @@ func _update_prompts() -> void:
 		prompt_label.text = key + target.prompt_text()
 		prompt_label.add_color_override("font_color", target.prompt_color())
 	prompt_label.visible = has_target
-	touch.set_interact(has_target)
+	touch.set_interact(has_target or player.mode == MODE_VEHICLE, "EXIT" if player.mode == MODE_VEHICLE else "PICK UP")
 	# consumable progress
 	use_bar.visible = player.is_using()
 	if use_bar.visible:
@@ -427,6 +428,11 @@ func _update_prompts() -> void:
 			bus_label.visible = true
 		MODE_GLIDE:
 			bus_label.text = "GLIDING  %dm" % int(player.ground_distance())
+			bus_label.visible = true
+		MODE_VEHICLE:
+			var kmh := int(player.vehicle.linear_velocity.length() * 3.6) if player.vehicle != null and is_instance_valid(player.vehicle) else 0
+			var keys := "" if Controls.touch_mode else "  [E] exit  [R] horn  [Shift] boost  [Space] brake"
+			bus_label.text = ("%d km/h" % kmh) + (keys if player.vehicle_seat == 0 else "   [E] exit")
 			bus_label.visible = true
 		_:
 			bus_label.visible = false

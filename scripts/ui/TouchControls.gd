@@ -42,9 +42,13 @@ func _layout() -> void:
 		b["id"] = -1
 
 
-func set_interact(show: bool) -> void:
-	if _buttons.has("interact") and _buttons["interact"].get("hidden", false) == show:
-		_buttons["interact"]["hidden"] = not show
+func set_interact(show: bool, label: String = "PICK UP") -> void:
+	if not _buttons.has("interact"):
+		return
+	var b: Dictionary = _buttons["interact"]
+	if b.get("hidden", false) == show or b["label"] != label:
+		b["hidden"] = not show
+		b["label"] = label
 		update()
 
 
