@@ -8,6 +8,7 @@ var half := 160.0
 var cell := 3.0
 var noise := OpenSimplexNoise.new()
 var detail := OpenSimplexNoise.new()
+var ridge := OpenSimplexNoise.new()
 var _zones := []      # Vector3(x, z, radius)
 var _zone_h := []     # flattened height per zone
 var _roads := []      # [Vector2 a, Vector2 b] segments (x, z)
@@ -23,12 +24,20 @@ func setup(map_half: float, seed_value: int, cell_size: float) -> void:
 	detail.seed = seed_value + 99
 	detail.octaves = 2
 	detail.period = 22.0
+	ridge.seed = seed_value + 7
+	ridge.octaves = 3
+	ridge.period = 85.0
+	ridge.persistence = 0.5
 
 
 func raw_height(x: float, z: float) -> float:
 	var h := 5.0 + noise.get_noise_2d(x, z) * 13.0 + detail.get_noise_2d(x, z) * 1.6
 	var radial := Vector2(x, z).length() / half
 	h -= smoothstep(0.62, 1.0, radial) * 30.0   # island falloff into the sea
+	# mountain ranges: ridged noise, only well away from the town and the coast
+	var m: float = 1.0 - abs(ridge.get_noise_2d(x, z))
+	var range_w: float = smoothstep(0.26, 0.42, radial) * (1.0 - smoothstep(0.66, 0.84, radial))
+	h += pow(max(m - 0.72, 0.0) / 0.28, 1.4) * 38.0 * range_w
 	return h
 
 
@@ -156,6 +165,10 @@ func _vertex(heights: Array, i: int, j: int, n: int) -> Array:
 		col = Color(0.76, 0.66, 0.43)                       # beach sand
 	elif h > 13.0:
 		col = col.linear_interpolate(Color(0.42, 0.55, 0.22), 0.5)
+	if h > 19.0:       # bare rock high up, snow-capped on the very tops
+		col = col.linear_interpolate(Color(0.52, 0.50, 0.47), clamp((h - 19.0) / 6.0, 0.0, 1.0))
+		if h > 30.0:
+			col = col.linear_interpolate(Color(0.95, 0.97, 1.0), clamp((h - 30.0) / 5.0, 0.0, 1.0))
 	if slope > 0.22:
 		col = col.linear_interpolate(Color(0.48, 0.45, 0.40), clamp((slope - 0.22) * 5.0, 0.0, 1.0))
 	var bw := biome_weights(x, z)

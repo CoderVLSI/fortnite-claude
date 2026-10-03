@@ -302,10 +302,20 @@ func _find_interactable():
 		if not is_instance_valid(n) or not n.can_interact():
 			continue
 		var d := here.distance_to(n.global_transform.origin + Vector3(0, 0.5, 0))
-		if d < best_d:
+		if d < best_d and _can_reach(n):
 			best_d = d
 			best = n
 	return best
+
+
+# Nothing opens through a wall: the line from the player's chest to the thing must be clear of buildings and props.
+func _can_reach(n) -> bool:
+	var from := global_transform.origin + Vector3(0, 1.1, 0)
+	var to: Vector3 = n.global_transform.origin + Vector3(0, 0.5, 0)
+	var hit := get_world().direct_space_state.intersect_ray(from, to, [self], 1)
+	if not hit:
+		return true
+	return from.distance_to(hit.position) > from.distance_to(to) - 0.7
 
 
 func _on_hit_landed(_target, killed: bool, _headshot: bool) -> void:

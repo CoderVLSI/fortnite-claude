@@ -21,6 +21,7 @@ const BuildPiece = preload("res://scripts/BuildPiece.gd")
 const Vehicle = preload("res://scripts/Vehicle.gd")
 const Boat = preload("res://scripts/Boat.gd")
 const Rift = preload("res://scripts/Rift.gd")
+const AutoDoor = preload("res://scripts/AutoDoor.gd")
 const WildSprite = preload("res://scripts/WildSprite.gd")
 const SpriteCreature = preload("res://scripts/SpriteCreature.gd")
 const Sprites = preload("res://scripts/Sprites.gd")
@@ -30,6 +31,12 @@ const MAP_SCALE := MAP_HALF / 160.0      # POI radii and spacing are authored fo
 const SEED := 20241002
 const MODEL_DIR := "res://assets/models/"
 const HOUSES := ["house_a", "house_b"]
+# front door of each building model: [half depth, door width, door height]; they get a door that opens by itself
+const DOORS := {"house_a": [3.5, 1.3, 2.25], "house_b": [4.0, 1.3, 2.25], "lodge": [5.0, 1.8, 2.5], "cabin": [2.75, 1.3, 2.25],
+	"barn": [7.0, 3.4, 3.4], "warehouse": [5.5, 4.0, 4.2], "bunker": [4.0, 1.8, 2.4], "keeper_house": [2.5, 1.3, 2.25]}
+# how many pickaxe hits a building takes before it comes down
+const STRUCTURE_HITS := {"house_a": 16, "house_b": 22, "lodge": 30, "cabin": 12, "barn": 34, "warehouse": 40, "bunker": 60, "keeper_house": 14,
+	"tower": 50, "silo": 26, "watchtower": 18, "windmill": 30, "lighthouse": 45, "container": 14, "tank": 22, "crane": 28, "chimney": 16, "radar": 18}
 const BUS_ALTITUDE := 260.0
 const BUS_LENGTH := 720.0
 const BOT_NAMES := ["Rook", "Nova", "Echo", "Blitz", "Sable", "Juno", "Kestrel", "Moxie", "Vesper", "Dash",
@@ -262,17 +269,67 @@ func _spawn_buildings(plan: Array) -> void:
 		inst.translation = Vector3(p.x, terrain.height_at(p.x, p.y), p.y)
 		inst.rotation.y = entry.yaw
 		add_child(inst)
-		_add_trimesh_collision(inst, "metal" if entry.res == "tower" else "wood")
+		_add_trimesh_collision(inst, "metal" if entry.res == "tower" else "wood", inst, entry.res)
+		_add_door(inst, entry.res)
 		building_positions.append(p)
 
 
-func _add_trimesh_collision(node: Node, harvest_kind: String) -> void:
+func _add_trimesh_collision(node: Node, harvest_kind: String, root: Node = null, res: String = "") -> void:
 	if node is MeshInstance:
 		node.create_trimesh_collision()
 	for c in node.get_children():
 		if c is StaticBody:
 			c.set_meta("harvest", harvest_kind)
-		_add_trimesh_collision(c, harvest_kind)
+			if root != null:
+				c.set_meta("structure", root)
+		_add_trimesh_collision(c, harvest_kind, root, res)
+	if root != null and node == root:
+		root.set_meta("hits_max", STRUCTURE_HITS.get(res, 20))
+		root.set_meta("hits", 0)
+
+
+func _add_door(inst: Spatial, res: String) -> void:
+	if not DOORS.has(res):
+		return
+	var d: Array = DOORS[res]
+	var door := AutoDoor.new()
+	door.door_w = d[1]
+	door.door_h = d[2]
+	door.translation = Vector3(0, 0.12, d[0])
+	inst.add_child(door)
+
+
+# A structure that has taken enough pickaxe hits: its colliders vanish and it sinks into a cloud of dust.
+func _collapse(root: Spatial) -> void:
+	if root.has_meta("fallen"):
+		return
+	root.set_meta("fallen", true)
+	var pos := root.global_transform.origin
+	_strip_colliders(root)
+	Audio.play3d("explosion", pos + Vector3(0, 2, 0), -4.0, 0.6)
+	Audio.play3d("build_destroy" if false else "build_place", pos, 0.0, 0.5)
+	var dust := preload("res://scripts/SpriteCreature.gd").particles(Color(0.72, 0.68, 0.6, 0.8), 70, 1.8, 6.0, 80.0, 3.0, 4.0)
+	dust.one_shot = true
+	dust.explosiveness = 0.85
+	add_child(dust)
+	dust.global_transform.origin = pos + Vector3(0, 1.5, 0)
+	get_tree().create_timer(3.0).connect("timeout", dust, "queue_free")
+	var tween := Tween.new()
+	add_child(tween)
+	tween.interpolate_property(root, "translation:y", root.translation.y, root.translation.y - 6.0, 1.6, Tween.TRANS_QUAD, Tween.EASE_IN)
+	tween.interpolate_property(root, "rotation:z", root.rotation.z, root.rotation.z + rand_range(-0.12, 0.12), 1.6, Tween.TRANS_QUAD, Tween.EASE_IN)
+	tween.start()
+	get_tree().create_timer(1.8).connect("timeout", root, "queue_free")
+
+
+func _strip_colliders(node: Node) -> void:
+	for c in node.get_children():
+		if c is StaticBody:
+			c.collision_layer = 0
+			for k in c.get_children():
+				if k is CollisionShape:
+					k.set_deferred("disabled", true)
+		_strip_colliders(c)
 
 
 func _find_mesh(node: Node):
@@ -403,7 +460,8 @@ func _build_pois() -> void:
 			if pr.has("tint"):
 				Items.apply_accent(inst, pr.tint)
 			if not pr.get("decor", false):
-				_add_trimesh_collision(inst, pr.get("harvest", "wood"))
+				_add_trimesh_collision(inst, pr.get("harvest", "wood"), inst, pr.res)
+				_add_door(inst, pr.res)
 			if pr.get("building", false):
 				building_positions.append(Vector2(pos.x, pos.z))
 			if pr.has("spin"):
@@ -730,6 +788,16 @@ const HARVEST_LABELS := {"wood": "TREE", "stone": "ROCK", "metal": "METAL"}
 func harvest_hit(body, shape_idx: int, kind: String, by, at: Vector3 = Vector3.ZERO) -> void:
 	var yield_mult: float = 1.0 + 0.25 * by.sprite_level() if by.has_sprite("king") else 1.0
 	by.add_material(kind, int((8 + rng.randi() % 5) * yield_mult))
+	if body.has_meta("structure"):
+		var root = body.get_meta("structure")
+		if is_instance_valid(root) and root.has_meta("hits_max") and not root.has_meta("fallen"):
+			var sh: int = int(root.get_meta("hits")) + 1
+			root.set_meta("hits", sh)
+			var smax: int = int(root.get_meta("hits_max"))
+			by.emit_signal("harvested", at, clamp(1.0 - float(sh) / smax, 0.0, 1.0), kind, "BUILDING", "struct:%d" % root.get_instance_id())
+			if sh >= smax:
+				_collapse(root)
+		return
 	if not _props.has(body.name):
 		return
 	var data: Dictionary = _props[body.name]

@@ -1,9 +1,12 @@
 extends Control
+
+const MapColors = preload("res://scripts/ui/MapColors.gd")
 # North-up island map: storm circles, buildings, the player and nearby enemies.
 
 const RADAR_RANGE := 45.0   # enemies are only shown when this close
 
 var world
+var _tex: ImageTexture
 var _small: DynamicFont         # place-name banner font: small enough for the longest POI name
 
 
@@ -18,8 +21,9 @@ func _draw() -> void:
 	var s := rect_size.x / (half * 2.0)
 	var mid := rect_size / 2.0
 
-	draw_rect(Rect2(Vector2.ZERO, rect_size), Color(0.10, 0.34, 0.52, 0.85))                # sea
-	draw_circle(mid, half * 0.80 * s, Color(0.52, 0.70, 0.38, 0.95))                       # island
+	if _tex == null:
+		_tex = MapColors.make_texture(world.terrain, 96)
+	draw_texture_rect(_tex, Rect2(Vector2.ZERO, rect_size), false)                          # sea, beaches, biomes, mountains
 	for b in world.building_positions:
 		draw_rect(Rect2(mid + b * s - Vector2(2, 2), Vector2(4, 4)), Color(0.93, 0.90, 0.80))
 

@@ -1,4 +1,6 @@
 extends Control
+
+const MapColors = preload("res://scripts/ui/MapColors.gd")
 # Full map overlay (M key / tap the minimap): terrain heat-map, roads, named POIs, storm
 # circles, supply drops, the bus route, the boss and the player.
 
@@ -12,30 +14,7 @@ var _pending := []              # [text, centre, colour, is_town] collected whil
 
 
 func _build_texture() -> void:
-	var img := Image.new()
-	img.create(N, N, false, Image.FORMAT_RGB8)
-	img.lock()
-	var half: float = world.terrain.half
-	for j in range(N):
-		for i in range(N):
-			var x := -half + (float(i) + 0.5) / N * half * 2.0
-			var z := -half + (float(j) + 0.5) / N * half * 2.0
-			var h: float = world.terrain.height_at(x, z)
-			var c: Color
-			if h < -4.0:
-				c = Color(0.07, 0.25, 0.42)
-			elif h < 0.0:
-				c = Color(0.12, 0.42, 0.62)
-			elif h < 1.4:
-				c = Color(0.80, 0.72, 0.50)
-			elif h < 9.0:
-				c = Color(0.40, 0.62, 0.30).linear_interpolate(Color(0.30, 0.52, 0.25), clamp(h / 9.0, 0.0, 1.0))
-			else:
-				c = Color(0.30, 0.46, 0.24).linear_interpolate(Color(0.52, 0.50, 0.42), clamp((h - 9.0) / 10.0, 0.0, 1.0))
-			img.set_pixel(i, j, c)
-	img.unlock()
-	_tex = ImageTexture.new()
-	_tex.create_from_image(img, 0)
+	_tex = MapColors.make_texture(world.terrain, N)
 
 
 func _label_font(fallback: Font) -> Font:
