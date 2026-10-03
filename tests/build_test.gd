@@ -39,6 +39,13 @@ func _shot(name: String) -> void:
 	print("SHOT  ", name)
 
 
+var toasts := []
+
+
+func _on_toast(text: String) -> void:
+	toasts.append(text)
+
+
 func _run() -> void:
 	yield(self, "idle_frame")
 	var world = load("res://scenes/Main.tscn").instance()
@@ -106,6 +113,16 @@ func _run() -> void:
 	yield(_frames(3), "completed")
 	Input.action_release("build_toggle")
 	yield(_frames(3), "completed")
+
+	# with no materials a click is refused and the HUD says why
+	p.connect("picked_up", self, "_on_toast")
+	var had: Dictionary = p.materials.duplicate()
+	p.materials = {"wood": 0, "stone": 0, "metal": 0}
+	b.set_piece(1)
+	yield(self, "idle_frame")
+	check(not b.place(), "placing without materials is refused")
+	check(toasts.size() > 0 and "WOOD" in toasts[toasts.size() - 1], "the refusal explains what is missing (%s)" % (toasts[toasts.size() - 1] if toasts.size() > 0 else "no message"))
+	p.materials = had
 
 	# floor
 	b.set_piece(1)
@@ -185,6 +202,26 @@ func _run() -> void:
 	check(not is_instance_valid(tgt) or tgt.is_dead, "bullets destroy a wooden wall (%d shots)" % shots)
 	check(world.build_slots.size() == slots_before - 1, "a destroyed piece frees its slot")
 	check(audio.count_of("build_break") > 0, "breaking sound plays")
+
+	# the real input path: the fire action (left click) places the chosen piece
+	var controls = root.get_node("Controls")
+	controls.touch_mode = true          # lets the player act without a captured mouse
+	p.materials = {"wood": 100, "stone": 0, "metal": 0}
+	p.pitch = -0.35
+	p.head.rotation.x = -0.35
+	p.rotation.y += 1.0                 # face fresh ground
+	p.select_slot(0)
+	b.set_active(true)
+	b.set_piece(1)
+	b.material = "wood"
+	yield(_frames(10), "completed")
+	var before: int = world.build_slots.size()
+	Input.action_press("fire")
+	yield(_frames(4), "completed")
+	Input.action_release("fire")
+	yield(_frames(4), "completed")
+	check(world.build_slots.size() == before + 1 and p.materials.wood == 90, "a left click places the piece and spends 10 wood (%d pieces, %d wood)" % [world.build_slots.size() - before, p.materials.wood])
+	controls.touch_mode = false
 
 	print("BUILD_RESULT failures=", failures.size())
 	for f in failures:

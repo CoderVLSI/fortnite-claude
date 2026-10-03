@@ -149,6 +149,10 @@ func place() -> bool:
 	_target = compute_target()          # never place from a stale ghost
 	if not _target.valid:
 		Audio.play2d("ui_error", -6.0)
+		if not can_afford():     # say why: the usual cause is simply having no materials yet
+			player.emit_signal("picked_up", "Need %d %s - hit trees, rocks and buildings with the pickaxe" % [COST, material.to_upper()])
+		else:
+			player.emit_signal("picked_up", "Already built there")
 		return false
 	var node: StaticBody = world.spawn_build(_target.kind, material, _target.key, _target.pos, _target.yaw)
 	player.materials[material] -= COST
