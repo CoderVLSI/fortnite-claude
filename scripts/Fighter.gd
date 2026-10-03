@@ -1593,6 +1593,8 @@ func revive_other(target) -> void:
 
 
 func _die(killer, credit: bool = true) -> void:
+	if killer != null and not is_instance_valid(killer):
+		killer = null                            # the killer is already gone (a freed bot or rocket)
 	downed = false
 	if _revive_spot != null:
 		_revive_spot.queue_free()

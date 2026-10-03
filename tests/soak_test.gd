@@ -306,6 +306,16 @@ func _teleport_to_poi() -> void:
 	p.collision_layer = 2
 	p.collision_mask = p.BODY_MASK
 	_target_pos = Vector3.ZERO
+	if p.slots[1] == null:                                       # a kit that touches every system
+		var Items = load("res://scripts/Items.gd")
+		var guns := ["assault", "burst_assault", "smg", "shotgun", "charge_shotgun", "rocket_launcher", "sniper", "pistol"]
+		p.give_weapon(guns[_rng.randi() % guns.size()], 2, 120)
+		p.give_weapon("assault", 3, 120)
+		p.pickup(Items.make_consumable("bandage", 6))
+		p.pickup(Items.make_consumable("bouncer", 2))
+		p.pickup(Items.make_consumable("grenade", 3))
+		p.materials["wood"] = 400
+		p.materials["stone"] = 200
 
 
 func _build_once() -> void:
