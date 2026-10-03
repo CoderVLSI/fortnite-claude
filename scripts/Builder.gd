@@ -187,6 +187,7 @@ func place() -> bool:
 		return false
 	var node: StaticBody = world.spawn_build(_target.kind, material, _target.key, _target.pos, _target.yaw)
 	player.materials[material] -= COST
+	player.stat_add("builds")
 	auto_route()
 	Audio.play3d("build_place", _target.pos, 0.0, rand_range(0.95, 1.05))
 	emit_signal("changed")

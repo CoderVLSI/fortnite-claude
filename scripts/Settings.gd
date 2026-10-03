@@ -75,12 +75,13 @@ func save_settings() -> void:
 	cfg.set_value("profile", "wins", wins)
 	cfg.set_value("profile", "elims", elims)
 	cfg.save(PATH)
+	var acc = get_node_or_null("/root/Accounts")
+	if acc != null:
+		acc.capture_from_settings()                  # name, loadout and starter sprite belong to the signed-in profile
 	emit_signal("changed")
 
 
-func record_match(victory: bool, kills: int) -> void:
-	matches += 1
-	elims += kills
-	if victory:
-		wins += 1
-	save_settings()
+func record_match(victory: bool, kills: int) -> void:      # legacy: stats now live on the account (Accounts.gd)
+	var acc = get_node_or_null("/root/Accounts")
+	if acc != null:
+		acc.record_match({"victory": victory, "kills": kills})

@@ -120,6 +120,7 @@ func _ready() -> void:
 	add_child(hud)
 	hud.bind(self)
 	player.connect("damaged", self, "_on_player_damaged")
+	player.connect("damage_dealt", self, "_on_player_dealt")
 	var lobby := Lobby.new()
 	lobby.name = "Lobby"
 	add_child(lobby)
@@ -139,6 +140,8 @@ func _ready() -> void:
 # Called by the menu when the player presses Play (or immediately with --skip-menu).
 func on_game_started() -> void:
 	hud.root.visible = true
+	_match_start_ms = OS.get_ticks_msec()
+	player.match_stats = {}
 	player.apply_loadout(Settings.loadout)
 	if Settings.starter_sprite != "none" and not ("--skip-menu" in OS.get_cmdline_args()):
 		player.equip_sprite(Settings.starter_sprite)
@@ -1138,12 +1141,29 @@ func _on_fighter_died(victim, killer) -> void:
 		return
 	if victim == player:
 		match_over = true
-		Settings.record_match(false, player.kills)
+		_record_match(false, alive + 1)
 		get_tree().create_timer(1.8).connect("timeout", hud, "show_end", [false, alive + 1, player.kills])
 	elif alive <= 1 and not player.is_dead:
 		match_over = true
-		Settings.record_match(true, player.kills)
+		_record_match(true, 1)
 		get_tree().create_timer(1.2).connect("timeout", hud, "show_end", [true, 1, player.kills])
+
+
+var _match_start_ms := 0
+
+
+func _on_player_dealt(_pos, amount, headshot, _killed) -> void:
+	player.stat_add("damage", amount)
+	if headshot:
+		player.stat_add("headshots")
+
+
+# The match is over: the signed-in account (or the guest profile) gets the result.
+func _record_match(victory: bool, placement: int) -> void:
+	var ms: Dictionary = player.match_stats
+	Accounts.record_match({"victory": victory, "placement": placement, "kills": player.kills, "damage": ms.get("damage", 0),
+		"headshots": ms.get("headshots", 0), "chests": ms.get("chests", 0), "builds": ms.get("builds", 0),
+		"survival": int((OS.get_ticks_msec() - _match_start_ms) / 1000.0)})
 
 
 # ------------------------------------------------------------------ spectating

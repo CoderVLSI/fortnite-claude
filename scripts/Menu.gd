@@ -28,6 +28,11 @@ var lobby
 var root: Control
 var sprite_button: Button
 var tab_underline: ColorRect
+var profile_panel: Panel
+var profile_body: Control
+var profile_error: Label
+var profile_fields := {}
+var card_sub: Label
 var locker_panel: Panel
 var locker_list: VBoxContainer
 var locker_desc: Label
@@ -244,11 +249,11 @@ func _build_title() -> Control:
 		p.add_child(logo)
 	var tabs := HBoxContainer.new()
 	tabs.add_constant_override("separation", 6)
-	_place(tabs, 0.5, 0.0, Vector2(-270, 8), Vector2(540, 50))
+	_place(tabs, 0.5, 0.0, Vector2(-337, 8), Vector2(674, 50))
 	p.add_child(tabs)
 	var clear := _flat(Color(0, 0, 0, 0))
 	var soft := _flat(Color(1, 1, 1, 0.12))
-	for t in [["LOBBY", "lobby"], ["LOCKER", "locker"], ["HOW TO PLAY", "help"], ["SETTINGS", "settings_title"]]:
+	for t in [["LOBBY", "lobby"], ["LOCKER", "locker"], ["PROFILE", "profile"], ["HOW TO PLAY", "help"], ["SETTINGS", "settings_title"]]:
 		var b := Button.new()
 		b.text = t[0]
 		b.rect_min_size = Vector2(130, 50)
@@ -257,7 +262,7 @@ func _build_title() -> Control:
 		tabs.add_child(b)
 	var underline := ColorRect.new()       # marks the active LOBBY tab
 	underline.color = gold
-	_place(underline, 0.5, 0.0, Vector2(-270 + 8, 58), Vector2(114, 4))
+	_place(underline, 0.5, 0.0, Vector2(-337 + 8, 58), Vector2(114, 4))
 	tab_underline = underline
 	underline.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	p.add_child(underline)
@@ -274,7 +279,6 @@ func _build_title() -> Control:
 	var card := Panel.new()
 	card.add_stylebox_override("panel", _flat(Color(0.04, 0.07, 0.17, 0.78), Color(1, 1, 1, 0.18), 10, 2))
 	_place(card, 0.0, 0.0, Vector2(26, 92), Vector2(330, 150))
-	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	p.add_child(card)
 	var avatar := ColorRect.new()
 	avatar.color = Color(0.20, 0.45, 0.95)
@@ -288,13 +292,16 @@ func _build_title() -> Control:
 	face.rect_size = Vector2(30, 30)
 	face.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	avatar.add_child(face)
+	card.mouse_filter = Control.MOUSE_FILTER_STOP
+	card.connect("gui_input", self, "_on_card_input")
 	var name_l := _label(Settings.player_name, 30, Color.white)
 	name_l.rect_position = Vector2(88, 14)
 	card.add_child(name_l)
 	name_label = name_l
-	var sub := _label("SOLO  -  BATTLE ROYALE", 15, Color(0.65, 0.78, 1.0))
+	var sub := _label("", 15, Color(0.65, 0.78, 1.0))
 	sub.rect_position = Vector2(90, 52)
 	card.add_child(sub)
+	card_sub = sub
 	var x := 16.0
 	for k in [["MATCHES", "matches"], ["WINS", "wins"], ["ELIMS", "elims"]]:
 		var cap := _label(k[0], 14, Color(0.65, 0.78, 1.0))
@@ -340,6 +347,7 @@ func _build_title() -> Control:
 	_place(hint, 0.5, 1.0, Vector2(-250, -30), Vector2(500, 24))
 	p.add_child(hint)
 	_build_locker(p)
+	_build_profile(p)
 	return p
 
 
@@ -525,11 +533,170 @@ func _on_name_changed(text: String) -> void:
 		name_label.text = Settings.player_name
 
 
+# ------------------------------------------------------------------ account / profile
+
+func _move_underline(idx: int) -> void:
+	tab_underline.margin_left = -337 + 8 + 136 * idx
+	tab_underline.margin_right = tab_underline.margin_left + 114
+
+
+func _on_card_input(ev: InputEvent) -> void:
+	if ev is InputEventMouseButton and ev.pressed and ev.button_index == BUTTON_LEFT:
+		_on_button("profile")
+
+
+func _build_profile(parent: Control) -> void:
+	profile_panel = Panel.new()
+	profile_panel.add_stylebox_override("panel", _flat(Color(0.03, 0.05, 0.13, 1.0), Color(1, 1, 1, 0.25), 10, 2))
+	_place(profile_panel, 0.0, 0.0, Vector2(26, 80), Vector2(500, 630))
+	profile_panel.visible = false
+	parent.add_child(profile_panel)
+	profile_body = Control.new()
+	profile_body.rect_size = Vector2(500, 630)
+	profile_panel.add_child(profile_body)
+
+
+func _pf_clear() -> void:
+	for ch in profile_body.get_children():
+		profile_body.remove_child(ch)
+		ch.queue_free()
+	profile_fields.clear()
+	profile_error = null
+
+
+func _pf_label(text: String, size: int, pos: Vector2, color: Color = Color.white) -> Label:
+	var l := _label(text, size, color)
+	l.rect_position = pos
+	profile_body.add_child(l)
+	return l
+
+
+func _pf_button(text: String, pos: Vector2, size: Vector2, method: String, args: Array = []) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.rect_position = pos
+	b.rect_size = size
+	b.connect("pressed", self, method, args)
+	profile_body.add_child(b)
+	return b
+
+
+func _pf_field(key: String, caption: String, y: float, secret: bool = false) -> void:
+	_pf_label(caption, 15, Vector2(24, y), Color(0.65, 0.78, 1.0))
+	var e := LineEdit.new()
+	e.rect_position = Vector2(24, y + 22)
+	e.rect_size = Vector2(452, 42)
+	e.secret = secret
+	e.max_length = 64
+	profile_body.add_child(e)
+	profile_fields[key] = e
+
+
+static func _fmt_time(seconds: int) -> String:
+	return "%dh %02dm" % [seconds / 3600, (seconds % 3600) / 60] if seconds >= 3600 else "%dm %02ds" % [seconds / 60, seconds % 60]
+
+
+func profile_show(view: String) -> void:
+	_pf_clear()
+	match view:
+		"signin":
+			_pf_label("SIGN IN", 30, Vector2(24, 14), Color(1.0, 0.82, 0.25))
+			_pf_field("email", "EMAIL", 70)
+			_pf_field("password", "PASSWORD", 150, true)
+			profile_error = _pf_label("", 15, Vector2(24, 232), Color(1.0, 0.45, 0.4))
+			_pf_button("SIGN IN", Vector2(24, 270), Vector2(452, 52), "profile_submit", ["signin"])
+			_pf_button("BACK", Vector2(24, 334), Vector2(452, 46), "profile_show", ["home"])
+		"create":
+			_pf_label("CREATE ACCOUNT", 30, Vector2(24, 14), Color(1.0, 0.82, 0.25))
+			_pf_label("Your guest progress (stats and Locker) moves into the new account.", 14, Vector2(24, 52), Color(0.85, 0.9, 1.0))
+			_pf_field("email", "EMAIL", 84)
+			_pf_field("name", "DISPLAY NAME", 164)
+			_pf_field("password", "PASSWORD (6+ CHARACTERS)", 244, true)
+			_pf_field("confirm", "CONFIRM PASSWORD", 324, true)
+			profile_error = _pf_label("", 15, Vector2(24, 406), Color(1.0, 0.45, 0.4))
+			_pf_button("CREATE ACCOUNT", Vector2(24, 440), Vector2(452, 52), "profile_submit", ["create"])
+			_pf_button("BACK", Vector2(24, 504), Vector2(452, 46), "profile_show", ["home"])
+		_:
+			_pf_home()
+
+
+func _pf_home() -> void:
+	var guest: bool = Accounts.is_guest()
+	_pf_label(Accounts.display_name(), 32, Vector2(24, 12))
+	_pf_label("GUEST - progress is saved on this device only" if guest else Accounts.email(), 15, Vector2(24, 54), Color(0.65, 0.78, 1.0))
+	var lp: Array = Accounts.level_progress()
+	_pf_label("LEVEL %d" % Accounts.level(), 20, Vector2(24, 80), Color(1.0, 0.82, 0.25))
+	var bar := ProgressBar.new()
+	bar.rect_position = Vector2(130, 86)
+	bar.rect_size = Vector2(346, 18)
+	bar.max_value = max(lp[1], 1)
+	bar.value = lp[0]
+	bar.percent_visible = false
+	profile_body.add_child(bar)
+	var rows := [["MATCHES", str(Accounts.stat("matches"))], ["WINS", str(Accounts.stat("wins"))],
+		["WIN RATE", "%d%%" % int(round(Accounts.win_rate() * 100.0))], ["TOP 3 FINISHES", str(Accounts.stat("top3"))],
+		["ELIMINATIONS", str(Accounts.stat("elims"))], ["K / D", "%.2f" % Accounts.kd()], ["BEST ELIMS IN A MATCH", str(Accounts.stat("best_kills"))],
+		["BEST PLACEMENT", ("#%d" % Accounts.stat("best_placement")) if Accounts.stat("best_placement") > 0 else "-"],
+		["DAMAGE DEALT", str(Accounts.stat("damage"))], ["HEADSHOTS", str(Accounts.stat("headshots"))], ["CHESTS OPENED", str(Accounts.stat("chests"))],
+		["PIECES BUILT", str(Accounts.stat("builds"))], ["TIME PLAYED", _fmt_time(Accounts.stat("playtime"))],
+		["LONGEST SURVIVAL", _fmt_time(Accounts.stat("longest_survival"))]]
+	var y := 122.0
+	for r in rows:
+		var l := _pf_label(r[0], 15, Vector2(24, y), Color(0.65, 0.78, 1.0))
+		var v := _pf_label(r[1], 18, Vector2(300, y - 2))
+		y += 28.0
+	if guest:
+		_pf_button("CREATE ACCOUNT", Vector2(24, 536), Vector2(220, 52), "profile_show", ["create"])
+		_pf_button("SIGN IN", Vector2(256, 536), Vector2(220, 52), "profile_show", ["signin"])
+	else:
+		_pf_button("SIGN OUT", Vector2(24, 536), Vector2(452, 52), "profile_sign_out")
+
+
+func profile_submit(kind: String) -> void:
+	var err := ""
+	var e: String = profile_fields["email"].text
+	var pw: String = profile_fields["password"].text
+	if kind == "create":
+		if pw != profile_fields["confirm"].text:
+			err = "The passwords do not match."
+		else:
+			err = Accounts.create_account(e, pw, profile_fields["name"].text)
+	else:
+		err = Accounts.sign_in(e, pw)
+	if err != "":
+		if profile_error != null:
+			profile_error.text = err
+		Audio.play2d("ui_error", -6.0)
+		return
+	Audio.play2d("loot_pickup", -4.0)
+	_after_account_change()
+	profile_show("home")
+
+
+func profile_sign_out() -> void:
+	Accounts.sign_out()
+	_after_account_change()
+	profile_show("home")
+
+
+# A different profile is active: the lobby shows its name, stats and Locker.
+func _after_account_change() -> void:
+	if name_edit != null:
+		name_edit.text = Settings.player_name
+	_refresh_lobby()
+	if lobby != null:
+		lobby.apply_loadout(Settings.loadout, true)
+	if sprite_button != null:
+		_refresh_starter_sprite()
+	if locker_panel != null:
+		locker_show(locker_cat)
+
+
 # ------------------------------------------------------------------ the Locker
 
 func _build_locker(parent: Control) -> void:
 	locker_panel = Panel.new()
-	locker_panel.add_stylebox_override("panel", _flat(Color(0.03, 0.05, 0.13, 0.98), Color(1, 1, 1, 0.25), 10, 2))
+	locker_panel.add_stylebox_override("panel", _flat(Color(0.03, 0.05, 0.13, 1.0), Color(1, 1, 1, 0.25), 10, 2))
 	_place(locker_panel, 0.0, 0.0, Vector2(26, 80), Vector2(440, 620))
 	locker_panel.visible = false
 	parent.add_child(locker_panel)
@@ -700,9 +867,13 @@ func _show_none() -> void:
 
 
 func _refresh_lobby() -> void:
-	stat_labels["matches"].text = str(Settings.matches)
-	stat_labels["wins"].text = str(Settings.wins)
-	stat_labels["elims"].text = str(Settings.elims)
+	stat_labels["matches"].text = str(Accounts.stat("matches"))
+	stat_labels["wins"].text = str(Accounts.stat("wins"))
+	stat_labels["elims"].text = str(Accounts.stat("elims"))
+	if name_label != null:
+		name_label.text = Accounts.display_name()
+	if card_sub != null:
+		card_sub.text = "LEVEL %d   -   %s" % [Accounts.level(), "GUEST (click to sign in)" if Accounts.is_guest() else Accounts.email()]
 	var bots: int = world.profile.get("bots", 24) if world != null else 24
 	mode_info.text = "%d players  -  shrinking storm  -  Mythic boss" % (bots + 1)
 
@@ -806,13 +977,18 @@ func _on_button(id: String) -> void:
 			start_game()
 		"lobby":
 			locker_panel.visible = false
-			tab_underline.margin_left = -270 + 8
-			tab_underline.margin_right = tab_underline.margin_left + 114
+			profile_panel.visible = false
+			_move_underline(0)
 		"locker":
 			locker_panel.visible = true
-			tab_underline.margin_left = -270 + 8 + 136
-			tab_underline.margin_right = tab_underline.margin_left + 114
+			profile_panel.visible = false
+			_move_underline(1)
 			locker_show(locker_cat)
+		"profile":
+			locker_panel.visible = false
+			profile_panel.visible = true
+			_move_underline(2)
+			profile_show("home")
 		"help":
 			_open_sub(help_panel, "title")
 		"settings_title":

@@ -53,6 +53,7 @@ export var jump_speed := 8.0
 var display_name := "Fighter"
 var vest_color := Color(0.30, 0.42, 0.22)
 var skin_id := "ranger"
+var match_stats := {}             # this match: damage, headshots, chests, builds (read by the account at the end)
 var loadout := Cosmetics.DEFAULT_LOADOUT.duplicate()
 var _backbling_node: Spatial
 var _contrail: CPUParticles
@@ -1269,6 +1270,10 @@ func set_skin(id: String) -> void:
 	loadout["skin"] = skin_id
 	if model != null:
 		Skins.apply(model, skin_id, vest_color)
+
+
+func stat_add(key: String, amount = 1) -> void:
+	match_stats[key] = match_stats.get(key, 0) + amount
 
 
 # ------------------------------------------------------------------ sprites

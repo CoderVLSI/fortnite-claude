@@ -134,6 +134,8 @@ func open(by = null) -> void:
 		tween.start()
 	Audio.play3d("ammo_box_open" if kind == "ammo_box" else "chest_open", global_transform.origin + Vector3(0, 0.5, 0), 0.0)
 	var loot := Items.chest_loot(kind, rng)
+	if by != null and by.has_method("stat_add"):
+		by.stat_add("chests")
 	if by != null and by.has_method("sprite_on_chest"):
 		by.sprite_on_chest(loot, rng)
 	var best := 0
