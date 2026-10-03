@@ -48,7 +48,7 @@ const BINDABLE := [
 	["slot_1", "Item Slot 1"], ["slot_2", "Item Slot 2"], ["slot_3", "Item Slot 3"], ["slot_4", "Item Slot 4"], ["slot_5", "Item Slot 5"],
 	["build_toggle", "Build Mode"], ["build_wall", "Build: Wall"], ["build_floor", "Build: Floor"],
 	["build_ramp", "Build: Ramp"], ["build_roof", "Build: Roof"],
-	["edit", "Edit Build Piece"], ["edit_reset", "Reset Edit"], ["inventory", "Inventory"], ["map", "Map"], ["emote", "Emote"], ["ping", "Ping"], ["quick_heal", "Quick Heal"], ["last_item", "Previous Item"],
+	["edit", "Edit Build Piece"], ["edit_reset", "Reset Edit"], ["inventory", "Inventory"], ["map", "Map"], ["emote", "Emote"], ["ping", "Ping"], ["quick_heal", "Quick Heal"], ["last_item", "Previous Item"], ["auto_run", "Auto Run (toggle)"],
 ]
 
 # Default keyboard / mouse bindings: action -> [[type, code], ...] with type "key" or "mouse".
@@ -61,7 +61,7 @@ const DEFAULTS := {
 	"slot_1": [["key", KEY_1]], "slot_2": [["key", KEY_2]], "slot_3": [["key", KEY_3]], "slot_4": [["key", KEY_4]], "slot_5": [["key", KEY_5]],
 	"build_toggle": [["key", KEY_Q]], "build_wall": [["key", KEY_Z]], "build_floor": [["key", KEY_X]],
 	"build_ramp": [["key", KEY_C]], "build_roof": [["key", KEY_V]],
-	"edit": [["key", KEY_G]], "edit_reset": [["mouse", BUTTON_RIGHT]], "inventory": [["key", KEY_TAB]], "map": [["key", KEY_M]], "emote": [["key", KEY_B]], "ping": [["key", KEY_T], ["mouse", BUTTON_MIDDLE]], "quick_heal": [["key", KEY_H]], "last_item": [["key", KEY_Y]],
+	"edit": [["key", KEY_G]], "edit_reset": [["mouse", BUTTON_RIGHT]], "inventory": [["key", KEY_TAB]], "map": [["key", KEY_M]], "emote": [["key", KEY_B]], "ping": [["key", KEY_T], ["mouse", BUTTON_MIDDLE]], "quick_heal": [["key", KEY_H]], "last_item": [["key", KEY_Y]], "auto_run": [["key", KEY_EQUAL]],
 }
 
 
@@ -286,6 +286,8 @@ func _pad(action: String, button: int) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	if event.is_action_pressed("auto_run") and not event.is_echo() and not menu_open and not (event is InputEventMouseMotion):
+		set_auto_run(not auto_run)          # the = key (rebindable): keep running forward until you press it again or pull back
 	# Remember which kind of device was used last: the HUD hints and the pointer emulation follow it.
 	if event is InputEventJoypadButton:
 		if event.pressed:

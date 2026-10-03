@@ -328,6 +328,7 @@ func _build() -> void:
 	touch.connect("edit_pressed", self, "try_edit")
 	touch.connect("emote_pressed", emote_wheel, "open_touch")
 	touch.connect("ping_pressed", self, "_on_ping_pressed")
+	Controls.connect("auto_toggled", self, "_on_auto_toggled")
 	touch.connect("piece_pressed", self, "_on_piece_pressed")
 	touch.connect("material_pressed", self, "_on_material_pressed")
 	root.add_child(touch)
@@ -547,6 +548,17 @@ func _on_edit_finished(_confirmed: bool) -> void:
 		touch.visible = Controls.touch_mode and not end_panel.visible
 	if not Controls.touch_mode and not ("--no-capture" in OS.get_cmdline_args()) and not end_panel.visible:
 		Controls.capture_mouse(true)
+
+
+var _auto_run_shown := false
+
+
+func _on_auto_toggled() -> void:
+	if Controls.auto_run == _auto_run_shown:
+		return                                   # it was AUTO FIRE that changed
+	_auto_run_shown = Controls.auto_run
+	if player != null and not player.is_dead:
+		show_toast("Auto run ON  (press %s or pull back to stop)" % Controls.key_label("auto_run") if Controls.auto_run else "Auto run off")
 
 
 func _on_ping_pressed() -> void:

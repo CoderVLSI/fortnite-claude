@@ -196,6 +196,16 @@ func _run() -> void:
 	settings.set_pref("minimap_rotate", false)
 	p.rotation.y = 0.0
 
+	# ---- the = key toggles auto run on a PC
+	check(controls.key_label("auto_run") == "Equal" or controls.key_label("auto_run") == "=", "auto run is on the = key (%s)" % controls.key_label("auto_run"))
+	_act("auto_run", true)
+	yield(create_timer(0.2), "timeout")
+	_act("auto_run", false)
+	check(controls.auto_run, "pressing it turns auto run on")
+	_act("auto_run", true)
+	yield(create_timer(0.2), "timeout")
+	_act("auto_run", false)
+	check(not controls.auto_run, "and again turns it off")
 	# ---- phones: auto run
 	controls.set_auto_run(true)
 	check(controls.get_move().y == -1.0, "auto run holds forward")
