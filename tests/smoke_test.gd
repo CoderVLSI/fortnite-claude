@@ -207,11 +207,12 @@ func _run() -> void:
 	# fill the remaining slots, then pick up another weapon -> swaps with the selected weapon
 	p.pickup(Items.make_weapon("smg", 1))
 	p.pickup(Items.make_weapon("pistol", 0))
+	p.pickup(Items.make_weapon("assault", 0))
 	var full := true
-	for i in range(1, 5):
+	for i in range(1, p.slots.size()):
 		if p.slots[i] == null:
 			full = false
-	check(full, "all four item slots can be filled")
+	check(full, "all five item slots can be filled")
 	p.select_slot(1)
 	var res: Dictionary = p.pickup(Items.make_consumable("bandage", 3))
 	check(res.ok and p.slots[1].kind == "consumable" and res.dropped != null, "full inventory swaps a new consumable stack for the item in hand")
@@ -341,8 +342,10 @@ func _run() -> void:
 		if f != p and not f.is_dead and f.is_physics_processing():
 			bots.append(f)
 			starts.append(f.global_transform.origin)
-			if f.selected_item() != null and f.selected_item().kind == "weapon":
-				armed += 1
+			for it in f.slots:            # carries a gun (a bot mid-heal may have something else in hand)
+				if it != null and it.kind == "weapon":
+					armed += 1
+					break
 	check(armed == bots.size(), "every bot carries a weapon (%d)" % armed)
 	yield(_frames(240), "completed")
 	var moved := 0
