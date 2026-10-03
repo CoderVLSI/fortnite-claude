@@ -130,6 +130,7 @@ var forward_speed := 0.0
 var sprinting := false
 var crouching := false            # hold crouch: slower, lower, steadier aim
 var sliding := false              # sprint then crouch: a short momentum slide
+var prev_slot := 0                # the slot held before this one (Previous Item key)
 var team := -1                    # -1: everyone for themselves; 0, 1, ...: duos / trios / squads (World._assign_teams)
 var emote_id := "boogie"        # which emote is playing (Emotes.gd)
 var _emote_music := ""
@@ -279,10 +280,17 @@ func selected_item():
 func select_slot(index: int) -> void:
 	if index < 0 or index >= slots.size() or index == selected or is_dead:
 		return
+	prev_slot = selected
 	selected = index
 	if index > 0:
 		last_item_slot = index
 	_apply_selected()
+
+
+# The Previous Item key: back to whatever was in hand before.
+func swap_to_previous() -> void:
+	if prev_slot >= 0 and prev_slot < slots.size() and prev_slot != selected and (prev_slot == 0 or slots[prev_slot] != null):
+		select_slot(prev_slot)
 
 
 # Which slot a full-inventory pickup replaces: the item in hand, or (pickaxe out) the last item held.
@@ -777,6 +785,8 @@ func _ripple(spread: float) -> void:
 # ------------------------------------------------------------------ vehicles
 
 func enter_vehicle(v, seat: int) -> void:
+	if is_in_group("player"):
+		Controls.set_auto_run(false)
 	cancel_use()
 	vehicle = v
 	vehicle_seat = seat
@@ -1369,6 +1379,7 @@ func take_damage(amount: float, source = null) -> void:
 		_hurt_cd = 0.3
 		if is_in_group("player"):
 			Audio.play2d("hurt", -3.0, rand_range(0.95, 1.05))
+			Controls.rumble(0.3, 0.8, 0.22)
 		else:
 			Audio.play3d("hurt", global_transform.origin + Vector3(0, 1.4, 0), -4.0, rand_range(0.85, 1.25))
 	var remaining := amount

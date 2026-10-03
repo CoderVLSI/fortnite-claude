@@ -11,6 +11,13 @@ const INTERACT_RANGE := 3.2
 const SLIDE_TIME := 0.85
 const SLIDE_SPEED := 11.5
 var _slide_buffer := 0.0
+var _sprint_latch := false         # Settings: toggle sprint
+var _crouch_latch := false         # Settings: toggle crouch
+var _sprint_was_down := false
+var _crouch_was_down := false
+var _quick_slot := -1              # Quick Heal: the healing slot being used
+var _sight_t := 0.0
+var _sight_enemy := false
 const BUILD_ACTIONS := ["build_wall", "build_floor", "build_ramp", "build_roof"]
 
 var input_enabled := true
@@ -131,9 +138,38 @@ func _vehicle_process(delta: float) -> void:
 		exit_vehicle(false)
 
 
+# Sprint is held, or toggled on by one tap when that option is on, or kept going by the phone's AUTO RUN.
+func _sprint_wanted(move: Vector2) -> bool:
+	if Controls.auto_run:
+		return move.length() > 0.2
+	if Settings.pref("toggle_sprint"):
+		var down := Input.is_action_pressed("sprint")
+		if down and not _sprint_was_down:
+			_sprint_latch = not _sprint_latch
+		_sprint_was_down = down
+		if move.length() < 0.2:
+			_sprint_latch = false
+		return _sprint_latch and move.length() > 0.2
+	_sprint_latch = false
+	return Input.is_action_pressed("sprint") and move.length() > 0.2
+
+
+func _crouch_wanted() -> bool:
+	if Settings.pref("toggle_crouch"):
+		var down := Input.is_action_pressed("crouch")
+		if down and not _crouch_was_down and grounded and not sliding:
+			_crouch_latch = not _crouch_latch
+		_crouch_was_down = down
+		if Input.is_action_just_pressed("jump") or not grounded:
+			_crouch_latch = false
+		return _crouch_latch
+	_crouch_latch = false
+	return Input.is_action_pressed("crouch")
+
+
 func _swim_process(delta: float) -> void:
 	var move := Controls.get_move() if input_enabled else Vector2.ZERO
-	sprinting = input_enabled and Input.is_action_pressed("sprint") and move.length() > 0.2
+	sprinting = input_enabled and _sprint_wanted(move)
 	var b := global_transform.basis
 	var wish := b.x * move.x + b.z * move.y
 	if input_enabled and Input.is_action_just_pressed("jump"):
@@ -151,10 +187,14 @@ func _ground_process(delta: float) -> void:
 	if input_enabled:
 		move = Controls.get_move()
 		want_jump = Input.is_action_pressed("jump")
-		sprinting = Input.is_action_pressed("sprint") and move.length() > 0.2
+		sprinting = _sprint_wanted(move)
 		_update_aim()
 		if Input.is_action_just_pressed("reload"):
 			start_reload()
+		if Input.is_action_just_pressed("quick_heal"):
+			quick_heal()
+		if Input.is_action_just_pressed("last_item"):
+			swap_to_previous()
 		if Input.is_action_just_pressed("build_toggle"):
 			builder.toggle()
 		for i in range(BUILD_ACTIONS.size()):
@@ -226,7 +266,7 @@ func _update_stance(delta: float, move: Vector2, want_jump: bool) -> void:
 		_slide_t = SLIDE_TIME
 		_slide_dir = Vector3(velocity.x, 0.0, velocity.z).normalized()
 		Audio.play3d("skid", global_transform.origin, -6.0, 1.4)
-	crouching = input_enabled and Input.is_action_pressed("crouch") and grounded and not sliding
+	crouching = input_enabled and _crouch_wanted() and grounded and not sliding
 	if sliding or crouching:
 		sprinting = false
 	if emoting:
@@ -305,7 +345,15 @@ func _fire_input(delta: float) -> void:
 	if item != null and item.kind == "weapon" and Items.WEAPONS[item.id].has("charge"):
 		_charge_input(delta, item)
 		return
-	var firing := Input.is_action_pressed("fire") and _can_aim()
+	if _quick_slot >= 0:                        # Quick Heal keeps using the item until it is done or you do something else
+		if selected == _quick_slot and slots[selected] != null and slots[selected].kind == "consumable" and not Input.is_action_pressed("fire") \
+				and Controls.get_move().length() < 0.1 and not Input.is_action_pressed("jump"):
+			use_selected(delta)
+			return
+		_quick_slot = -1
+		cancel_use()
+	var auto_shot: bool = Controls.auto_fire and item != null and item.kind == "weapon" and _enemy_in_sights(delta)
+	var firing := (Input.is_action_pressed("fire") or auto_shot) and _can_aim()
 	if item == null or not firing:
 		cancel_use()
 		return
@@ -321,10 +369,62 @@ func _fire_input(delta: float) -> void:
 			return
 		use_selected(delta)
 		return
-	if automatic or Input.is_action_just_pressed("fire"):
+	if automatic or auto_shot or Input.is_action_just_pressed("fire"):
 		if fire_at_crosshair() and item.kind == "weapon":
+			Controls.rumble(0.1, 0.3, 0.07)
 			pitch += rand_range(0.0, 0.006) * (3.0 if pellets > 1 or item.id == "sniper" else 1.0)
 			rotation.y += rand_range(-0.003, 0.003)
+
+
+# Phones' AUTO FIRE: is somebody who is not on our team in the crosshair (and in range)?
+func _enemy_in_sights(delta: float) -> bool:
+	_sight_t -= delta
+	if _sight_t > 0.0:
+		return _sight_enemy
+	_sight_t = 0.08
+	_sight_enemy = false
+	if camera == null:
+		return false
+	var centre: Vector2 = get_viewport().get_visible_rect().size / 2.0
+	var from: Vector3 = camera.project_ray_origin(centre)
+	var to: Vector3 = from + camera.project_ray_normal(centre) * max(weapon_range, 20.0)
+	var hit := get_world().direct_space_state.intersect_ray(from, to, [self], 3)
+	if hit and hit.collider != null and hit.collider.is_in_group("fighters"):
+		var f = hit.collider
+		_sight_enemy = not f.is_dead and not is_ally(f) and f != self
+	return _sight_enemy
+
+
+# Quick Heal key: pick the best healing item for what is missing and start using it.
+func quick_heal() -> void:
+	if is_dead or mode != Mode.GROUND or not input_enabled:
+		return
+	var want_health: bool = health < max_health - 1.0
+	var want_shield: bool = shield < max_shield - 1.0
+	var best := -1
+	var best_score := -1.0
+	for i in range(1, slots.size()):
+		var it = slots[i]
+		if it == null or it.kind != "consumable":
+			continue
+		var c: Dictionary = Items.CONSUMABLES[it.id]
+		if c.get("gadget", "") != "" or c.get("rift", false):
+			continue
+		var score := 0.0
+		if want_health and c.heal > 0.0 and health < c.heal_cap:
+			score += c.heal
+		if want_shield and c.shield > 0.0 and shield < c.shield_cap:
+			score += c.shield
+		if score > best_score:
+			best_score = score
+			best = i
+	if best < 0 or best_score <= 0.0:
+		emit_signal("picked_up", "Nothing to heal with" if want_health or want_shield else "Already at full health")
+		return
+	if builder.active:
+		builder.set_active(false)
+	select_slot(best)
+	_quick_slot = best
 
 
 # Charge Shotgun: hold fire to charge (up to 50% more damage, tighter spread), release to shoot.
@@ -440,6 +540,7 @@ func _process(delta: float) -> void:
 			dist = 8.5
 			offset = Vector3(0.0, 2.5, 0.0)
 	var run_fov: float = 80.0 if (sprinting and mode == Mode.GROUND and speed_ratio() > 0.8) else (74.0 if mode == Mode.SWIM else 72.0)
+	run_fov += float(Settings.pref("fov")) - 72.0
 	var fov_rate := 5.0
 	if aiming and selected_item() != null:      # zoom in over the shoulder, or right up to the eye behind a scope
 		var sc: Dictionary = Items.scope_of(selected_item().id)

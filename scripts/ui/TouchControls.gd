@@ -38,6 +38,8 @@ func _ready() -> void:
 	connect("resized", self, "_layout")
 	connect("visibility_changed", self, "_on_visibility_changed")
 	Controls.connect("device_changed", self, "_on_device_changed")
+	Controls.connect("auto_toggled", self, "update")
+	Settings.connect("changed", self, "_layout")
 	_layout()
 
 
@@ -59,8 +61,13 @@ func _layout() -> void:
 	_buttons["edit"] = {"center": Vector2(w - 46, 486.0), "radius": 34.0, "icon": "edit", "edit": true}
 	for i in range(4):
 		_buttons["piece%d" % i] = {"center": Vector2(w - 46, 150.0 + i * 84.0), "radius": 36.0, "icon": "piece%d" % i, "piece": i}
+	_buttons["autorun"] = {"center": Vector2(w - 430, 150.0), "radius": 44.0, "icon": "autorun", "autorun": true, "tag": "AUTO RUN"}
+	_buttons["autofire"] = {"center": Vector2(w - 430, 262.0), "radius": 44.0, "icon": "autofire", "autofire": true, "tag": "AUTO FIRE"}
+	var sc: float = float(Settings.pref("touch_scale"))
 	for b in _buttons.values():
 		b["id"] = -1
+		b["radius"] = b["radius"] * sc
+	update()
 
 
 func set_interact(show: bool, label: String = "PICK UP") -> void:
@@ -148,6 +155,10 @@ func _down(index: int, pos: Vector2) -> void:
 				emit_signal("emote_pressed")
 			elif b.get("ping", false):
 				emit_signal("ping_pressed")
+			elif b.get("autorun", false):
+				Controls.set_auto_run(not Controls.auto_run)
+			elif b.get("autofire", false):
+				Controls.set_auto_fire(not Controls.auto_fire)
 			elif b.get("aim", false):
 				Controls.touch_aim = not Controls.touch_aim       # tap to scope in, tap again to scope out
 			elif b.get("toggle", false):
@@ -271,7 +282,7 @@ func _draw() -> void:
 			continue
 		var c: Vector2 = b["center"]
 		var r: float = b["radius"]
-		var active: bool = b["id"] != -1 or (b.get("toggle", false) and _sprint_toggle) or (b.get("aim", false) and Controls.touch_aim)
+		var active: bool = b["id"] != -1 or (b.get("autorun", false) and Controls.auto_run) or (b.get("autofire", false) and Controls.auto_fire) or (b.get("toggle", false) and _sprint_toggle) or (b.get("aim", false) and Controls.touch_aim)
 		var chosen: bool = b.has("piece") and builder != null and builder.active and builder.piece == b["piece"]
 		var ring := Color(1, 1, 1, 0.6)
 		var fill := Color(0.05, 0.07, 0.12, 0.30)
@@ -289,9 +300,18 @@ func _draw() -> void:
 		draw_arc(c, r, 0, TAU, 40, ring, 2.5 if not chosen else 4.0)
 		if b.has("icon"):
 			_draw_icon(b["icon"], c, r, Color(1, 1, 1, 0.95), chosen)
+			if b.has("tag"):                          # a small caption under the toggles that are easy to mix up
+				var tgw := font.get_string_size(b["tag"]).x
+				draw_string(font, c + Vector2(-tgw / 2.0, r + font.get_height() * 0.85), b["tag"], Color(1, 1, 1, 0.9))
 		elif b.has("label"):
 			var tw := font.get_string_size(b["label"]).x
 			draw_string(font, c + Vector2(-tw / 2.0, font.get_height() * 0.3), b["label"], Color(1, 1, 1, 0.95))
+
+
+func draw_chevron_stack(c: Vector2, k: float, col: Color) -> void:
+	for off in [-14.0, 2.0, 18.0]:                 # three chevrons pointing up: keep going forward
+		draw_polyline(PoolVector2Array([c + Vector2(-17, off + 8) * k, c + Vector2(0, off - 8) * k, c + Vector2(17, off + 8) * k]), col, 4.5 * max(k, 0.8))
+	draw_rect(Rect2(c + Vector2(-14, 26) * k, Vector2(28, 7) * k), col)          # the lock bar
 
 
 func _draw_icon(icon: String, c: Vector2, r: float, col: Color, chosen: bool) -> void:
@@ -308,6 +328,15 @@ func _draw_icon(icon: String, c: Vector2, r: float, col: Color, chosen: bool) ->
 		"sprint":    # three chevrons pointing right with speed lines
 			for off in [-16.0, 2.0, 20.0]:
 				draw_polyline(PoolVector2Array([c + Vector2(off - 6, -18) * k, c + Vector2(off + 12, 0) * k, c + Vector2(off - 6, 18) * k]), col, 5.0 * max(k, 0.8))
+		"autorun":   # a running figure with a lock
+			draw_chevron_stack(c, k, col)
+		"autofire":  # a crosshair with a bullet
+			draw_arc(c, 17.0 * k, 0, TAU, 24, col, 3.5 * max(k, 0.8))
+			draw_line(c + Vector2(-26, 0) * k, c + Vector2(-9, 0) * k, col, 3.5 * max(k, 0.8))
+			draw_line(c + Vector2(26, 0) * k, c + Vector2(9, 0) * k, col, 3.5 * max(k, 0.8))
+			draw_line(c + Vector2(0, -26) * k, c + Vector2(0, -9) * k, col, 3.5 * max(k, 0.8))
+			draw_line(c + Vector2(0, 26) * k, c + Vector2(0, 9) * k, col, 3.5 * max(k, 0.8))
+			draw_circle(c, 3.5 * k, col)
 		"ping":      # a map pin
 			draw_circle(c + Vector2(0, -8) * k, 13.0 * k, col)
 			draw_colored_polygon(PoolVector2Array([c + Vector2(-11, -2) * k, c + Vector2(11, -2) * k, c + Vector2(0, 24) * k]), col)

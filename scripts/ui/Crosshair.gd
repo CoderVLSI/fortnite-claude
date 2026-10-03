@@ -41,7 +41,10 @@ func _ring(c: Vector2, radius: float, col: Color, width: float) -> void:
 
 func _draw() -> void:
 	var c := rect_size / 2.0
-	var white := Color(1, 1, 1, 0.92)
+	var white: Color = Settings.crosshair_color()
+	white.a = 0.92
+	var csz: float = float(Settings.pref("crosshair_size"))
+	draw_set_transform(c - c * csz, 0.0, Vector2(csz, csz))          # the whole reticle scales around the screen centre
 	var item = null
 	var aiming := false
 	var spread := 1.0

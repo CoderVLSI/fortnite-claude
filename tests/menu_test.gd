@@ -111,7 +111,7 @@ func _run() -> void:
 
 	# dedicated pages + key rebinding
 	var controls = root.get_node("Controls")
-	check(menu.settings_pages.size() == 4 and menu.settings_tabs.size() == 4, "settings has four dedicated pages")
+	check(menu.settings_pages.size() == 6 and menu.settings_tabs.size() == 6, "settings has six dedicated pages")
 	menu._show_settings_page("controls")
 	check(menu.settings_pages["controls"].visible and not menu.settings_pages["audio"].visible, "tabs switch pages")
 	check(controls.binding_text("pickaxe") == "F" and controls.key_label("slot_1") == "1", "defaults: pickaxe F, items 1-4")

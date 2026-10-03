@@ -5,6 +5,7 @@ extends Node
 
 signal touch_mode_changed(enabled)
 var edit_aim := false              # the in-world build editor is open (fire / wheel belong to it)
+signal auto_toggled
 signal slot_scroll(direction)   # +1 next item, -1 previous (mouse wheel / gamepad bumpers)
 signal pad_changed(connected, pad_name)     # a controller was plugged in / removed
 signal device_changed(using_pad)            # the last thing the player touched switched between pad and keyboard / mouse
@@ -14,6 +15,8 @@ const MOVE_ACTIONS = ["move_forward", "move_back", "move_left", "move_right"]
 var touch_mode := false
 var wheel_open := false           # the emote wheel is up: the mouse / right stick pick an emote instead of turning the camera
 var wheel_delta := Vector2.ZERO   # mouse movement collected for the wheel
+var auto_run := false             # phones: the AUTO RUN button keeps you sprinting forward
+var auto_fire := false            # phones: the AUTO FIRE button shoots whenever an enemy is in the crosshair
 var using_pad := false            # the last input came from a controller (HUD hints switch to its button names)
 var menu_open := false            # a menu is up: it is navigated with focus (D-pad / stick + A), not the pointer emulation
 var pad_name := ""                # "" while no controller is connected
@@ -30,6 +33,7 @@ const STICK_LOOK_SPEED := 2.6    # radians per second at full deflection
 func _ready() -> void:
 	pause_mode = Node.PAUSE_MODE_PROCESS          # the pad pointer has to work while a screen has the game paused
 	_register_actions()
+	auto_fire = bool(Settings.pref("touch_auto_fire"))
 	Input.connect("joy_connection_changed", self, "_on_joy_changed")
 	_refresh_pad()
 	var args := OS.get_cmdline_args()
@@ -44,7 +48,7 @@ const BINDABLE := [
 	["slot_1", "Item Slot 1"], ["slot_2", "Item Slot 2"], ["slot_3", "Item Slot 3"], ["slot_4", "Item Slot 4"], ["slot_5", "Item Slot 5"],
 	["build_toggle", "Build Mode"], ["build_wall", "Build: Wall"], ["build_floor", "Build: Floor"],
 	["build_ramp", "Build: Ramp"], ["build_roof", "Build: Roof"],
-	["edit", "Edit Build Piece"], ["edit_reset", "Reset Edit"], ["inventory", "Inventory"], ["map", "Map"], ["emote", "Emote"], ["ping", "Ping"],
+	["edit", "Edit Build Piece"], ["edit_reset", "Reset Edit"], ["inventory", "Inventory"], ["map", "Map"], ["emote", "Emote"], ["ping", "Ping"], ["quick_heal", "Quick Heal"], ["last_item", "Previous Item"],
 ]
 
 # Default keyboard / mouse bindings: action -> [[type, code], ...] with type "key" or "mouse".
@@ -57,7 +61,7 @@ const DEFAULTS := {
 	"slot_1": [["key", KEY_1]], "slot_2": [["key", KEY_2]], "slot_3": [["key", KEY_3]], "slot_4": [["key", KEY_4]], "slot_5": [["key", KEY_5]],
 	"build_toggle": [["key", KEY_Q]], "build_wall": [["key", KEY_Z]], "build_floor": [["key", KEY_X]],
 	"build_ramp": [["key", KEY_C]], "build_roof": [["key", KEY_V]],
-	"edit": [["key", KEY_G]], "edit_reset": [["mouse", BUTTON_RIGHT]], "inventory": [["key", KEY_TAB]], "map": [["key", KEY_M]], "emote": [["key", KEY_B]], "ping": [["key", KEY_T], ["mouse", BUTTON_MIDDLE]],
+	"edit": [["key", KEY_G]], "edit_reset": [["mouse", BUTTON_RIGHT]], "inventory": [["key", KEY_TAB]], "map": [["key", KEY_M]], "emote": [["key", KEY_B]], "ping": [["key", KEY_T], ["mouse", BUTTON_MIDDLE]], "quick_heal": [["key", KEY_H]], "last_item": [["key", KEY_Y]],
 }
 
 
@@ -377,7 +381,29 @@ func get_move() -> Vector2:
 		Input.get_action_strength("move_right") - Input.get_action_strength("move_left"),
 		Input.get_action_strength("move_back") - Input.get_action_strength("move_forward")
 	)
+	if auto_run:
+		if v.y > 0.5:                      # pulling the stick back stops it
+			set_auto_run(false)
+		else:
+			v.y = -1.0
 	return v.limit_length(1.0)
+
+
+func set_auto_run(on: bool) -> void:
+	auto_run = on
+	emit_signal("auto_toggled")
+
+
+func set_auto_fire(on: bool) -> void:
+	auto_fire = on
+	Settings.set_pref("touch_auto_fire", on)
+	emit_signal("auto_toggled")
+
+
+# Controller rumble (Settings > Comfort turns it off).
+func rumble(weak: float, strong: float, seconds: float) -> void:
+	if using_pad and Settings.pref("vibration") and pad_name != "":
+		Input.start_joy_vibration(_pad_device(), weak, strong, seconds)
 
 
 # Look delta in radians (x = yaw, y = pitch), consuming accumulated pointer motion.
@@ -386,7 +412,8 @@ func consume_look(delta: float) -> Vector2:
 		mouse_look = Vector2.ZERO
 		touch_look = Vector2.ZERO
 		return Vector2.ZERO
-	var l := (mouse_look * MOUSE_SENSITIVITY + touch_look * TOUCH_SENSITIVITY) * Settings.look_sensitivity * look_scale
+	var ads: float = float(Settings.pref("ads_sens")) if look_scale < 0.999 else 1.0
+	var l := (mouse_look * MOUSE_SENSITIVITY + touch_look * TOUCH_SENSITIVITY) * Settings.look_sensitivity * look_scale * ads
 	mouse_look = Vector2.ZERO
 	touch_look = Vector2.ZERO
 	l.x += (Input.get_action_strength("look_right") - Input.get_action_strength("look_left")) * STICK_LOOK_SPEED * delta

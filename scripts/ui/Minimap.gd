@@ -23,6 +23,13 @@ func _draw() -> void:
 
 	if _tex == null:
 		_tex = MapColors.make_texture(world.terrain, 96)
+	if Settings.pref("minimap_rotate"):             # the map turns so the way you face is always up, with you in the middle
+		var p0 = world.player
+		var f0 := Vector2(-sin(p0.rotation.y), -cos(p0.rotation.y))
+		var rot := Transform2D(f0.angle_to(Vector2(0, -1)), Vector2.ZERO)
+		var pc: Vector2 = mid + Vector2(p0.global_transform.origin.x, p0.global_transform.origin.z) * s
+		draw_set_transform_matrix(Transform2D(rot.get_rotation(), rect_size / 2.0 - rot.xform(pc)))
+		draw_rect(Rect2(-rect_size * 2.0, rect_size * 5.0), Color(0.06, 0.16, 0.30))
 	draw_texture_rect(_tex, Rect2(Vector2.ZERO, rect_size), false)                          # sea, beaches, biomes, mountains
 	for b in world.building_positions:
 		draw_rect(Rect2(mid + b * s - Vector2(2, 2), Vector2(4, 4)), Color(0.93, 0.90, 0.80))
@@ -66,6 +73,7 @@ func _draw() -> void:
 	var perp := Vector2(-fwd.y, fwd.x)
 	var c := mid + pp * s
 	draw_colored_polygon(PoolVector2Array([c + fwd * 9.0, c - fwd * 5.0 + perp * 5.5, c - fwd * 5.0 - perp * 5.5]), Color(1, 1, 1))
+	draw_set_transform_matrix(Transform2D())
 	var font := get_font("font", "Label")
 	if _small == null:
 		var data = load("res://assets/fonts/DejaVuSans-Bold.ttf")

@@ -26,6 +26,29 @@ var friends := []                  # [{name, ip}] saved LAN friends
 var recent := []                   # [{name, ip}] people you played with lately (newest first)
 var emote_wheel := []              # emote ids on the wheel, in order (Locker > Emotes); sanitised in Emotes.sanitize_wheel
 var last_emote := "boogie"
+# Display / comfort options (Settings > DISPLAY and COMFORT). Every key here is saved automatically under [prefs].
+const PREF_DEFAULTS := {
+	"toggle_sprint": false,       # tap Sprint to start running, again (or stop moving) to stop
+	"toggle_crouch": false,       # tap Crouch to stay down
+	"fov": 72.0,                  # field of view in degrees
+	"ads_sens": 1.0,              # extra sensitivity multiplier while aiming down sights
+	"crosshair_color": 0,         # index into CROSSHAIR_COLORS
+	"crosshair_size": 1.0,
+	"fps_cap": 0,                 # frames per second limit, 0 = none
+	"vsync": true,
+	"minimap_rotate": false,      # the minimap turns with you
+	"pause_on_focus": true,       # pause when the window loses focus
+	"vibration": true,            # controller rumble
+	"show_hints": true,           # the control hint line at the bottom
+	"touch_scale": 1.0,           # size of the on-screen buttons
+	"master_volume": 1.0,
+	"warn_health": true,          # red pulse at the screen edges when health is low
+	"warn_ammo": true,            # RELOAD / NO AMMO warning
+	"touch_auto_fire": false,     # phones: shoot automatically while an enemy is in the crosshair
+}
+const CROSSHAIR_COLORS := [Color(1, 1, 1), Color(0.35, 1.0, 0.45), Color(1.0, 0.3, 0.3), Color(0.35, 0.9, 1.0), Color(1.0, 0.9, 0.3)]
+const FPS_CAPS := [0, 30, 60, 120, 144]
+var prefs := PREF_DEFAULTS.duplicate()
 var padbinds := {}                # action -> controller button (-1 = none); only the ones the player changed
 var keybinds := {}                # action -> [[type, code], ...]; only the actions the player changed
 var autostart := false            # runtime only: skip the title screen after "Play again"
@@ -34,6 +57,7 @@ var autostart := false            # runtime only: skip the title screen after "P
 func _ready() -> void:
 	quality = 0 if OS.has_feature("mobile") else 1
 	load_settings()
+	apply_display()
 
 
 func load_settings() -> void:
@@ -61,6 +85,11 @@ func load_settings() -> void:
 	recent = cfg.get_value("social", "recent", [])
 	emote_wheel = Array(str(cfg.get_value("gameplay", "emote_wheel", "")).split(",", false))
 	last_emote = str(cfg.get_value("gameplay", "last_emote", last_emote))
+	if cfg.has_section("prefs"):
+		for k in PREF_DEFAULTS:
+			if cfg.has_section_key("prefs", k):
+				var v = cfg.get_value("prefs", k, PREF_DEFAULTS[k])
+				prefs[k] = type_convert_pref(PREF_DEFAULTS[k], v)
 	if cfg.has_section("padbinds"):
 		for action in cfg.get_section_keys("padbinds"):
 			padbinds[action] = int(cfg.get_value("padbinds", action, -1))
@@ -68,6 +97,47 @@ func load_settings() -> void:
 	matches = int(cfg.get_value("profile", "matches", matches))
 	wins = int(cfg.get_value("profile", "wins", wins))
 	elims = int(cfg.get_value("profile", "elims", elims))
+
+
+func type_convert_pref(default, v):
+	match typeof(default):
+		TYPE_BOOL:
+			return bool(v)
+		TYPE_INT:
+			return int(v)
+		TYPE_REAL:
+			return float(v)
+	return v
+
+
+func pref(key: String):
+	return prefs.get(key, PREF_DEFAULTS.get(key))
+
+
+# Change an option, save it and apply whatever needs applying right away.
+func set_pref(key: String, value) -> void:
+	prefs[key] = type_convert_pref(PREF_DEFAULTS[key], value)
+	save_settings()
+	apply_display()
+	emit_signal("changed")
+
+
+func reset_prefs() -> void:
+	prefs = PREF_DEFAULTS.duplicate()
+	save_settings()
+	apply_display()
+	emit_signal("changed")
+
+
+func crosshair_color() -> Color:
+	return CROSSHAIR_COLORS[int(clamp(int(prefs.crosshair_color), 0, CROSSHAIR_COLORS.size() - 1))]
+
+
+# Frame limit, vertical sync and the master volume.
+func apply_display() -> void:
+	Engine.target_fps = int(prefs.fps_cap)
+	OS.vsync_enabled = bool(prefs.vsync)
+	AudioServer.set_bus_volume_db(0, linear2db(max(float(prefs.master_volume), 0.0001)))
 
 
 func is_friend(ip: String, friend_name: String = "") -> bool:
@@ -130,6 +200,8 @@ func save_settings() -> void:
 	cfg.set_value("social", "recent", recent)
 	cfg.set_value("gameplay", "emote_wheel", PoolStringArray(emote_wheel).join(","))
 	cfg.set_value("gameplay", "last_emote", last_emote)
+	for k in prefs:
+		cfg.set_value("prefs", k, prefs[k])
 	for action in padbinds:
 		cfg.set_value("padbinds", action, padbinds[action])
 	cfg.set_value("profile", "name", player_name)

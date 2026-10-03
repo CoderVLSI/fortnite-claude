@@ -409,10 +409,10 @@ func _build_settings() -> Control:
 	var tabs := HBoxContainer.new()
 	tabs.add_constant_override("separation", 10)
 	col.add_child(tabs)
-	for t in [["AUDIO", "audio"], ["GRAPHICS", "graphics"], ["CONTROLS", "controls"], ["GAMEPLAY", "gameplay"]]:
+	for t in [["AUDIO", "audio"], ["GRAPHICS", "graphics"], ["CONTROLS", "controls"], ["GAMEPLAY", "gameplay"], ["DISPLAY", "display"], ["COMFORT", "comfort"]]:
 		var b := Button.new()
 		b.text = t[0]
-		b.rect_min_size = Vector2(190, 50)
+		b.rect_min_size = Vector2(150, 50)
 		b.connect("pressed", self, "_show_settings_page", [t[1]])
 		tabs.add_child(b)
 		settings_tabs[t[1]] = b
@@ -555,10 +555,111 @@ func _build_settings() -> Control:
 	gp.add_child(sprite_button)
 	_refresh_starter_sprite()
 
+	_build_pref_page(holder, "display", [
+		["fov", "Field of view", "slider", 60.0, 100.0],
+		["crosshair_color", "Crosshair colour", "option", ["White", "Green", "Red", "Cyan", "Yellow"]],
+		["crosshair_size", "Crosshair size", "slider", 0.6, 1.8],
+		["fps_cap", "Frame rate limit", "option", ["No limit", "30", "60", "120", "144"], Settings.FPS_CAPS],
+		["vsync", "Vertical sync (smoother, caps at your screen's rate)", "check"],
+		["minimap_rotate", "Minimap turns with you", "check"],
+		["show_hints", "Show the control hints at the bottom", "check"],
+		["warn_health", "Low health warning (red edges)", "check"],
+		["warn_ammo", "Low ammo warning (RELOAD / NO AMMO)", "check"],
+	])
+	_build_pref_page(holder, "comfort", [
+		["toggle_sprint", "Toggle sprint (tap to start, stops when you stop)", "check"],
+		["toggle_crouch", "Toggle crouch (tap to stay down)", "check"],
+		["ads_sens", "Sensitivity while aiming down sights", "slider", 0.3, 1.5],
+		["master_volume", "Master volume", "slider", 0.0, 1.0],
+		["vibration", "Controller vibration", "check"],
+		["pause_on_focus", "Pause when the window loses focus", "check"],
+		["touch_scale", "On-screen button size (phones)", "slider", 0.7, 1.4],
+		["touch_auto_fire", "Auto-fire: shoot while an enemy is in the crosshair (phones)", "check"],
+	])
+	var reset_row := HBoxContainer.new()
+	var reset_prefs := Button.new()
+	reset_prefs.text = "RESET DISPLAY AND COMFORT OPTIONS"
+	reset_prefs.rect_min_size = Vector2(460, 40)
+	reset_prefs.connect("pressed", self, "_on_reset_prefs")
+	reset_row.add_child(reset_prefs)
+	settings_pages["comfort"].add_child(reset_row)
 	col.add_child(_button("BACK", "settings_back", 240))
 	root.add_child(p)
 	_show_settings_page("audio")
 	return p
+
+
+var pref_widgets := {}
+
+
+# One settings page built from a list: [key, label, "check" | "slider" | "option", ...].
+func _build_pref_page(holder: Control, id: String, rows: Array) -> void:
+	var page := _page(holder)
+	settings_pages[id] = page
+	page.add_constant_override("separation", 3)
+	for r in rows:
+		var key: String = r[0]
+		match r[2]:
+			"check":
+				var cb := CheckBox.new()
+				cb.text = r[1]
+				cb.pressed = bool(Settings.pref(key))
+				cb.connect("toggled", self, "_on_pref", [key])
+				page.add_child(cb)
+				pref_widgets[key] = cb
+			"slider":
+				var row := HBoxContainer.new()
+				row.rect_min_size = Vector2(0, 34)
+				var l := _label(r[1], 0)
+				l.rect_min_size = Vector2(430, 0)
+				row.add_child(l)
+				var sl := HSlider.new()
+				sl.min_value = r[3]
+				sl.max_value = r[4]
+				sl.step = 0.01 if r[4] <= 2.0 else 1.0
+				sl.value = float(Settings.pref(key))
+				sl.rect_min_size = Vector2(340, 30)
+				sl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+				sl.connect("value_changed", self, "_on_pref", [key])
+				row.add_child(sl)
+				page.add_child(row)
+				pref_widgets[key] = sl
+			"option":
+				var row := HBoxContainer.new()
+				var l := _label(r[1], 0)
+				l.rect_min_size = Vector2(430, 0)
+				row.add_child(l)
+				var ob := OptionButton.new()
+				for name in r[3]:
+					ob.add_item(name)
+				var values: Array = r[4] if r.size() > 4 else range(r[3].size())
+				ob.selected = max(0, values.find(Settings.pref(key)))
+				ob.connect("item_selected", self, "_on_pref_option", [key, values])
+				row.add_child(ob)
+				page.add_child(row)
+				pref_widgets[key] = ob
+
+
+func _on_pref(value, key: String) -> void:
+	Settings.set_pref(key, value)
+
+
+func _on_pref_option(index: int, key: String, values: Array) -> void:
+	Settings.set_pref(key, values[index])
+
+
+func _on_reset_prefs() -> void:
+	Settings.reset_prefs()
+	for key in pref_widgets:
+		var w = pref_widgets[key]
+		if w is CheckBox:
+			w.pressed = bool(Settings.pref(key))
+		elif w is HSlider:
+			w.value = float(Settings.pref(key))
+		elif w is OptionButton:
+			var v = Settings.pref(key)
+			w.selected = max(0, Settings.FPS_CAPS.find(v) if key == "fps_cap" else int(v))
+	Audio.play2d("ui_click", -6.0)
 
 
 func _page(holder: Control) -> VBoxContainer:
@@ -1763,7 +1864,7 @@ func _pad_press_of(event: InputEvent) -> int:
 
 
 const TITLE_TABS := ["lobby", "locker", "profile", "party", "friends"]
-const SETTINGS_TABS := ["audio", "graphics", "controls", "gameplay"]
+const SETTINGS_TABS := ["audio", "graphics", "controls", "gameplay", "display", "comfort"]
 
 
 # Controller handling on the menu screens. Returns true when the press was used here.
@@ -1881,5 +1982,5 @@ func _notification(what: int) -> void:
 		if state == "hidden" or state == "paused" or state == "settings" or state == "help":
 			toggle_pause()
 	elif what == MainLoop.NOTIFICATION_WM_FOCUS_OUT:
-		if state == "hidden" and world != null and not world.match_over and OS.has_feature("mobile"):
+		if state == "hidden" and world != null and not world.match_over and (OS.has_feature("mobile") or (Settings.pref("pause_on_focus") and not Net.in_match)):
 			toggle_pause()                            # auto-pause when the app goes to the background

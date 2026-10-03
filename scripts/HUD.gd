@@ -16,6 +16,7 @@ const InventoryScreen = preload("res://scripts/ui/InventoryScreen.gd")
 const BuildEditor = preload("res://scripts/ui/BuildEditor.gd")
 const TouchControls = preload("res://scripts/ui/TouchControls.gd")
 const EmoteWheel = preload("res://scripts/ui/EmoteWheel.gd")
+const WarnLayer = preload("res://scripts/ui/WarnLayer.gd")
 const PingLayer = preload("res://scripts/ui/PingLayer.gd")
 const NameTags = preload("res://scripts/ui/NameTags.gd")
 const FONT_PATH := "res://assets/fonts/DejaVuSans-Bold.ttf"
@@ -85,6 +86,7 @@ var _toast_t := 0.0
 var _t := 0.0
 var emote_wheel
 var name_tags
+var warn_layer
 var ping_layer
 var _big_font: DynamicFont
 
@@ -223,6 +225,8 @@ func _build() -> void:
 	tags.font = root.theme.default_font if root.theme != null else null
 	root.add_child(tags)
 	name_tags = tags
+	warn_layer = WarnLayer.new()
+	root.add_child(warn_layer)
 	ping_layer = PingLayer.new()
 	ping_layer.font = tags.font
 	root.add_child(ping_layer)
@@ -411,6 +415,7 @@ func bind(world_node) -> void:
 	scope_overlay.player = player
 	emote_wheel.player = player
 	name_tags.player = player
+	warn_layer.player = player
 	ping_layer.world = world
 	root.move_child(emote_wheel, root.get_child_count() - 1)
 	inventory.player = player
@@ -733,6 +738,7 @@ func _process(delta: float) -> void:
 	shield_bar.max_value = player.max_shield
 	shield_bar.value = player.shield
 	ammo_label.text = _ammo_text()
+	_ammo_warning()
 	compass.heading = -rad2deg(player.rotation.y)
 	_update_poi(delta)
 	if Input.is_action_just_pressed("map"):
@@ -780,8 +786,26 @@ func _process(delta: float) -> void:
 	else:
 		toast_label.text = ""
 
-	hint_label.visible = (not Controls.touch_mode) and (not end_panel.visible) and (not inventory.visible) and (not editor.visible) \
+	hint_label.visible = Settings.pref("show_hints") and (not Controls.touch_mode) and (not end_panel.visible) and (not inventory.visible) and (not editor.visible) \
 		and Input.get_mouse_mode() != Input.MOUSE_MODE_CAPTURED
+
+
+# Low ammo: the readout turns red and says RELOAD, or NO AMMO when there is nothing left.
+func _ammo_warning() -> void:
+	var warn := ""
+	var item = player.selected_item()
+	if Settings.pref("warn_ammo") and item != null and item.kind == "weapon" and not player.is_reloading() and not player.is_dead:
+		var cap: int = Items.weapon_stats(item).mag
+		if item.mag <= 0 and player.get_reserve() <= 0:
+			warn = "NO AMMO"
+		elif item.mag <= max(1, int(cap * 0.25)) and player.get_reserve() > 0:
+			warn = "RELOAD"
+	if warn != "":
+		ammo_label.text += "   " + warn
+		var blink: float = 0.6 + 0.4 * sin(OS.get_ticks_msec() * 0.012)
+		ammo_label.modulate = Color(1.0, 0.45 * blink, 0.35 * blink)
+	else:
+		ammo_label.modulate = Color.white
 
 
 func _ammo_text() -> String:
