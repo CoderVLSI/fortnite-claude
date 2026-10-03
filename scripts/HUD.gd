@@ -15,6 +15,7 @@ const Materials = preload("res://scripts/ui/Materials.gd")
 const InventoryScreen = preload("res://scripts/ui/InventoryScreen.gd")
 const BuildEditor = preload("res://scripts/ui/BuildEditor.gd")
 const TouchControls = preload("res://scripts/ui/TouchControls.gd")
+const NameTags = preload("res://scripts/ui/NameTags.gd")
 const FONT_PATH := "res://assets/fonts/DejaVuSans-Bold.ttf"
 
 const MAP_SIZE := 190.0
@@ -213,6 +214,10 @@ func _build() -> void:
 	sprite_badge.visible = false
 	root.add_child(sprite_badge)
 	hotbar.connect("slot_pressed", self, "_on_slot_pressed")
+	var tags = NameTags.new()
+	tags.font = root.theme.default_font if root.theme != null else null
+	root.add_child(tags)
+	root.move_child(tags, 0)
 
 	prompt_label = _label("", Label.ALIGN_CENTER)
 	_place(prompt_label, 0.5, 0.5, Vector2(-260, 70), Vector2(520, 32))

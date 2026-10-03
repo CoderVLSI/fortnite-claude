@@ -7,11 +7,11 @@ cd "$(dirname "$0")/.."
 GODOT="${GODOT:-godot3}"
 RES="${RES:-640x360}"
 fail=0
-run() {   # name extra-args
+run() {   # name extra-args (RES=WxH run ... for another window size)
   local name="$1"; shift
   local shots=""
   [ -n "${SHOTS:-}" ] && { mkdir -p "tests/out/$name"; shots="--shots=tests/out/$name"; }
-  if timeout 300 xvfb-run -a -s "-screen 0 ${RES}x24" "$GODOT" --path . --resolution "$RES" --audio-driver Dummy \
+  if timeout 300 xvfb-run -a -s "-screen 0 ${RES}x24" "$GODOT" --path . --resolution "${RES}" --audio-driver Dummy \
       -s "res://tests/${name}.gd" -- --no-capture "$@" $shots > "/tmp/${name}.log" 2>&1; then
     printf "  %-14s ok   %s\n" "$name" "$(grep -E '_RESULT' /tmp/${name}.log | tail -1)"
   else
@@ -36,4 +36,6 @@ run highrise_test --no-bus --skip-menu
 run skin_test --no-bus --skip-menu
 run accounts_test --no-bus --skip-menu
 run menu_test
+run pad_test
+RES=844x390 run mobile_test --touch
 exit $fail

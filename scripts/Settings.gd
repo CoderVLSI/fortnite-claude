@@ -20,6 +20,7 @@ var loadout := {"skin": "ranger", "pickaxe": "classic", "backbling": "none", "co
 var starter_sprite := "earth"    # the sprite you bring to a match (none / earth / fire / water)
 var damage_numbers := true
 var edit_on_release := false     # builds: false = press Edit once to start and again to confirm; true = hold it and let go to confirm
+var padbinds := {}                # action -> controller button (-1 = none); only the ones the player changed
 var keybinds := {}                # action -> [[type, code], ...]; only the actions the player changed
 var autostart := false            # runtime only: skip the title screen after "Play again"
 
@@ -48,6 +49,9 @@ func load_settings() -> void:
 	if cfg.has_section("keybinds"):
 		for action in cfg.get_section_keys("keybinds"):
 			keybinds[action] = cfg.get_value("keybinds", action, [])
+	if cfg.has_section("padbinds"):
+		for action in cfg.get_section_keys("padbinds"):
+			padbinds[action] = int(cfg.get_value("padbinds", action, -1))
 	player_name = str(cfg.get_value("profile", "name", player_name))
 	matches = int(cfg.get_value("profile", "matches", matches))
 	wins = int(cfg.get_value("profile", "wins", wins))
@@ -70,6 +74,8 @@ func save_settings() -> void:
 	cfg.set_value("gameplay", "edit_hold_to_confirm", edit_on_release)
 	for action in keybinds:
 		cfg.set_value("keybinds", action, keybinds[action])
+	for action in padbinds:
+		cfg.set_value("padbinds", action, padbinds[action])
 	cfg.set_value("profile", "name", player_name)
 	cfg.set_value("profile", "matches", matches)
 	cfg.set_value("profile", "wins", wins)

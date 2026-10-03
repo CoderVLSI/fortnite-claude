@@ -35,6 +35,7 @@ func _ready() -> void:
 	set_anchors_and_margins_preset(Control.PRESET_WIDE)
 	connect("resized", self, "_layout")
 	connect("visibility_changed", self, "_on_visibility_changed")
+	Controls.connect("device_changed", self, "_on_device_changed")
 	_layout()
 
 
@@ -72,6 +73,13 @@ func _stick_home() -> Vector2:
 	return Vector2(170, rect_size.y - 170)
 
 
+# A controller is in use on a phone / tablet: the on-screen buttons get out of the way until the screen is touched again.
+func _on_device_changed(_using_pad: bool) -> void:
+	if Controls.using_pad:
+		_release_all()
+	update()
+
+
 func _on_visibility_changed() -> void:
 	if not visible:
 		_release_all()
@@ -93,6 +101,10 @@ func _release_all() -> void:
 
 func _input(event: InputEvent) -> void:
 	if not is_visible_in_tree():
+		return
+	if event is InputEventScreenTouch and event.pressed and Controls.using_pad:
+		Controls.use_touch()
+	if Controls.using_pad:
 		return
 	if event is InputEventScreenTouch:
 		if event.pressed:
@@ -236,6 +248,8 @@ func _draw_piece_tile(b: Dictionary, chosen: bool, active: bool) -> bool:
 
 
 func _draw() -> void:
+	if Controls.using_pad:
+		return
 	var font := get_font("font", "Label")
 	var home := _stick_origin if _stick_id != -1 else _stick_home()
 	var knob := _stick_pos if _stick_id != -1 else home

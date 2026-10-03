@@ -27,7 +27,8 @@ func _ready() -> void:
 	elif item.kind == "consumable" and Items.CONSUMABLES[item.id].get("rift", false):
 		_model = preload("res://scripts/Rift.gd").build_visual(0.5)
 	else:
-		var scene = load(Items.model_of(item))
+		var model_path: String = Items.model_of(item)
+		var scene = load(model_path) if ResourceLoader.exists(model_path) else null
 		_model = scene.instance() if scene != null else Spatial.new()
 		var s := 1.5 if item.kind == "weapon" else 1.8
 		_model.scale = Vector3(s, s, s)

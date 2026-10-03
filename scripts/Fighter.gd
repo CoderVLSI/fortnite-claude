@@ -393,7 +393,8 @@ func _equip_model(item) -> void:
 			hand.add_child(held)
 			held.translation = Vector3(0, -0.02, -0.04)
 			return
-	var scene = load(Items.model_of(item))
+	var model_path: String = Items.model_of(item)
+	var scene = load(model_path) if ResourceLoader.exists(model_path) else null
 	if scene == null:
 		return
 	held = scene.instance()

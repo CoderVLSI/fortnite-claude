@@ -12,6 +12,7 @@ const SplashScreen = preload("res://scripts/ui/SplashScreen.gd")
 const FONT_PATH := "res://assets/fonts/DejaVuSans-Bold.ttf"
 const HELP_PC := "Move: WASD        Look: mouse        Fire: left click        Aim / scope: right click\nJump / handbrake: Space        Sprint: Shift        Reload / horn: R\nPick up / swap / open / enter vehicle: E        Inventory: Tab  (X drops)        Build: Q toggles, Z X C V = wall / floor / ramp / roof, wheel = material\nItems: 1-5 or wheel, F = pickaxe        Map: M        Emote: B        Crouch / slide: Ctrl        Pause: Esc  (all keys can be changed in Settings > Controls)"
 const HELP_TOUCH := "Left thumb: move    Right side: look    FIRE / JUMP / SPRINT buttons, scope button to aim down sights\nPICK UP appears next to loot, chests and vehicles    BUILD toggles building\nTap the hotbar to switch items, the bag button for the inventory    Tap the minimap for the island map"
+const HELP_PAD := "Xbox / PlayStation / Switch pads work as soon as they are connected:  left stick move, right stick look, RT fire, LT aim, A jump, B crouch\nX reload / pick up, Y build mode, D-Pad = wall / floor / ramp / roof, LB RB switch item (or material), L3 sprint, R3 edit, View = inventory, Menu = pause\nIn menus: D-Pad / stick + A to choose, B to go back, LB RB change tab   (Settings > Controls shows the controller and lets you remap every button)"
 const HELP_GOAL := "Ride the Sky Ferry, jump, glide down and loot.  Fight bots, stay inside the shrinking storm,\ndrive vehicles, swim, climb ledges, take on the Warden at Iron Bunker for Mythic loot.\nBe the last one standing."
 
 const TIPS := [
@@ -59,7 +60,12 @@ var _settings_return := "title"
 var settings_pages := {}
 var settings_tabs := {}
 var rebind_buttons := {}
+var pad_buttons := {}
+var pad_status: Label
+var play_button: Button
 var _rebind_action := ""
+var _rebind_pad := false
+var _title_tab := 0
 var name_edit: LineEdit
 var name_label: Label
 var mode_info: Label
@@ -342,6 +348,7 @@ func _build_title() -> Control:
 	play.connect("pressed", self, "_on_button", ["play"])
 	_style_button(play, _flat(gold, Color(0.10, 0.08, 0.02), 4, 3), _flat(Color(1.0, 0.94, 0.45), Color(0.10, 0.08, 0.02), 4, 3), Color(0.08, 0.07, 0.02), 40)
 	mode.add_child(play)
+	play_button = play
 
 	# tips + hint
 	tip_label = _label(TIPS[0], 17, Color(1, 1, 1, 0.9))
@@ -420,9 +427,12 @@ func _build_settings() -> Control:
 	inv.connect("toggled", self, "_on_invert")
 	look_row.add_child(inv)
 	cp.add_child(look_row)
-	cp.add_child(_label("Click a key, then press the new key or mouse button (Esc or a left click cancels)", 16, Color(0.7, 0.8, 1.0)))
+	pad_status = _label("", 17, Color(0.55, 1.0, 0.65))
+	cp.add_child(pad_status)
+	cp.add_child(_label("Click a binding, then press the new key / mouse button / pad button  (Esc or Menu cancels)", 15, Color(0.7, 0.8, 1.0)))
 	var scroll := ScrollContainer.new()
-	scroll.rect_min_size = Vector2(968, 255)
+	scroll.follow_focus = true
+	scroll.rect_min_size = Vector2(968, 235)
 	scroll.scroll_horizontal_enabled = false
 	cp.add_child(scroll)
 	var list := VBoxContainer.new()
@@ -435,20 +445,38 @@ func _build_settings() -> Control:
 			list.add_child(_label(groups[entry[0]], 18, Color(0.6, 0.85, 1.0)))
 		var row := HBoxContainer.new()
 		var rl := _label(entry[1], 0)
-		rl.rect_min_size = Vector2(300, 0)
+		rl.rect_min_size = Vector2(270, 0)
 		row.add_child(rl)
 		var kb := Button.new()
-		kb.rect_min_size = Vector2(300, 38)
+		kb.rect_min_size = Vector2(280, 38)
 		kb.text = Controls.binding_text(entry[0])
 		kb.connect("pressed", self, "_begin_rebind", [entry[0]])
 		row.add_child(kb)
 		rebind_buttons[entry[0]] = kb
+		var pb := Button.new()
+		pb.rect_min_size = Vector2(220, 38)
+		pb.text = Controls.pad_binding_text(entry[0])
+		if entry[0] in Controls.MOVE_ACTIONS:
+			pb.disabled = true                      # the sticks are fixed: left = move, right = look
+		pb.connect("pressed", self, "_begin_pad_rebind", [entry[0]])
+		row.add_child(pb)
+		pad_buttons[entry[0]] = pb
 		list.add_child(row)
+	var rrow := HBoxContainer.new()
+	rrow.add_constant_override("separation", 14)
 	var reset := Button.new()
-	reset.text = "RESET ALL KEYS TO DEFAULT"
-	reset.rect_min_size = Vector2(380, 44)
+	reset.text = "RESET KEYS"
+	reset.rect_min_size = Vector2(240, 44)
 	reset.connect("pressed", self, "_on_reset_keys")
-	cp.add_child(reset)
+	rrow.add_child(reset)
+	var reset_pad := Button.new()
+	reset_pad.text = "RESET CONTROLLER"
+	reset_pad.rect_min_size = Vector2(280, 44)
+	reset_pad.connect("pressed", self, "_on_reset_pad")
+	rrow.add_child(reset_pad)
+	cp.add_child(rrow)
+	Controls.connect("pad_changed", self, "_on_pad_changed")
+	_on_pad_changed(Controls.pad_name != "", Controls.pad_name)
 
 	var gp := _page(holder)
 	settings_pages["gameplay"] = gp
@@ -512,19 +540,51 @@ func _show_settings_page(id: String) -> void:
 func _begin_rebind(action: String) -> void:
 	_cancel_rebind()
 	_rebind_action = action
+	_rebind_pad = false
 	rebind_buttons[action].text = "Press a key..."
+	Audio.play2d("ui_click", -8.0)
+
+
+func _begin_pad_rebind(action: String) -> void:
+	_cancel_rebind()
+	_rebind_action = action
+	_rebind_pad = true
+	pad_buttons[action].text = "Press a button..."
 	Audio.play2d("ui_click", -8.0)
 
 
 func _cancel_rebind() -> void:
 	if _rebind_action != "":
 		rebind_buttons[_rebind_action].text = Controls.binding_text(_rebind_action)
+		pad_buttons[_rebind_action].text = Controls.pad_binding_text(_rebind_action)
 		_rebind_action = ""
 
 
 func _refresh_bindings() -> void:
 	for a in rebind_buttons:
 		rebind_buttons[a].text = Controls.binding_text(a)
+		pad_buttons[a].text = Controls.pad_binding_text(a)
+
+
+func _on_pad_changed(connected: bool, pad_name: String) -> void:
+	if pad_status != null:
+		if connected:
+			pad_status.text = "Controller detected: %s  (%s buttons)  -  it works right away, no setup needed" % [pad_name, {"xbox": "Xbox", "ps": "PlayStation", "nintendo": "Nintendo"}[Controls.pad_style()]]
+			pad_status.modulate = Color(0.55, 1.0, 0.65)
+		else:
+			pad_status.text = "No controller detected - plug one in (USB) or pair it (Bluetooth) and it shows up here"
+			pad_status.modulate = Color(1.0, 0.85, 0.5)
+	_refresh_bindings()
+	var hud = world.hud if world != null else null
+	if hud != null and state == "hidden":
+		hud.show_toast(("Controller connected: " + pad_name) if connected else "Controller disconnected")
+
+
+func _on_reset_pad() -> void:
+	_cancel_rebind()
+	Controls.reset_pad_bindings()
+	_refresh_bindings()
+	Audio.play2d("ui_click", -6.0)
 
 
 func _on_reset_keys() -> void:
@@ -943,6 +1003,7 @@ func _build_locker(parent: Control) -> void:
 		grid.add_child(b)
 		locker_tabs[cat] = b
 	var scroll := ScrollContainer.new()
+	scroll.follow_focus = true
 	scroll.rect_position = Vector2(14, 176)
 	scroll.rect_size = Vector2(412, 380)
 	scroll.scroll_horizontal_enabled = false
@@ -1048,18 +1109,39 @@ func _build_help() -> Control:
 	p.anchor_bottom = 0.5
 	p.margin_left = -590
 	p.margin_right = 590
-	p.margin_top = -300
-	p.margin_bottom = 300
-	var col := _column(p, Vector2(40, 20), Vector2(1100, 560))
-	col.add_child(_label("HOW TO PLAY", 40, Color(1.0, 0.88, 0.45)))
-	col.add_child(_label(HELP_GOAL, 21))
-	col.add_child(_label("PC", 26, Color(0.6, 0.85, 1.0)))
-	col.add_child(_label(HELP_PC, 21))
-	col.add_child(_label("PHONE / TABLET", 26, Color(0.6, 0.85, 1.0)))
-	col.add_child(_label(HELP_TOUCH, 21))
-	col.add_child(_button("BACK", "help_back", 240))
+	p.margin_top = -330
+	p.margin_bottom = 330
+	var head := _column(p, Vector2(40, 14), Vector2(1100, 60))
+	head.add_child(_label("HOW TO PLAY", 40, Color(1.0, 0.88, 0.45)))
+	var scroll := ScrollContainer.new()
+	scroll.follow_focus = true
+	scroll.rect_position = Vector2(40, 74)
+	scroll.rect_size = Vector2(1110, 500)
+	scroll.scroll_horizontal_enabled = false
+	p.add_child(scroll)
+	var col := VBoxContainer.new()
+	col.add_constant_override("separation", 8)
+	col.rect_min_size = Vector2(1090, 0)
+	scroll.add_child(col)
+	col.add_child(_wrapped(HELP_GOAL, 19))
+	col.add_child(_label("PC", 24, Color(0.6, 0.85, 1.0)))
+	col.add_child(_wrapped(HELP_PC, 18))
+	col.add_child(_label("CONTROLLER", 24, Color(0.6, 0.85, 1.0)))
+	col.add_child(_wrapped(HELP_PAD, 18))
+	col.add_child(_label("PHONE / TABLET", 24, Color(0.6, 0.85, 1.0)))
+	col.add_child(_wrapped(HELP_TOUCH, 18))
+	var foot := _column(p, Vector2(40, 584), Vector2(1100, 60))
+	var back := _button("BACK", "help_back", 240)
+	foot.add_child(back)
 	root.add_child(p)
 	return p
+
+
+func _wrapped(text: String, size: int) -> Label:
+	var l := _label(text, size)
+	l.autowrap = true
+	l.rect_min_size = Vector2(1100, 0)
+	return l
 
 
 func _build_pause() -> Control:
@@ -1206,17 +1288,21 @@ func _on_button(id: String) -> void:
 		"play":
 			start_game()
 		"lobby":
+			_title_tab = 0
 			_side_panels(null)
 			_move_underline(0)
 		"locker":
+			_title_tab = 1
 			_side_panels(locker_panel)
 			_move_underline(1)
 			locker_show(locker_cat)
 		"profile":
+			_title_tab = 2
 			_side_panels(profile_panel)
 			_move_underline(2)
 			profile_show("home")
 		"party":
+			_title_tab = 3
 			_side_panels(party_panel)
 			_move_underline(3)
 			party_show("party" if Net.active else "home")
@@ -1273,6 +1359,7 @@ func _on_quality(idx: int) -> void:
 # ------------------------------------------------------------------ per frame
 
 func _process(delta: float) -> void:
+	Controls.menu_open = state != "hidden"
 	fps_label.visible = Settings.show_fps
 	if Settings.show_fps:
 		fps_label.text = "%d FPS" % Engine.get_frames_per_second()
@@ -1286,7 +1373,22 @@ func _process(delta: float) -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if _rebind_action != "" and event.is_pressed() and not event.is_echo():
+	if _rebind_action != "" and _rebind_pad:
+		var pb := _pad_press_of(event)
+		if pb != -2:
+			if pb == JOY_START or pb == -1:
+				_cancel_rebind()                              # Menu / Start cancels
+			elif not (pb in Controls.PAD_RESERVED):
+				Controls.set_pad_binding(_rebind_action, pb)
+				_rebind_action = ""
+				_refresh_bindings()
+			get_tree().set_input_as_handled()
+			return
+		if event is InputEventKey and event.pressed and event.scancode == KEY_ESCAPE:
+			_cancel_rebind()
+			get_tree().set_input_as_handled()
+			return
+	elif _rebind_action != "" and event.is_pressed() and not event.is_echo():
 		if event is InputEventKey:
 			if event.scancode == KEY_ESCAPE:
 				_cancel_rebind()
@@ -1305,19 +1407,131 @@ func _input(event: InputEvent) -> void:
 				_refresh_bindings()
 				get_tree().set_input_as_handled()
 				return
+	if event is InputEventJoypadButton and event.pressed and _pad_menu_input(event):
+		get_tree().set_input_as_handled()
+		return
 	if event is InputEventKey and event.pressed and event.scancode == KEY_ESCAPE and not event.echo:
-		if world != null and world.hud != null and world.hud.inventory.visible:
-			world.hud.close_inventory()                 # Esc closes the inventory screen before it pauses the game
-			get_tree().set_input_as_handled()
-			return
-		if world != null and world.hud != null and world.hud.editor.visible:
-			world.hud.editor.cancel()                   # ... and the build editor
-			get_tree().set_input_as_handled()
-			return
-		toggle_pause()
+		_escape()
 		get_tree().set_input_as_handled()
 	elif event is InputEventKey and event.pressed and event.scancode == KEY_ENTER and state == "title":
 		_on_button("play")
+
+
+# Esc / controller Menu: close the inventory or the build editor first, else pause / go back.
+func _escape() -> void:
+	if world != null and world.hud != null and world.hud.inventory.visible:
+		world.hud.close_inventory()                 # closes the inventory screen before it pauses the game
+		return
+	if world != null and world.hud != null and world.hud.editor.visible:
+		world.hud.editor.cancel()                   # ... and the build editor
+		return
+	toggle_pause()
+
+
+# Which controller button this event is (triggers included), -1 for the Start button's cancel, -2 when it is not a pad press.
+func _pad_press_of(event: InputEvent) -> int:
+	if event is InputEventJoypadButton and event.pressed:
+		return event.button_index
+	if event is InputEventJoypadMotion and abs(event.axis_value) > 0.7 and (event.axis == JOY_AXIS_6 or event.axis == JOY_AXIS_7):
+		return JOY_L2 if event.axis == JOY_AXIS_6 else JOY_R2
+	return -2
+
+
+const TITLE_TABS := ["lobby", "locker", "profile", "party"]
+const SETTINGS_TABS := ["audio", "graphics", "controls", "gameplay"]
+
+
+# Controller handling on the menu screens. Returns true when the press was used here.
+func _pad_menu_input(event: InputEventJoypadButton) -> bool:
+	var b: int = event.button_index
+	if state == "hidden":
+		if b == JOY_START:
+			_escape()
+			return true
+		if b == JOY_XBOX_B and world != null and world.hud != null and world.hud.inventory.visible:
+			world.hud.close_inventory()
+			return true
+		return false
+	if state == "splash":
+		return false
+	if b == JOY_START and state != "title":
+		toggle_pause()
+		return true
+	if b == JOY_XBOX_B:
+		match state:
+			"paused", "settings", "help":
+				toggle_pause()
+				return true
+			"title":
+				if _title_tab != 0:
+					_on_button("lobby")
+					return true
+		return false
+	if b == JOY_L or b == JOY_R:
+		var dir: int = 1 if b == JOY_R else -1
+		if state == "title" and not wait_visible():
+			_title_tab = int(posmod(_title_tab + dir, TITLE_TABS.size()))
+			_on_button(TITLE_TABS[_title_tab])
+			_grab_pad_focus()
+			return true
+		if state == "settings":
+			var cur := 0
+			for i in range(SETTINGS_TABS.size()):
+				if settings_pages[SETTINGS_TABS[i]].visible:
+					cur = i
+			_show_settings_page(SETTINGS_TABS[int(posmod(cur + dir, SETTINGS_TABS.size()))])
+			return true
+		return false
+	# A / D-pad with nothing focused yet: pick the sensible starting control instead of doing nothing.
+	if (b == JOY_XBOX_A or b >= JOY_DPAD_UP and b <= JOY_DPAD_RIGHT) and not _focus_valid():
+		_grab_pad_focus()
+		return true
+	return false
+
+
+func wait_visible() -> bool:
+	return wait_panel != null and wait_panel.visible
+
+
+func _focus_valid() -> bool:
+	var f := root.get_focus_owner()
+	return f != null and f.is_visible_in_tree()
+
+
+# Put the focus on something sensible for the screen that is up (PLAY in the lobby, the first control on other pages).
+func _grab_pad_focus() -> void:
+	var target: Control = null
+	match state:
+		"title":
+			var side: Control = null
+			for pnl in [locker_panel, profile_panel, party_panel]:
+				if pnl != null and pnl.visible:
+					side = pnl
+			target = _first_focusable(side) if side != null else play_button
+		"paused":
+			target = _first_focusable(pause_panel)
+		"settings":
+			for k in settings_pages:
+				if settings_pages[k].visible:
+					target = _first_focusable(settings_pages[k])
+		"help":
+			target = _first_focusable(help_panel)
+	if wait_visible():
+		target = _first_focusable(wait_panel)
+	if target != null:
+		target.grab_focus()
+
+
+func _first_focusable(n: Node) -> Control:
+	if n == null:
+		return null
+	if n is Control and n.focus_mode != Control.FOCUS_NONE and n.is_visible_in_tree():
+		return n as Control
+	for c in n.get_children():
+		var r: Control = _first_focusable(c)
+		if r != null:
+			return r
+	return null
 
 
 # Drag on empty space turns the lobby character; a tap (almost no movement) makes it wave.

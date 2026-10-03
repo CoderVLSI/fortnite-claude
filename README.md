@@ -42,21 +42,34 @@ storm closes in. Last one standing wins.
 
 ## Controls
 
-| | PC | Gamepad | Android |
+| | PC | Controller (Xbox / PlayStation / Switch) | Android |
 |---|---|---|---|
-| Move / look | WASD / mouse | sticks | floating joystick / drag right side |
-| Fire (auto) | left mouse | R2 | big FIRE button right, or the second FIRE above the joystick (drag on either to aim) |
+| Move / look | WASD / mouse | left / right stick | floating joystick / drag right side |
+| Fire (auto) | left mouse | RT | big FIRE button right, or the second FIRE above the joystick (drag on either to aim) |
 | Jump, drop from bus, glider, handbrake | Space | A | JUMP |
 | Sprint | Shift | L3 | SPRINT toggle / push stick fully |
-| Aim down sights | right mouse (hold) | L2 | scope button (tap to toggle) |
-| Reload / horn | R | X | reload button beside the ammo readout |
-| Pick up (swaps the item in hand when full), open, enter / exit vehicle | E | Y | PICK UP / EXIT (appears when relevant) |
-| Inventory screen (X drops) | Tab | Select | bag button (top right) |
-| Items | 1-5 / wheel, F = pickaxe | L1 / R1 | tap the slots |
-| Crouch / slide, emote | Ctrl, B | R3, D-pad up | |
-| Build mode | Q, or Z X C V for wall / floor / ramp / roof (wheel: material) | | the four piece buttons down the right edge (tap again to leave); tap a materials box to pick wood / stone / metal |
-| Map | M | | tap the minimap |
-| Pause | Esc | | II button / Back |
+| Aim down sights | right mouse (hold) | LT | scope button (tap to toggle) |
+| Reload / horn, pick up, open, enter / exit vehicle | R, E | X | RELOAD button, PICK UP / EXIT (appears when relevant) |
+| Inventory screen (X drops) | Tab | View (left stick moves the pointer, A clicks) | bag button (top right) |
+| Items | 1-5 / wheel, F = pickaxe | LB / RB | tap the slots |
+| Crouch / slide | Ctrl | B | |
+| Build mode, pieces | Q, then Z X C V (wheel: material) | Y, then D-pad = wall / floor / ramp / roof (LB / RB: material) | the four piece buttons down the right edge; tap a materials box to pick the material |
+| Edit | G | R3 | pencil button |
+| Map, emote, pickaxe | M, B, F | unbound by default - set them in Settings | tap the minimap |
+| Pause | Esc | Menu | II button / Back |
+
+Controllers are detected automatically (plug in or pair one and a toast says so); Settings > Controls shows the
+detected pad and its button names (Xbox, PlayStation or Switch style) and has a controller column to remap every
+button (LB / RB / Menu stay fixed). In menus use D-pad / stick + A, B to go back and LB / RB to change tab. While a
+pad is in use on a phone the touch buttons hide until the screen is touched again.
+
+## Playing with friends (LAN)
+
+PARTY tab > HOST A GAME on one machine; on the others the game shows up under "Games found on your network"
+(or type the host's IP, port 7777). Up to 8 people, the rest of the 50 are bots; everybody must run the same
+build. Works between Windows, Linux and Android on the same Wi-Fi / network (allow the Windows firewall prompt on the
+host). Each player simulates their own character; the host runs the bots and the storm. Loot, chests, buildings,
+vehicles, sprites and rifts are shared. `tools/run_net_test.sh` runs a two-process host / client test.
 
 The phone HUD is its own layout (minimap, shield / health bars and kill feed top-left, materials and menu
 top-right, hotbar bottom-centre with ammo and reload beside it, fire / jump / sprint on the right); the PC HUD
@@ -147,8 +160,8 @@ The APK is debug-signed. Make a release keystore before publishing.
 
 * Verified in a headless software renderer: all seven suites pass on the desktop profile; the smoke test also
   passes on the mobile profile at 2400x1080 with the touch UI.
-* **Not verified:** on-device Android play (performance, touch feel, audio mix), real gamepads, and the
+* **Not verified:** on-device Android play (performance, touch feel, audio mix), real gamepads (the mapping is covered by `pad_test` with synthetic events), internet play (LAN only; no relay), and the
   GitHub Actions workflow. Sound design is synthesised and was checked numerically (levels, loop seams),
   not by ear.
-* Not included: online multiplayer, building editing, emotes, vehicle fuel.
+* Not included: internet matchmaking / relay servers, NPCs and quests, vehicle fuel.
 * The Android preset ships arm64 only (keeps the APK ~16 MB; every phone since ~2019 is 64-bit). Set `architectures/armeabi-v7a=true` in `export_presets.cfg` for 32-bit devices.

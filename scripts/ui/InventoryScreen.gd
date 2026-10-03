@@ -215,8 +215,9 @@ func _draw() -> void:
 			draw_texture_rect(gi, ghost, false, Color(1, 1, 1, 0.85))
 		else:
 			draw_rect(ghost, Color(1, 1, 1, 0.5))
-	_button(L.drop, "X   Drop", Color(0.16, 0.24, 0.45, 0.95), font)
-	_button(L.back, "TAB   Back", Color(0.16, 0.24, 0.45, 0.95), font)
+	var keys: bool = not Controls.touch_mode and not Controls.using_pad          # key hints only make sense with a keyboard
+	_button(L.drop, "X   Drop" if keys else "Drop", Color(0.16, 0.24, 0.45, 0.95), font)
+	_button(L.back, "TAB   Back" if keys else "Back", Color(0.16, 0.24, 0.45, 0.95), font)
 
 
 func _panel(r: Rect2, title: String, font: Font) -> void:
