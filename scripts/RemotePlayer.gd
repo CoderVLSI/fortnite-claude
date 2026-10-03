@@ -3,16 +3,18 @@ extends "res://scripts/Fighter.gd"
 # shows it (smoothly) and lets bullets, grenades and vehicles hit it: damage is forwarded to the peer that owns the character.
 
 var peer_id := 0
+var color := Color(0.3, 0.5, 0.9)
+var player_name := "PLAYER"
 
 
-func setup_remote(id: int, player_name: String, lo: Dictionary, color: Color) -> void:
-	peer_id = id
-	net_owner = id
-	net_key_v = id
-	loadout = Cosmetics.sanitize(lo)
+func _ready() -> void:
+	net_owner = peer_id
+	net_key_v = peer_id
+	loadout = Cosmetics.sanitize(loadout)
 	skin_id = loadout.skin
 	setup_fighter(player_name, color)
 	add_to_group("remote_players")
+	connect("died", get_tree().get_nodes_in_group("world")[0], "_on_fighter_died")
 
 
 func _physics_process(delta: float) -> void:

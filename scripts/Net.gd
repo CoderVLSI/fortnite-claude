@@ -343,24 +343,24 @@ func end_match() -> void:
 
 # ------------------------------------------------------------------ gameplay traffic
 
-func send_pose(state: Dictionary) -> void:
+func send_pose(state: Array) -> void:
 	if active and in_match:
 		rpc_unreliable("_pose", state)
 
 
-remote func _pose(state: Dictionary) -> void:
+remote func _pose(state: Array) -> void:
 	if handler != null and handler.has_method("net_pose"):
 		handler.net_pose(get_tree().get_rpc_sender_id(), state)
 
 
-func send_bots(states: Array) -> void:
+func send_bots(chunk: Array) -> void:
 	if active and is_host and in_match:
-		rpc_unreliable("_bots", states)
+		rpc_unreliable("_bots", chunk)
 
 
-remote func _bots(states: Array) -> void:
+remote func _bots(chunk: Array) -> void:
 	if handler != null and handler.has_method("net_bots"):
-		handler.net_bots(states)
+		handler.net_bots(chunk)
 
 
 # A reliable event for everyone else (kind: String, data: Variant).
@@ -388,6 +388,13 @@ func send_damage(owner_id: int, target, amount: float, source, headshot: bool) -
 remote func _damage(target, amount: float, source, headshot: bool) -> void:
 	if handler != null and handler.has_method("net_damage"):
 		handler.net_damage(get_tree().get_rpc_sender_id(), target, amount, source, headshot)
+
+
+# The network key of a character: a peer id (humans) or a name (bots). null for "nobody" (the storm, fall damage).
+func key_of(f):
+	if f != null and is_instance_valid(f) and "net_key_v" in f:
+		return f.net_key_v
+	return null
 
 
 # A network-wide unique id for something this peer creates during the match (dropped loot, pieces, projectiles).

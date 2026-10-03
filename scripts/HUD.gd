@@ -647,7 +647,11 @@ func _on_spec_leave() -> void:
 
 func _on_restart() -> void:
 	Audio.play2d("ui_click")
-	Settings.autostart = true
+	if Net.active:                      # a network match: back to the party screen
+		Net.end_match()
+		Settings.autostart = false
+	else:
+		Settings.autostart = true
 	get_tree().reload_current_scene()
 
 

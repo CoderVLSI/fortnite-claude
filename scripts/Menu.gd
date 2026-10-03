@@ -28,6 +28,13 @@ var lobby
 var root: Control
 var sprite_button: Button
 var tab_underline: ColorRect
+var party_panel: Panel
+var party_body: Control
+var party_error: Label
+var party_fields := {}
+var party_view := "home"
+var wait_panel: Panel
+var wait_label: Label
 var profile_panel: Panel
 var profile_body: Control
 var profile_error: Label
@@ -249,11 +256,11 @@ func _build_title() -> Control:
 		p.add_child(logo)
 	var tabs := HBoxContainer.new()
 	tabs.add_constant_override("separation", 6)
-	_place(tabs, 0.5, 0.0, Vector2(-337, 8), Vector2(674, 50))
+	_place(tabs, 0.5, 0.0, Vector2(-405, 8), Vector2(810, 50))
 	p.add_child(tabs)
 	var clear := _flat(Color(0, 0, 0, 0))
 	var soft := _flat(Color(1, 1, 1, 0.12))
-	for t in [["LOBBY", "lobby"], ["LOCKER", "locker"], ["PROFILE", "profile"], ["HOW TO PLAY", "help"], ["SETTINGS", "settings_title"]]:
+	for t in [["LOBBY", "lobby"], ["LOCKER", "locker"], ["PROFILE", "profile"], ["PARTY", "party"], ["HOW TO PLAY", "help"], ["SETTINGS", "settings_title"]]:
 		var b := Button.new()
 		b.text = t[0]
 		b.rect_min_size = Vector2(130, 50)
@@ -262,7 +269,7 @@ func _build_title() -> Control:
 		tabs.add_child(b)
 	var underline := ColorRect.new()       # marks the active LOBBY tab
 	underline.color = gold
-	_place(underline, 0.5, 0.0, Vector2(-337 + 8, 58), Vector2(114, 4))
+	_place(underline, 0.5, 0.0, Vector2(-405 + 8, 58), Vector2(114, 4))
 	tab_underline = underline
 	underline.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	p.add_child(underline)
@@ -348,6 +355,7 @@ func _build_title() -> Control:
 	p.add_child(hint)
 	_build_locker(p)
 	_build_profile(p)
+	_build_party(p)
 	return p
 
 
@@ -533,10 +541,221 @@ func _on_name_changed(text: String) -> void:
 		name_label.text = Settings.player_name
 
 
+# ------------------------------------------------------------------ party (LAN multiplayer)
+
+func _build_party(parent: Control) -> void:
+	party_panel = Panel.new()
+	party_panel.add_stylebox_override("panel", _flat(Color(0.03, 0.05, 0.13, 1.0), Color(1, 1, 1, 0.25), 10, 2))
+	_place(party_panel, 0.0, 0.0, Vector2(26, 80), Vector2(540, 630))
+	party_panel.visible = false
+	parent.add_child(party_panel)
+	party_body = Control.new()
+	party_body.rect_size = Vector2(540, 630)
+	party_panel.add_child(party_body)
+	Net.connect("party_changed", self, "_on_party_changed")
+	Net.connect("joined", self, "_on_party_joined")
+	Net.connect("join_failed", self, "_on_party_failed")
+	Net.connect("left", self, "_on_party_left")
+	Net.connect("match_starting", self, "_on_match_starting")
+	Net.connect("games_found", self, "_on_games_found")
+	wait_panel = Panel.new()
+	wait_panel.add_stylebox_override("panel", _flat(Color(0.02, 0.03, 0.08, 0.92), Color(1, 1, 1, 0.2), 10, 2))
+	_place(wait_panel, 0.5, 0.5, Vector2(-300, -60), Vector2(600, 120))
+	wait_panel.visible = false
+	root.add_child(wait_panel)
+	wait_label = _label("", 26, Color(1.0, 0.88, 0.45))
+	wait_label.rect_position = Vector2(24, 40)
+	wait_panel.add_child(wait_label)
+
+
+func show_waiting(text: String) -> void:
+	state = "waiting"
+	_show_none()
+	get_tree().paused = true
+	Controls.capture_mouse(false)
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	orbit_cam.make_current()
+	root.mouse_filter = Control.MOUSE_FILTER_PASS
+	wait_label.text = text
+	wait_panel.visible = true
+
+
+func _pt_clear() -> void:
+	for ch in party_body.get_children():
+		party_body.remove_child(ch)
+		ch.queue_free()
+	party_fields.clear()
+	party_error = null
+
+
+func _pt_label(text: String, size: int, pos: Vector2, color: Color = Color.white) -> Label:
+	var l := _label(text, size, color)
+	l.rect_position = pos
+	party_body.add_child(l)
+	return l
+
+
+func _pt_button(text: String, pos: Vector2, size: Vector2, method: String, args: Array = []) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.rect_position = pos
+	b.rect_size = size
+	b.connect("pressed", self, method, args)
+	party_body.add_child(b)
+	return b
+
+
+func party_show(view: String) -> void:
+	party_view = view
+	_pt_clear()
+	if view == "party" and Net.active:
+		_party_view()
+		return
+	party_view = "home"
+	_pt_label("PLAY WITH FRIENDS", 30, Vector2(24, 14), Color(1.0, 0.82, 0.25))
+	_pt_label("Same Wi-Fi / network. Everybody needs the same version of the game.", 14, Vector2(24, 54), Color(0.85, 0.9, 1.0))
+	_pt_button("HOST A GAME", Vector2(24, 92), Vector2(492, 58), "party_host")
+	_pt_label("OR JOIN A GAME", 15, Vector2(24, 172), Color(0.65, 0.78, 1.0))
+	var e := LineEdit.new()
+	e.rect_position = Vector2(24, 196)
+	e.rect_size = Vector2(340, 46)
+	e.placeholder_text = "host's IP, e.g. 192.168.1.20"
+	e.text = _last_ip
+	party_body.add_child(e)
+	party_fields["ip"] = e
+	_pt_button("JOIN", Vector2(376, 196), Vector2(140, 46), "party_join")
+	_pt_label("GAMES FOUND ON YOUR NETWORK", 15, Vector2(24, 270), Color(0.65, 0.78, 1.0))
+	party_error = _pt_label("", 15, Vector2(24, 566), Color(1.0, 0.45, 0.4))
+	Net.start_discovery()
+	_games_list()
+
+
+var _last_ip := ""
+
+
+func _games_list() -> void:
+	if party_view != "home":
+		return
+	for ch in party_body.get_children():
+		if ch.has_meta("game_row"):
+			party_body.remove_child(ch)
+			ch.queue_free()
+	var y := 296.0
+	for ip in Net.sessions.keys():
+		var s: Dictionary = Net.sessions[ip]
+		var b := Button.new()
+		b.text = "%s   (%d player%s)   %s" % [s.name, s.players, "" if s.players == 1 else "s", ip]
+		b.rect_position = Vector2(24, y)
+		b.rect_size = Vector2(492, 46)
+		b.set_meta("game_row", true)
+		b.connect("pressed", self, "party_join_ip", [ip, int(s.port)])
+		party_body.add_child(b)
+		y += 54.0
+	if Net.sessions.empty():
+		var l := _label("Searching... if nothing shows up, type the host's IP above.", 14, Color(0.7, 0.75, 0.9))
+		l.rect_position = Vector2(24, 300)
+		l.set_meta("game_row", true)
+		party_body.add_child(l)
+
+
+func _on_games_found() -> void:
+	_games_list()
+
+
+func _party_view() -> void:
+	_pt_label("PARTY", 30, Vector2(24, 14), Color(1.0, 0.82, 0.25))
+	if Net.is_host:
+		var addr := "  /  ".join(Net.local_addresses())
+		_pt_label("You are hosting.  Friends join with:  %s   (port %d)" % [addr if addr != "" else "your IP", Net.PORT], 14, Vector2(24, 54), Color(0.85, 0.9, 1.0))
+	else:
+		_pt_label("Connected. Waiting for the host to start the match.", 14, Vector2(24, 54), Color(0.85, 0.9, 1.0))
+	var y := 96.0
+	var ids := Net.members.keys()
+	ids.sort()
+	for id in ids:
+		var m: Dictionary = Net.members[id]
+		_pt_label("%s%s" % [m.name, "   (host)" if id == 1 else ""] + ("   (you)" if id == Net.my_id else ""), 22, Vector2(24, y))
+		y += 38.0
+	_pt_label("%d player%s + %d bots" % [Net.human_count(), "" if Net.human_count() == 1 else "s", max(Net.TOTAL_FIGHTERS - Net.human_count(), 0)], 15, Vector2(24, y + 6), Color(0.65, 0.78, 1.0))
+	party_error = _pt_label("", 15, Vector2(24, 520), Color(1.0, 0.45, 0.4))
+	if Net.is_host:
+		_pt_button("START MATCH", Vector2(24, 460), Vector2(492, 56), "party_start")
+	_pt_button("LEAVE PARTY", Vector2(24, 536), Vector2(492, 52), "party_leave")
+
+
+func party_host() -> void:
+	var err := Net.host_game(Settings.player_name, Settings.loadout)
+	if err != "":
+		if party_error != null:
+			party_error.text = err
+		return
+	Audio.play2d("loot_pickup", -6.0)
+	party_show("party")
+
+
+func party_join() -> void:
+	var ip: String = party_fields["ip"].text
+	_last_ip = ip
+	party_join_ip(ip, Net.PORT)
+
+
+func party_join_ip(ip: String, port: int) -> void:
+	var err := Net.join_game(ip, Settings.player_name, Settings.loadout, port)
+	if err != "":
+		if party_error != null:
+			party_error.text = err
+		return
+	if party_error != null:
+		party_error.text = "Connecting..."
+		party_error.add_color_override("font_color", Color(0.8, 0.9, 1.0))
+
+
+func party_start() -> void:
+	Net.start_match()
+
+
+func party_leave() -> void:
+	Net.leave("")
+	party_show("home")
+
+
+func _on_party_changed() -> void:
+	if party_panel != null and party_panel.visible and Net.active:
+		party_show("party")
+
+
+func _on_party_joined() -> void:
+	Net.stop_discovery()
+	if party_panel != null:
+		party_show("party")
+	_on_button("party")
+
+
+func _on_party_failed(reason: String) -> void:
+	if party_panel != null and party_panel.visible:
+		party_show("home")
+		if party_error != null:
+			party_error.text = reason
+
+
+func _on_party_left(reason: String) -> void:
+	if party_panel != null and party_panel.visible:
+		party_show("home")
+		if party_error != null and reason != "":
+			party_error.text = reason
+
+
+# The host started the match: reload the world with the shared seed.
+func _on_match_starting() -> void:
+	get_tree().paused = false
+	Settings.autostart = false
+	get_tree().reload_current_scene()
+
+
 # ------------------------------------------------------------------ account / profile
 
 func _move_underline(idx: int) -> void:
-	tab_underline.margin_left = -337 + 8 + 136 * idx
+	tab_underline.margin_left = -405 + 8 + 136 * idx
 	tab_underline.margin_right = tab_underline.margin_left + 114
 
 
@@ -680,6 +899,13 @@ func profile_sign_out() -> void:
 
 
 # A different profile is active: the lobby shows its name, stats and Locker.
+func _side_panels(show: Control) -> void:
+	for pn in [locker_panel, profile_panel, party_panel]:
+		pn.visible = (pn == show)
+	if show != party_panel:
+		Net.stop_discovery()
+
+
 func _after_account_change() -> void:
 	if name_edit != null:
 		name_edit.text = Settings.player_name
@@ -859,6 +1085,8 @@ func _build_pause() -> Control:
 # ------------------------------------------------------------------ state
 
 func _show_none() -> void:
+	if wait_panel != null:
+		wait_panel.visible = false
 	splash.visible = false
 	title_panel.visible = false
 	settings_panel.visible = false
@@ -892,6 +1120,8 @@ func show_splash() -> void:
 
 
 func show_title() -> void:
+	if Net.active and not Net.in_match and party_panel != null:
+		call_deferred("_on_button", "party")
 	state = "title"
 	_refresh_lobby()
 	_show_none()
@@ -976,19 +1206,20 @@ func _on_button(id: String) -> void:
 		"play":
 			start_game()
 		"lobby":
-			locker_panel.visible = false
-			profile_panel.visible = false
+			_side_panels(null)
 			_move_underline(0)
 		"locker":
-			locker_panel.visible = true
-			profile_panel.visible = false
+			_side_panels(locker_panel)
 			_move_underline(1)
 			locker_show(locker_cat)
 		"profile":
-			locker_panel.visible = false
-			profile_panel.visible = true
+			_side_panels(profile_panel)
 			_move_underline(2)
 			profile_show("home")
+		"party":
+			_side_panels(party_panel)
+			_move_underline(3)
+			party_show("party" if Net.active else "home")
 		"help":
 			_open_sub(help_panel, "title")
 		"settings_title":
@@ -1002,6 +1233,7 @@ func _on_button(id: String) -> void:
 		"resume":
 			resume()
 		"menu":
+			Net.leave("")
 			get_tree().paused = false
 			Audio.set_paused(false)
 			Settings.autostart = false

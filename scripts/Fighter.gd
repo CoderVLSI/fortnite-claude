@@ -53,6 +53,12 @@ export var jump_speed := 8.0
 var display_name := "Fighter"
 var vest_color := Color(0.30, 0.42, 0.22)
 var skin_id := "ranger"
+var net_owner := 0                # 0 = simulated on this machine; else the peer that simulates it (this node is a puppet)
+var net_key_v = null              # network identity: peer id (humans) or name (bots)
+var _net_pos := Vector3.ZERO
+var _net_yaw := 0.0
+var _net_has := false
+var _net_item_sig := ""
 var match_stats := {}             # this match: damage, headshots, chests, builds (read by the account at the end)
 var loadout := Cosmetics.DEFAULT_LOADOUT.duplicate()
 var _backbling_node: Spatial
@@ -1248,6 +1254,10 @@ func _spawn_tracer(from: Vector3, to: Vector3) -> void:
 func take_damage(amount: float, source = null) -> void:
 	if is_dead or mode == Mode.BUS:
 		return
+	if net_owner != 0:                # a puppet: the machine that owns this character applies the damage
+		if Net.active and Net.in_match:
+			Net.send_damage(net_owner, net_key_v, amount, Net.key_of(source), false)
+		return
 	cancel_use()
 	if bubble_t > 0.0:
 		amount *= 0.35
@@ -1270,7 +1280,7 @@ func take_damage(amount: float, source = null) -> void:
 		_die(source)
 
 
-func _die(killer) -> void:
+func _die(killer, credit: bool = true) -> void:
 	is_dead = true
 	health = 0.0
 	collision_layer = 0
@@ -1278,12 +1288,16 @@ func _die(killer) -> void:
 	if glider:
 		glider.visible = false
 	Audio.play3d("death", global_transform.origin + Vector3(0, 1.0, 0), -2.0, rand_range(0.85, 1.1))
-	if killer != null and "kills" in killer and killer != self:
+	if credit and killer != null and "kills" in killer and killer != self:
 		killer.kills += 1
 		if killer.has_method("sprite_on_kill"):
 			killer.sprite_on_kill(self)
 	if _sprite_model != null:
 		_sprite_model.visible = false
+	if Net.active and Net.in_match and net_owner == 0:      # tell everyone else; the killer's own machine gets the credit
+		Net.send_event("died", [net_key_v, Net.key_of(killer)])
+		if killer != null and killer != self and "net_owner" in killer and killer.net_owner != 0 and killer.net_owner != Net.my_id:
+			Net.send_event_to(killer.net_owner, "kill", [net_key_v, killer.net_key_v])      # the killer's own machine scores it
 	if model:
 		var tween := Tween.new()
 		add_child(tween)
@@ -1297,6 +1311,114 @@ func set_skin(id: String) -> void:
 	loadout["skin"] = skin_id
 	if model != null:
 		Skins.apply(model, skin_id, vest_color)
+
+
+# ------------------------------------------------------------------ network (see Net.gd)
+
+# What other machines need to show this character.
+func net_state() -> Dictionary:
+	var flags := 0
+	if aiming: flags |= 1
+	if crouching: flags |= 2
+	if sliding: flags |= 4
+	if emoting: flags |= 8
+	if sprinting: flags |= 16
+	if board_on: flags |= 32
+	if jet_active: flags |= 64
+	if grounded: flags |= 128
+	if cloak_t > 0.0: flags |= 256
+	return {"p": global_transform.origin, "y": rotation.y, "pt": aim_pitch, "m": mode, "v": velocity, "f": flags, "s": selected,
+		"i": selected_item(), "h": health, "sh": shield, "d": is_dead, "vs": vehicle_seat, "st": vehicle_steer,
+		"ai": air_input, "ap": air_pivot.rotation.y if air_pivot != null else 0.0}
+
+
+# A compact array form of net_state() for the wire (bots send 49 of these ten times a second).
+func net_pack() -> Array:
+	var s := net_state()
+	var it = s.i
+	return [s.p, s.y, s.pt, s.m, s.v, s.f, s.s, it.kind if it != null else "", it.id if it != null else "", it.get("rarity", 0) if it != null else 0,
+		s.h, s.sh, s.d, s.vs, s.st, s.ai, s.ap]
+
+
+static func net_unpack(a: Array) -> Dictionary:
+	var it = null
+	if a[7] != "":
+		it = {"kind": a[7], "id": a[8], "rarity": a[9], "mag": 30, "count": 1}
+		if a[7] == "pickaxe":
+			it = {"kind": "pickaxe", "id": "pickaxe"}
+	return {"p": a[0], "y": a[1], "pt": a[2], "m": a[3], "v": a[4], "f": a[5], "s": a[6], "i": it, "h": a[10], "sh": a[11], "d": a[12],
+		"vs": a[13], "st": a[14], "ai": a[15], "ap": a[16]}
+
+
+func net_apply(s: Dictionary) -> void:
+	_net_pos = s.p
+	_net_yaw = s.y
+	if not _net_has:
+		global_transform.origin = s.p
+		rotation.y = s.y
+		_net_has = true
+	aim_pitch = s.pt
+	velocity = s.v
+	var f: int = s.f
+	aiming = (f & 1) != 0
+	crouching = (f & 2) != 0
+	sliding = (f & 4) != 0
+	emoting = (f & 8) != 0
+	sprinting = (f & 16) != 0
+	board_on = (f & 32) != 0
+	jet_active = (f & 64) != 0
+	grounded = (f & 128) != 0
+	cloak_t = 1.0 if (f & 256) != 0 else 0.0
+	vehicle_seat = s.vs
+	vehicle_steer = s.st
+	air_input = s.ai
+	health = s.h
+	shield = s.sh
+	if s.m != mode:
+		_net_set_mode(s.m)
+	if air_pivot != null and mode == Mode.VEHICLE:
+		air_pivot.rotation.y = s.ap
+	# the item in hand
+	var it = s.i
+	var sig := "%s:%s:%s:%s" % [s.s, it.kind if it != null else "", it.id if it != null else "", it.get("rarity", 0) if it != null else 0]
+	if sig != _net_item_sig:
+		_net_item_sig = sig
+		while slots.size() <= int(s.s):
+			slots.append(null)
+		for i in range(slots.size()):
+			if i != int(s.s):
+				slots[i] = null
+		slots[int(s.s)] = it
+		selected = int(s.s)
+		_apply_selected()
+	if s.d and not is_dead:
+		_die(null)
+
+
+func _net_set_mode(m: int) -> void:
+	var old := mode
+	mode = m
+	if glider != null:
+		glider.visible = (m == Mode.GLIDE)
+		if m == Mode.GLIDE and old != Mode.GLIDE:
+			Audio.play3d("glider_open", global_transform.origin, -4.0)
+	if air_pivot != null:
+		air_pivot.visible = (m != Mode.BUS)
+	collision_layer = 0 if (m == Mode.BUS or is_dead) else 2
+
+
+func net_smooth(delta: float) -> void:
+	if not _net_has:
+		return
+	var o := global_transform.origin
+	var d := _net_pos - o
+	if d.length() > 6.0:
+		o = _net_pos
+	else:
+		o += d * clamp(14.0 * delta, 0.0, 1.0)
+	global_transform.origin = o
+	rotation.y = lerp_angle(rotation.y, _net_yaw, clamp(14.0 * delta, 0.0, 1.0))
+	forward_speed = velocity.dot(-global_transform.basis.z)
 
 
 func stat_add(key: String, amount = 1) -> void:

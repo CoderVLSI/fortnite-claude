@@ -101,6 +101,10 @@ func _on_died(_victim, _killer) -> void:
 
 func _physics_process(delta: float) -> void:
 	tick_weapon(delta)
+	if net_owner != 0:                     # on a client the host runs this bot; we only show it
+		net_smooth(delta)
+		animate(delta)
+		return
 	if is_dead:
 		move_body(delta, Vector3.ZERO, 0.0, false)
 		animate(delta)

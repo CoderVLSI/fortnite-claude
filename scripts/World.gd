@@ -23,6 +23,8 @@ const Boat = preload("res://scripts/Boat.gd")
 const Rift = preload("res://scripts/Rift.gd")
 const AutoDoor = preload("res://scripts/AutoDoor.gd")
 const WildSprite = preload("res://scripts/WildSprite.gd")
+const RemotePlayer = preload("res://scripts/RemotePlayer.gd")
+const FighterScript = preload("res://scripts/Fighter.gd")
 const SpriteCreature = preload("res://scripts/SpriteCreature.gd")
 const Sprites = preload("res://scripts/Sprites.gd")
 const Skins = preload("res://scripts/Skins.gd")
@@ -73,6 +75,11 @@ var build_slots := {}            # grid key -> BuildPiece
 var _spinners := []
 var _props := {}                 # model name -> {mm, body, hits}
 var _supply_phase := -1
+var net_match := false           # a network match: the island is built from the shared seed
+var _net_pose_t := 0.0
+var _net_bots_t := 0.0
+var _net_storm_t := 0.0
+var net_live := false            # true once the match has started on this machine
 var _amb_t := 0.0
 var _bird_t := 6.0
 var _music_t := 0.0
@@ -81,6 +88,7 @@ var _last_waiting := true
 
 func _ready() -> void:
 	add_to_group("world")
+	net_match = Net.active and Net.in_match
 	rng.seed = SEED
 	profile = _make_profile()
 	_setup_environment()
@@ -102,9 +110,17 @@ func _ready() -> void:
 	storm.name = "Storm"
 	storm.active = not profile.use_bus
 	add_child(storm)
-	storm.setup(MAP_HALF - 8.0, rng)
+	var storm_rng := RandomNumberGenerator.new()
+	if net_match:
+		storm_rng.seed = Net.match_seed + 17
+	else:
+		storm_rng.randomize()
+	storm.setup(MAP_HALF - 8.0, storm_rng)
 
-	rng.randomize()      # same island every match, different spawns/loot
+	if net_match:
+		rng.seed = Net.match_seed          # every machine builds the same loot, chests and spawns
+	else:
+		rng.randomize()      # same island every match, different spawns/loot
 	_spawn_containers_and_loot(plan)
 	_spawn_poi_loot()
 	_spawn_fighters()
@@ -130,7 +146,12 @@ func _ready() -> void:
 	add_child(menu)
 	menu.bind(self)
 	hud.root.visible = false
-	if "--skip-menu" in OS.get_cmdline_args() or Settings.autostart:
+	if net_match:
+		Settings.autostart = false
+		Net.connect("match_go", self, "_on_net_go", [], CONNECT_ONESHOT)
+		menu.show_waiting("WAITING FOR THE OTHER PLAYERS...")
+		Net.world_ready(self)
+	elif "--skip-menu" in OS.get_cmdline_args() or Settings.autostart:
 		Settings.autostart = false
 		menu.start_game()
 	else:
@@ -174,6 +195,8 @@ func _make_profile() -> Dictionary:
 		"cell": 5.0 if mobile else 4.0,
 		"use_bus": not ("--no-bus" in args),
 	}
+	if Net.active and Net.in_match:
+		p.bots = Net.bot_count
 	for a in args:
 		if a.begins_with("--bots="):
 			p.bots = int(a.substr(7))
@@ -950,15 +973,31 @@ func _find_spawn(taken: Array, min_dist: float, rmin: float, rmax: float) -> Vec
 
 func _spawn_fighters() -> void:
 	var taken := []
-	var ppos := _find_spawn(taken, 0.0, 0.55, 0.7)
-	player = Player.new()
-	player.name = "Player"
-	player.map_half = MAP_HALF - 4.0
-	player.translation = _spawn_point(ppos)
-	add_child(player)
-	player.rotation.y = atan2(ppos.x, ppos.y)      # face the island centre
-	player.connect("died", self, "_on_fighter_died")
-	taken.append(ppos)
+	var humans: Array = Net.order if net_match else [0]
+	for hi in range(humans.size()):
+		var hid: int = humans[hi]
+		var ppos := _find_spawn(taken, 0.0 if hi == 0 else 24.0, 0.55, 0.7)
+		taken.append(ppos)
+		if not net_match or hid == Net.my_id:
+			player = Player.new()
+			player.name = "Player"
+			player.map_half = MAP_HALF - 4.0
+			player.translation = _spawn_point(ppos)
+			add_child(player)
+			player.rotation.y = atan2(ppos.x, ppos.y)      # face the island centre
+			player.connect("died", self, "_on_fighter_died")
+			if net_match:
+				player.net_key_v = Net.my_id
+		else:
+			var rp := RemotePlayer.new()
+			rp.name = "Remote%d" % hid
+			rp.peer_id = hid
+			rp.player_name = Net.members[hid].name if Net.members.has(hid) else "PLAYER"
+			rp.color = BOT_COLORS[(hi + 3) % BOT_COLORS.size()]
+			rp.loadout = Net.members[hid].loadout if Net.members.has(hid) else {}
+			rp.map_half = MAP_HALF - 4.0
+			rp.translation = _spawn_point(ppos)
+			add_child(rp)
 	for i in range(profile.bots):
 		var p := _find_spawn(taken, 32.0, 0.1, 0.78)
 		taken.append(p)
@@ -974,6 +1013,9 @@ func _spawn_fighters() -> void:
 		bot.map_half = MAP_HALF - 4.0
 		bot.translation = _spawn_point(p)
 		bot.jump_at = rng.randf_range(110.0, 380.0) * MAP_SCALE
+		bot.net_key_v = bot.name
+		if net_match and not Net.is_host:
+			bot.net_owner = 1                  # the host runs the bots; here they are puppets
 		add_child(bot)
 		bot.rotation.y = rng.randf() * TAU
 		bot.connect("died", self, "_on_fighter_died")
@@ -1102,6 +1144,8 @@ func _audio_process(delta: float) -> void:
 
 
 func _process(delta: float) -> void:
+	if net_live:
+		_net_process(delta)
 	_audio_process(delta)
 	_update_spectator(delta)
 	for sp in _spinners:
@@ -1130,7 +1174,10 @@ func _on_fighter_died(victim, killer) -> void:
 	var alive := alive_count()
 	var text := ""
 	var color := Color.white
-	if killer == null:
+	if victim.has_meta("left"):
+		text = "%s left the game" % victim.display_name
+		color = Color(0.8, 0.8, 0.8)
+	elif killer == null:
 		text = "%s was lost to the storm" % victim.display_name
 		color = Color(0.8, 0.6, 1.0)
 	else:
@@ -1141,7 +1188,8 @@ func _on_fighter_died(victim, killer) -> void:
 			color = Color(1.0, 0.45, 0.4)
 	if hud:
 		hud.add_feed(text, color)
-	_drop_inventory(victim)
+	if victim.net_owner == 0:
+		_drop_inventory(victim)          # puppets drop on the machine that owns them (the loot is sent to everyone)
 
 	if match_over:
 		return
@@ -1170,6 +1218,115 @@ func _record_match(victory: bool, placement: int) -> void:
 	Accounts.record_match({"victory": victory, "placement": placement, "kills": player.kills, "damage": ms.get("damage", 0),
 		"headshots": ms.get("headshots", 0), "chests": ms.get("chests", 0), "builds": ms.get("builds", 0),
 		"survival": int((OS.get_ticks_msec() - _match_start_ms) / 1000.0)})
+
+
+# ------------------------------------------------------------------ network match (see Net.gd)
+
+func _on_net_go() -> void:
+	net_live = true
+	Net.connect("left", self, "_on_net_left", [], CONNECT_ONESHOT)
+	menu.start_game()
+
+
+func _on_net_left(reason: String) -> void:
+	net_live = false
+	if hud and not match_over:
+		hud.add_feed(reason if reason != "" else "Disconnected.", Color(1.0, 0.5, 0.4))
+	get_tree().create_timer(2.5).connect("timeout", self, "_leave_match")
+
+
+func _leave_match() -> void:
+	Settings.autostart = false
+	get_tree().paused = false
+	get_tree().reload_current_scene()
+
+
+func fighter_by_key(key):
+	if typeof(key) == TYPE_INT:
+		if key == Net.my_id:
+			return player
+		for r in get_tree().get_nodes_in_group("remote_players"):
+			if r.peer_id == key:
+				return r
+		return null
+	if typeof(key) == TYPE_STRING:
+		return get_node_or_null(NodePath(key))
+	return null
+
+
+func _net_process(delta: float) -> void:
+	if not Net.active or not Net.in_match:
+		return
+	_net_pose_t -= delta
+	if _net_pose_t <= 0.0:
+		_net_pose_t = 1.0 / 15.0
+		Net.send_pose(player.net_pack())
+	if Net.is_host:
+		_net_bots_t -= delta
+		if _net_bots_t <= 0.0:
+			_net_bots_t = 0.1
+			var chunk := []
+			for f in get_tree().get_nodes_in_group("fighters"):
+				if typeof(f.net_key_v) == TYPE_STRING and f.net_owner == 0:
+					chunk.append([f.name, f.net_pack()])
+					if chunk.size() >= 8:               # keep every packet under the network MTU
+						Net.send_bots(chunk)
+						chunk = []
+			if not chunk.empty():
+				Net.send_bots(chunk)
+		_net_storm_t -= delta
+		if _net_storm_t <= 0.0:
+			_net_storm_t = 1.0
+			Net.send_event("storm", storm.net_state())
+
+
+func net_pose(from: int, packed: Array) -> void:
+	var f = fighter_by_key(from)
+	if f != null and f != player and f.net_owner != 0:
+		f.net_apply(FighterScript.net_unpack(packed))
+
+
+func net_bots(chunk: Array) -> void:
+	for st in chunk:
+		var b = get_node_or_null(NodePath(st[0]))
+		if b != null and b.net_owner != 0:
+			b.net_apply(FighterScript.net_unpack(st[1]))
+
+
+# Damage that another machine dealt to a character this machine owns.
+func net_damage(_from: int, target_key, amount: float, source_key, _headshot: bool) -> void:
+	var t = fighter_by_key(target_key)
+	if t == null or t.net_owner != 0 or t.is_dead:
+		return
+	t.take_damage(amount, fighter_by_key(source_key))
+
+
+func net_peer_left(id: int, player_name: String) -> void:
+	var f = fighter_by_key(id)
+	if f != null and not f.is_dead:
+		f.set_meta("left", true)
+		f._die(null)
+
+
+func net_event(from: int, kind: String, data) -> void:
+	match kind:
+		"died":
+			var victim = fighter_by_key(data[0])
+			if victim != null and victim != player and not victim.is_dead:
+				victim._die(fighter_by_key(data[1]), false)       # the score goes to the killer's own machine (see "kill")
+		"kill":                         # we (or a bot we run) eliminated somebody who lives on another machine
+			var v = fighter_by_key(data[0])
+			var killer = fighter_by_key(data[1])
+			if killer == player:
+				player.kills += 1
+				player.emit_signal("hit_landed", v, true, false)
+				if v != null:
+					player.sprite_on_kill(v)
+			elif killer != null and "kills" in killer:
+				killer.kills += 1
+		"storm":
+			if not Net.is_host:
+				storm.net_apply(data)
 
 
 # ------------------------------------------------------------------ spectating

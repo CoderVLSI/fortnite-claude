@@ -88,10 +88,32 @@ func _process(delta: float) -> void:
 	if _tick >= 1.0:
 		_tick -= 1.0
 		for f in get_tree().get_nodes_in_group("fighters"):
-			if not f.is_dead and not is_inside(f.global_transform.origin):
+			if not f.is_dead and f.net_owner == 0 and not is_inside(f.global_transform.origin):     # puppets are damaged by their own machine
 				f.take_damage(damage_per_second, null)
 				if f.is_in_group("player"):
 					Audio.play2d("storm_hit", -4.0)
+
+
+# Network: the host's storm is the truth; clients adopt its state a few times a second.
+func net_state() -> Dictionary:
+	return {"ph": phase, "w": waiting, "t": time_left, "c": center, "r": radius, "nc": next_center, "nr": next_radius, "f": finished, "a": active,
+		"fc": _from_center, "fr": _from_radius}
+
+
+func net_apply(s: Dictionary) -> void:
+	phase = s.ph
+	waiting = s.w
+	time_left = s.t
+	center = s.c
+	radius = s.r
+	next_center = s.nc
+	next_radius = s.nr
+	finished = s.f
+	active = s.a
+	_from_center = s.fc
+	_from_radius = s.fr
+	damage_per_second = PHASES[int(min(phase, PHASES.size() - 1))].dps
+	_update_wall()
 
 
 func is_inside(p: Vector3) -> bool:
