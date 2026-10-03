@@ -4,6 +4,7 @@ extends Node
 # ever asks `Input.is_action_pressed("fire")` and friends.
 
 signal touch_mode_changed(enabled)
+var edit_aim := false              # the in-world build editor is open (fire / wheel belong to it)
 signal slot_scroll(direction)   # +1 next item, -1 previous (mouse wheel / gamepad bumpers)
 
 const MOVE_ACTIONS = ["move_forward", "move_back", "move_left", "move_right"]
@@ -33,7 +34,7 @@ const BINDABLE := [
 	["slot_1", "Item Slot 1"], ["slot_2", "Item Slot 2"], ["slot_3", "Item Slot 3"], ["slot_4", "Item Slot 4"],
 	["build_toggle", "Build Mode"], ["build_wall", "Build: Wall"], ["build_floor", "Build: Floor"],
 	["build_ramp", "Build: Ramp"], ["build_roof", "Build: Roof"],
-	["edit", "Edit Build Piece"], ["inventory", "Inventory"], ["map", "Map"], ["emote", "Emote"],
+	["edit", "Edit Build Piece"], ["edit_reset", "Reset Edit"], ["inventory", "Inventory"], ["map", "Map"], ["emote", "Emote"],
 ]
 
 # Default keyboard / mouse bindings: action -> [[type, code], ...] with type "key" or "mouse".
@@ -46,7 +47,7 @@ const DEFAULTS := {
 	"slot_1": [["key", KEY_1]], "slot_2": [["key", KEY_2]], "slot_3": [["key", KEY_3]], "slot_4": [["key", KEY_4]],
 	"build_toggle": [["key", KEY_Q]], "build_wall": [["key", KEY_Z]], "build_floor": [["key", KEY_X]],
 	"build_ramp": [["key", KEY_C]], "build_roof": [["key", KEY_V]],
-	"edit": [["key", KEY_G]], "inventory": [["key", KEY_TAB]], "map": [["key", KEY_M]], "emote": [["key", KEY_B]],
+	"edit": [["key", KEY_G]], "edit_reset": [["mouse", BUTTON_RIGHT]], "inventory": [["key", KEY_TAB]], "map": [["key", KEY_M]], "emote": [["key", KEY_B]],
 }
 
 
@@ -178,6 +179,8 @@ func _pad(action: String, button: int) -> void:
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
 		mouse_look += event.relative
+	elif edit_aim and event is InputEventMouseButton:
+		pass               # while editing, the wheel may be bound to Reset Edit: it must not also scroll the hotbar
 	elif event is InputEventMouseButton and event.pressed and event.button_index == BUTTON_WHEEL_UP:
 		emit_signal("slot_scroll", -1)
 	elif event is InputEventMouseButton and event.pressed and event.button_index == BUTTON_WHEEL_DOWN:

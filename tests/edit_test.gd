@@ -89,12 +89,32 @@ func _run() -> void:
 	yield(_frames(5), "completed")
 	check(p.builder.looked_at_piece() == wall, "the builder finds the wall under the crosshair")
 	hud.try_edit()
-	check(hud.editor.visible and not p.input_enabled, "G opens the editor and freezes the player")
+	check(hud.editor.visible and hud.editor.aim_mode and p.input_enabled and root.get_node("Controls").edit_aim, "G opens the in-world editor and you can still look around")
+	yield(_frames(4), "completed")
+	var aimed: int = hud.editor.aim_cell()
+	check(aimed == 4, "the crosshair is on the middle tile of the wall (tile %d)" % aimed)
 	yield(_shot("edit_grid"), "completed")
+	# click the tile under the crosshair, then drag down onto the tile below it
+	var click := InputEventMouseButton.new()
+	click.button_index = BUTTON_LEFT
+	click.pressed = true
+	Input.action_press("fire")
+	hud.editor._input(click)
+	check(not hud.editor.mask[aimed], "clicking a tile cuts it away")
+	Input.action_release("fire")
+	hud.editor._painting = false
+	hud.editor.mask[4] = false
+	hud.editor.mask[1] = false
+	hud.editor.mask[7] = true
+	var rs := InputEventMouseButton.new()
+	rs.button_index = BUTTON_RIGHT
+	rs.pressed = true
+	hud.editor._input(rs)
+	check(hud.editor.mask == [true, true, true, true, true, true, true, true, true], "Reset Edit restores every tile")
 	hud.editor._preset("DOOR")
-	check(not hud.editor.mask[1] and not hud.editor.mask[4] and hud.editor.mask[7], "the DOOR preset cuts the two cells in the middle column")
+	check(not hud.editor.mask[1] and not hud.editor.mask[4] and hud.editor.mask[7], "(door shape: the two middle-column cells)")
 	hud.editor.confirm()
-	check(not hud.editor.visible and p.input_enabled, "confirming closes the editor and gives control back")
+	check(not hud.editor.visible and p.input_enabled and not root.get_node("Controls").edit_aim, "confirming closes the editor")
 	check(not wall.is_full() and _shape_count(wall) == 7 and not wall.get_mask()[1], "the wall now has a door-shaped hole (7 cells left)")
 	yield(_shot("edit_door"), "completed")
 
@@ -112,8 +132,12 @@ func _run() -> void:
 	p.global_transform.origin = Vector3(X, y + 1.0, ZP)
 	p.velocity = Vector3.ZERO
 	yield(_frames(30), "completed")
+	wall.apply_mask([true, true, true, true, true, true, true, true, true])
+	p.head.rotation.x = aim_pitch
+	yield(_frames(4), "completed")
 	var before: Array = wall.get_mask()
 	hud.try_edit()
+	check(hud.editor.visible, "G opens the editor again")
 	hud.editor.mask[0] = false
 	hud.editor.mask[2] = false
 	hud.editor.cancel()

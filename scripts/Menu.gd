@@ -437,7 +437,7 @@ func _build_settings() -> Control:
 	nrow.add_child(name_edit)
 	gp.add_child(nrow)
 	var at := CheckBox.new()
-	at.text = "Toggle aim (tap right click to scope in and out instead of holding)"
+	at.text = "Toggle aim (tap to scope in and out)"
 	at.pressed = Settings.aim_toggle
 	at.connect("toggled", self, "_on_aim_toggle")
 	gp.add_child(at)
@@ -447,6 +447,11 @@ func _build_settings() -> Control:
 	dn.connect("toggled", self, "_on_damage_numbers")
 	gp.add_child(dn)
 
+	var er := CheckBox.new()
+	er.text = "Confirm edits on release of the Edit key"
+	er.pressed = Settings.edit_on_release
+	er.connect("toggled", self, "_on_edit_release")
+	gp.add_child(er)
 	sprite_button = Button.new()
 	sprite_button.rect_min_size = Vector2(520, 44)
 	sprite_button.connect("pressed", self, "_on_starter_sprite")
@@ -518,11 +523,16 @@ func _on_starter_sprite() -> void:
 
 func _refresh_starter_sprite() -> void:
 	var id: String = Settings.starter_sprite
-	sprite_button.text = "Starting Sprite: %s  (click to change)" % ("None" if id == "none" else Sprites.LIST[id].name + " - " + Sprites.LIST[id].desc)
+	sprite_button.text = "Starting Sprite: %s  (click to change)" % ("None" if id == "none" else Sprites.LIST[id].name)
 
 
 func _on_aim_toggle(on: bool) -> void:
 	Settings.aim_toggle = on
+	Settings.save_settings()
+
+
+func _on_edit_release(on: bool) -> void:
+	Settings.edit_on_release = on
 	Settings.save_settings()
 
 

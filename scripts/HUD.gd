@@ -501,6 +501,8 @@ func try_edit() -> void:
 		show_toast("Look at a wall or floor to edit it")
 		return
 	editor.open(piece)
+	if editor.aim_mode:          # PC / controller: stay in the world, the crosshair picks the tiles
+		return
 	player.input_enabled = false
 	for a in ["fire", "aim", "sprint", "jump", "reload", "interact"]:
 		Input.action_release(a)
@@ -707,6 +709,10 @@ func _process(delta: float) -> void:
 		toggle_inventory()
 	if Input.is_action_just_pressed("edit") and not editor.visible:
 		try_edit()
+	elif editor.visible and editor.aim_mode and Settings.edit_on_release and Input.is_action_just_released("edit"):
+		editor.confirm()
+	if not editor.visible and Controls.edit_aim:
+		Controls.edit_aim = false
 	if editor.visible and (player.is_dead or world.match_over):
 		editor.cancel()
 	if inventory.visible and (player.is_dead or world.match_over):

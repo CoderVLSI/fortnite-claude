@@ -1,6 +1,9 @@
 extends Control
-# Build editing: a 3x3 grid for the wall / floor you were looking at. Click or drag cells to cut them away or put them back,
-# use the DOOR / WINDOW / HOLE presets, then CONFIRM (G / Enter). Esc or CANCEL leaves the piece unchanged.
+# Build editing for the wall / floor you were looking at.
+# PC and controller (Fortnite style): hold Edit, a 3x3 grid appears on the piece in the world; aim the crosshair at a tile and
+# click (or drag) to cut it away or put it back; let go of Edit to confirm. Reset Edit (a key, mouse button or the wheel,
+# set in Settings) restores the whole piece; Esc cancels.
+# Touch: a 3x3 grid overlay with DOOR / WINDOW / HOLE presets and a CONFIRM button.
 
 const Items = preload("res://scripts/Items.gd")
 const TILE := 112.0
@@ -12,6 +15,9 @@ var piece                         # the BuildPiece being edited
 var mask := []
 var _paint := true
 var _painting := false
+var aim_mode := false             # in-world editing with the crosshair (no touch screen)
+var hover := -1                   # the tile under the crosshair
+var _player
 
 
 func _ready() -> void:
@@ -24,7 +30,59 @@ func open(p) -> void:
 	piece = p
 	mask = p.get_mask()
 	_painting = false
+	hover = -1
+	aim_mode = not Controls.touch_mode
+	mouse_filter = Control.MOUSE_FILTER_IGNORE if aim_mode else Control.MOUSE_FILTER_STOP
+	Controls.edit_aim = aim_mode
+	var ps: Array = p.get_tree().get_nodes_in_group("player")
+	_player = ps[0] if ps.size() > 0 else null
 	visible = true
+	Audio.play2d("ui_slot", -8.0)
+
+
+func reset_edit() -> void:
+	mask = [true, true, true, true, true, true, true, true, true]
+	Audio.play2d("ui_click", -6.0)
+
+
+# Which of the nine tiles the crosshair points at (-1 = none): the camera ray is intersected with the piece's plane.
+func aim_cell() -> int:
+	if piece == null or not is_instance_valid(piece) or _player == null:
+		return -1
+	var a: Array = _player.aim_origin_and_dir()
+	var xf: Transform = piece.global_transform
+	var n: Vector3 = xf.basis.y if piece.kind == "floor" else xf.basis.z
+	var denom: float = a[1].dot(n)
+	if abs(denom) < 0.001:
+		return -1
+	var t: float = (xf.origin - a[0]).dot(n) / denom
+	if t < 0.0 or t > 16.0:
+		return -1
+	var local: Vector3 = xf.xform_inv(a[0] + a[1] * t)
+	var size: Vector3 = piece.full_size()
+	var u: float = local.x / size.x + 0.5
+	var v: float = (local.y / size.y + 0.5) if piece.kind == "wall" else (local.z / size.z + 0.5)
+	if u < 0.0 or u >= 1.0 or v < 0.0 or v >= 1.0:
+		return -1
+	return int(floor(v * 3.0)) * 3 + int(floor(u * 3.0))
+
+
+# The four world-space corners of a tile.
+func _cell_corners(col: int, row: int) -> Array:
+	var size: Vector3 = piece.full_size()
+	var cw := size.x / 3.0
+	var out := []
+	if piece.kind == "wall":
+		var ch := size.y / 3.0
+		var c := Vector3((col - 1) * cw, (row - 1) * ch, 0.0)
+		for d in [[-1, -1], [1, -1], [1, 1], [-1, 1]]:
+			out.append(piece.global_transform.xform(c + Vector3(d[0] * cw / 2.0, d[1] * ch / 2.0, 0.0)))
+	else:
+		var cd := size.z / 3.0
+		var c2 := Vector3((col - 1) * cw, 0.0, (row - 1) * cd)
+		for d in [[-1, -1], [1, -1], [1, 1], [-1, 1]]:
+			out.append(piece.global_transform.xform(c2 + Vector3(d[0] * cw / 2.0, 0.0, d[1] * cd / 2.0)))
+	return out
 
 
 func _grid_origin() -> Vector2:
@@ -74,6 +132,7 @@ func _preset(name: String) -> void:
 
 
 func confirm() -> void:
+	Controls.edit_aim = false
 	if piece != null and is_instance_valid(piece):
 		if piece.apply_mask(mask):
 			Audio.play2d("build_place", -4.0)
@@ -84,6 +143,7 @@ func confirm() -> void:
 
 
 func cancel() -> void:
+	Controls.edit_aim = false
 	visible = false
 	emit_signal("finished", false)
 
@@ -91,8 +151,28 @@ func cancel() -> void:
 func _input(event: InputEvent) -> void:
 	if not visible:
 		return
+	if aim_mode:
+		if event.is_action_pressed("edit_reset") and not event.is_echo():
+			reset_edit()
+			get_tree().set_input_as_handled()
+			return
+		if event.is_action_pressed("fire") and not event.is_echo():
+			hover = aim_cell()
+			if hover >= 0:
+				_paint = not mask[hover]
+				mask[hover] = _paint
+				_painting = true
+				Audio.play2d("ui_slot", -10.0)
+			get_tree().set_input_as_handled()
+			return
+		if event.is_action_released("fire"):
+			_painting = false
+		if event.is_action_pressed("edit") and not event.is_echo() and not Settings.edit_on_release:
+			confirm()
+			get_tree().set_input_as_handled()
+			return
 	if event is InputEventKey and event.pressed and not event.echo:
-		if event.scancode == KEY_ENTER or event.scancode == KEY_KP_ENTER or event.scancode == KEY_G:
+		if event.scancode == KEY_ENTER or event.scancode == KEY_KP_ENTER or (event.scancode == KEY_G and not aim_mode):
 			confirm()
 			get_tree().set_input_as_handled()
 		elif event.scancode == KEY_ESCAPE:
@@ -132,14 +212,55 @@ func _gui_input(event: InputEvent) -> void:
 
 
 func _process(_delta: float) -> void:
-	if visible:
-		update()
+	if not visible:
+		return
+	if aim_mode:
+		hover = aim_cell()
+		if _painting and hover >= 0 and mask[hover] != _paint:
+			mask[hover] = _paint
+	update()
+
+
+func _draw_aim(font: Font) -> void:
+	if piece == null or not is_instance_valid(piece) or _player == null:
+		return
+	var cam: Camera = _player.camera
+	var col: Color = piece.MAT_COLOR[piece.mat_name]
+	for row in range(3):
+		for c in range(3):
+			var pts := PoolVector2Array()
+			var ok := true
+			for w in _cell_corners(c, row):
+				if cam.is_position_behind(w):
+					ok = false
+					break
+				pts.append(cam.unproject_position(w))
+			if not ok:
+				continue
+			var i := row * 3 + c
+			if not mask[i]:
+				draw_colored_polygon(pts, Color(0.3, 0.6, 1.0, 0.55))             # cut away: blue
+			else:
+				draw_colored_polygon(pts, Color(col.r, col.g, col.b, 0.10))
+			var closed := PoolVector2Array(pts)
+			closed.append(pts[0])
+			draw_polyline(closed, Color(1, 1, 1, 0.55), 2.0)
+			if i == hover:
+				draw_polyline(closed, Color(1.0, 0.92, 0.2), 4.0)
+	var title := "EDIT %s   click / drag tiles   %s reset   release %s to confirm" % [piece.kind.to_upper(), Controls.key_label("edit_reset"), Controls.key_label("edit")]
+	if not Settings.edit_on_release:
+		title = "EDIT %s   click / drag tiles   %s reset   press %s to confirm" % [piece.kind.to_upper(), Controls.key_label("edit_reset"), Controls.key_label("edit")]
+	var w := font.get_string_size(title).x
+	draw_string(font, Vector2((rect_size.x - w) / 2.0, 245.0), title, Color(1.0, 0.92, 0.45))
 
 
 func _draw() -> void:
 	if piece == null:
 		return
 	var font := get_font("font", "Label")
+	if aim_mode:
+		_draw_aim(font)
+		return
 	draw_rect(Rect2(Vector2.ZERO, rect_size), Color(0.02, 0.03, 0.08, 0.66))
 	var o := _grid_origin()
 	var side := TILE * 3.0 + GAP * 2.0

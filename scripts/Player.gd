@@ -258,6 +258,9 @@ func is_scoped() -> bool:
 
 
 func _fire_input(delta: float) -> void:
+	if Controls.edit_aim:             # the build editor owns the fire button (it selects tiles)
+		cancel_use()
+		return
 	if builder.active:
 		if Input.is_action_just_pressed("fire") and _can_aim():
 			builder.place()

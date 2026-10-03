@@ -85,6 +85,10 @@ func editable() -> bool:
 	return kind == "wall" or kind == "floor"
 
 
+func full_size() -> Vector3:
+	return (_mesh_node.mesh as CubeMesh).size
+
+
 func get_mask() -> Array:
 	return mask.duplicate()
 

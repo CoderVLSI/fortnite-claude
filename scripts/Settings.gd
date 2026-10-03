@@ -18,6 +18,7 @@ var elims := 0
 var aim_toggle := false           # tap to aim instead of hold
 var starter_sprite := "earth"    # the sprite you bring to a match (none / earth / fire / water)
 var damage_numbers := true
+var edit_on_release := true      # builds: confirm an edit when the Edit key is let go (Fortnite style)
 var keybinds := {}                # action -> [[type, code], ...]; only the actions the player changed
 var autostart := false            # runtime only: skip the title screen after "Play again"
 
@@ -40,6 +41,7 @@ func load_settings() -> void:
 	aim_toggle = bool(cfg.get_value("gameplay", "aim_toggle", aim_toggle))
 	starter_sprite = str(cfg.get_value("gameplay", "starter_sprite", starter_sprite))
 	damage_numbers = bool(cfg.get_value("gameplay", "damage_numbers", damage_numbers))
+	edit_on_release = bool(cfg.get_value("gameplay", "edit_on_release", edit_on_release))
 	if cfg.has_section("keybinds"):
 		for action in cfg.get_section_keys("keybinds"):
 			keybinds[action] = cfg.get_value("keybinds", action, [])
@@ -60,6 +62,7 @@ func save_settings() -> void:
 	cfg.set_value("gameplay", "aim_toggle", aim_toggle)
 	cfg.set_value("gameplay", "starter_sprite", starter_sprite)
 	cfg.set_value("gameplay", "damage_numbers", damage_numbers)
+	cfg.set_value("gameplay", "edit_on_release", edit_on_release)
 	for action in keybinds:
 		cfg.set_value("keybinds", action, keybinds[action])
 	cfg.set_value("profile", "name", player_name)
