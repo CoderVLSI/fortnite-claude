@@ -129,6 +129,9 @@ func _run() -> void:
 	if _nodes_log.size() >= 2:
 		growth = _nodes_log[_nodes_log.size() - 1] - _nodes_log[0]
 	print("SOAK summary: game_time=%ds avg_fps=%.1f min_fps=%.1f alive_min=%d node_growth=%d actions=%s" % [int(_t), _fps_sum / max(_fps_n, 1), _fps_min, _alive_min, growth, str(_stats)])
+	settings.reset_prefs()                         # the monkey changed settings: leave the saved config as it found it
+	settings.team_size = 1
+	settings.save_settings()
 	print("SOAK_RESULT failures=%d" % failures.size())
 	quit(0)
 
