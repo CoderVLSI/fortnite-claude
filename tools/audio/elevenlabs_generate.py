@@ -70,6 +70,20 @@ SFX = {
     "swim_stroke": ("swimmer arm stroke through water, short splash", 0.6),
     "consume_bandage": ("applying a bandage, fabric rip and wrap", 1.2),
     "shield_up": ("magical energy shield charging up, rising shimmer", 1.0),
+    # --- gadgets / special effects: (prompt, seconds); the exact final length is in TRIM below
+    "charge_start": ("a mechanical click followed by a rising electric whine, a shotgun starting to charge, no speech, no music", 0.5),
+    "charge_full": ("a bright short electronic ready ping, single clear chime, no speech, no music", 0.5),
+    "shot_charge_shotgun": ("a heavy shotgun blast with an electric crackle, bigger and more powerful than a pump shotgun, clear attack and short tail, no speech, no music", 0.9),
+    "jetpack_thrust": ("one short rocket pack burst, hissing roar with a quick fade, no speech, no music", 0.5),
+    "board_mount": ("a skateboard dropped on the ground then hopped onto, a clack and a short wheel rattle, no speech, no music", 0.5),
+    "board_roll": ("skateboard wheels rolling over pavement, steady rumble, no speech, no music", 0.5),
+    "shockwave_boom": ("a deep concussive air blast thump with an outward sweeping whoosh, no speech, no music", 1.2),
+    "junk_rift_open": ("a magical portal tearing open in the sky, rising crackle and a magical hum, no speech, no music", 1.0),
+    "junk_impact": ("something enormous crashing into the ground, deep boom, metal clang and falling debris, no speech, no music", 2.0),
+    "rift_enter": ("stepping through a portal, a rising whoosh with a sparkle as you are flung skyward, no speech, no music", 0.9),
+    "building_collapse": ("a wooden house collapsing, creaks, snapping beams and a rumbling dust cloud, no speech, no music", 2.5),
+    "sprite_equip": ("a cute magical chime as a little spirit joins you, soft sparkle, no speech", 0.6),
+    "sprite_levelup": ("an upbeat short rising arpeggio, video game level up jingle, no speech", 0.8),
     "car_horn": ("short double car horn honk", 0.8),
 }
 LOOPS = {   # looped ambience / engines: ElevenLabs supports a "loop" flag on newer models
@@ -91,6 +105,10 @@ MUSIC_BEDS = {
                    "stormy sci-fi atmosphere, instrumental music, loopable", 20),
 }
 MUSIC_LUFS = -19.6
+
+# Exact final length in seconds for sounds shorter than the API's 0.5 s minimum (and the gadget set):
+# the file is cut to this length with a 40 ms fade-out so it never ends on a click.
+TRIM = {"charge_start": 0.3, "charge_full": 0.4, "jetpack_thrust": 0.35, "board_mount": 0.4, "board_roll": 0.5}
 
 MUSIC = {   # /v1/music, instrumental (PAID plan only); each track is cross-faded into a seamless loop
     "music_bus": ("energetic instrumental for an airborne drop, driving drums, rising synth arpeggios, "
@@ -162,12 +180,13 @@ def set_loudness(path, target):
 RATES = {}
 
 
-def to_wav(audio_bytes, name, rate=22050, loop=False, xf=1.0, lufs=None):
+def to_wav(audio_bytes, name, rate=22050, loop=False, xf=1.0, lufs=None, trim=None):
     with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
         f.write(audio_bytes)
         tmp = f.name
     dest = os.path.join(OUT, name + ".wav")
-    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", tmp, "-ar", str(rate), "-ac", "1", "-sample_fmt", "s16", dest],
+    cut = ["-t", "%g" % trim, "-af", "afade=t=out:st=%g:d=0.04" % max(trim - 0.04, 0)] if trim else []
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", tmp] + cut + ["-ar", str(rate), "-ac", "1", "-sample_fmt", "s16", dest],
                    check=True)
     os.unlink(tmp)
     if loop:
@@ -214,7 +233,7 @@ def main():
         payload = {"text": prompt, "duration_seconds": secs, "prompt_influence": 0.5}
         if n in LOOPS:
             payload["loop"] = True
-        to_wav(request("/v1/sound-generation", payload, key), n, loop=n in LOOPS)
+        to_wav(request("/v1/sound-generation", payload, key), n, loop=n in LOOPS, trim=TRIM.get(n))
 
 
 if __name__ == "__main__":
