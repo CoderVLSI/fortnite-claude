@@ -279,7 +279,7 @@ func _run() -> void:
 	# --- chests: each variety opens and drops its contents
 	var spots := [Vector3(4, 0, 0), Vector3(-4, 0, 0), Vector3(0, 0, 5)]
 	var kinds := ["chest", "ammo_box", "supply"]
-	var expected := [4, 3, 10]       # weapon+ammo+consumable+materials; 2 ammo+materials; 2 guns+3 heals/grenades+2 ammo+3 materials
+	var expected := [5, 3, 11]       # weapon+ammo+consumable+materials+gold; 2 ammo+materials; 2 guns+3 heals/grenades+2 ammo+3 materials
 	for i in range(3):
 		var pos: Vector3 = p.global_transform.origin + spots[i]
 		var chest = world._add_chest(kinds[i], Vector3(pos.x, world.terrain.height_at(pos.x, pos.z), pos.z), 0.0)
@@ -422,6 +422,7 @@ func _run() -> void:
 	Input.parse_input_event(pt)
 	yield(_wait_idle(2), "completed")
 	check(p.builder.active and p.builder.piece == 1, "touch piece button enters build mode with that piece")
+	p.materials = {"wood": 50, "stone": 50, "metal": 50}     # an empty material would auto-route away
 	var mat_pos: Vector2 = world.hud.materials.rect_global_position + Vector2(76 * 2 + 12 + 30, 20)
 	var mt := InputEventScreenTouch.new()
 	mt.index = 7

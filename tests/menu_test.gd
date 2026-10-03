@@ -121,6 +121,13 @@ func _run() -> void:
 	kj.pressed = true
 	menu._input(kj)
 	check(controls.binding_text("jump") == "J" and menu.rebind_buttons["jump"].text == "J", "pressing a key rebinds the action")
+	menu._begin_rebind("edit")
+	var sb := InputEventMouseButton.new()
+	sb.button_index = BUTTON_XBUTTON1
+	sb.pressed = true
+	menu._input(sb)
+	check("Side 1" in controls.binding_text("edit") or "Side" in controls.binding_text("edit"), "a mouse side button can be bound (%s)" % controls.binding_text("edit"))
+	check(controls.key_label("edit") == "Side 1", "the HUD hint shows the side button (%s)" % controls.key_label("edit"))
 	var has_space := false
 	for ev in InputMap.get_action_list("jump"):
 		if ev is InputEventKey and ev.scancode == KEY_SPACE:

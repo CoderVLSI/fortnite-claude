@@ -123,8 +123,14 @@ func key_label(action: String) -> String:
 			var short := {"Control": "Ctrl", "Escape": "Esc", "Space": "Space", "Shift": "Shift"}
 			return short.get(t, t)
 		elif ev is InputEventMouseButton:
-			return ["", "LMB", "RMB", "MMB", "Wheel+", "Wheel-"][clamp(ev.button_index, 0, 5)]
+			return mouse_name(ev.button_index, true)
 	return "-"
+
+
+static func mouse_name(b: int, short: bool) -> String:
+	var names := {1: ["LMB", "Mouse Left"], 2: ["RMB", "Mouse Right"], 3: ["MMB", "Mouse Middle"], 4: ["Wheel+", "Wheel Up"],
+		5: ["Wheel-", "Wheel Down"], 8: ["Side 1", "Mouse Side 1 (Back)"], 9: ["Side 2", "Mouse Side 2 (Forward)"]}
+	return names[b][0 if short else 1] if names.has(b) else "Mouse %d" % b
 
 
 # Short text for what is bound to an action ("W / Up", "Mouse Left", "Unbound").
@@ -134,7 +140,7 @@ func binding_text(action: String) -> String:
 		if ev is InputEventKey:
 			parts.append(OS.get_scancode_string(ev.scancode))
 		elif ev is InputEventMouseButton:
-			parts.append(["", "Mouse Left", "Mouse Right", "Mouse Middle", "Wheel Up", "Wheel Down"][clamp(ev.button_index, 0, 5)])
+			parts.append(mouse_name(ev.button_index, false))
 	return " / ".join(parts) if parts.size() > 0 else "Unbound"
 
 

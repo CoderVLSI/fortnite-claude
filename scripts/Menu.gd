@@ -766,7 +766,7 @@ func _input(event: InputEvent) -> void:
 		elif event is InputEventMouseButton:
 			if event.button_index == BUTTON_LEFT:
 				_cancel_rebind()                              # a left click elsewhere just cancels (it would also steal Fire)
-			elif event.button_index <= BUTTON_MIDDLE:
+			else:      # right, middle, wheel and the side buttons (XBUTTON1 / XBUTTON2)
 				Controls.set_binding(_rebind_action, "mouse", event.button_index)
 				_rebind_action = ""
 				_refresh_bindings()

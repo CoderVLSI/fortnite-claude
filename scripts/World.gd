@@ -629,12 +629,12 @@ func _scatter_props(model: String, count: int, smin: float, smax: float, col_rad
 		var h: float = terrain.height_at(p.x, p.y)
 		if h < min_h or not terrain.is_free(p.x, p.y, 2.5):
 			continue
-		if model == "tree":       # lava fields are bare and deserts nearly so; snow keeps its pines
-			var bw: Vector3 = terrain.biome_weights(p.x, p.y)
-			if rng.randf() < bw.y * 1.1 + bw.z * 0.85:
-				continue
 		var s := rng.randf_range(smin, smax)
 		var basis := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s, s, s))
+		if model == "tree":       # lava fields are bare and deserts nearly so; snow keeps its pines (drawn last: same stream as before)
+			var bw: Vector3 = terrain.biome_weights(p.x, p.y)
+			if fposmod(sin(p.x * 12.9898 + p.y * 78.233) * 43758.5453, 1.0) < bw.y * 1.1 + bw.z * 0.85:
+				continue
 		transforms.append(Transform(basis, Vector3(p.x, h - 0.1, p.y)))
 		scales.append(s)
 		if model == "tree":
