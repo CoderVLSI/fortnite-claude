@@ -1524,6 +1524,14 @@ func alive_teams() -> int:
 	return seen.size()
 
 
+# A teammate who is still on their feet (a downed one cannot save you).
+func allies_standing(of) -> bool:
+	for f in get_tree().get_nodes_in_group("fighters"):
+		if f != of and not f.is_dead and not f.downed and of.is_ally(f):
+			return true
+	return false
+
+
 func allies_alive(of) -> bool:
 	for f in get_tree().get_nodes_in_group("fighters"):
 		if f != of and not f.is_dead and of.is_ally(f):
@@ -1916,6 +1924,10 @@ func net_event(from: int, kind: String, data) -> void:
 			break_pieces_near(data[0], data[1], false)
 		"ping":
 			add_ping(data[0], data[1], data[2], int(data[3]), false)
+		"revive":
+			var rv = fighter_by_key(data)
+			if rv != null and is_instance_valid(rv) and rv.net_owner == 0:
+				rv.revive()
 		"pad":
 			var bp := preload("res://scripts/BouncePad.gd").new()
 			add_child(bp)

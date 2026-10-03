@@ -188,8 +188,8 @@ func _ground_process(delta: float) -> void:
 	var want_jump := false
 	if input_enabled:
 		move = Controls.get_move()
-		want_jump = Input.is_action_pressed("jump")
-		sprinting = _sprint_wanted(move)
+		want_jump = Input.is_action_pressed("jump") and not downed
+		sprinting = _sprint_wanted(move) and not downed
 		_update_aim()
 		if Input.is_action_just_pressed("reload"):
 			start_reload()
@@ -197,7 +197,7 @@ func _ground_process(delta: float) -> void:
 			quick_heal()
 		if Input.is_action_just_pressed("last_item"):
 			swap_to_previous()
-		if Input.is_action_just_pressed("build_toggle"):
+		if Input.is_action_just_pressed("build_toggle") and not downed:
 			builder.toggle()
 		for i in range(BUILD_ACTIONS.size()):
 			if Input.is_action_just_pressed(BUILD_ACTIONS[i]):
@@ -266,14 +266,14 @@ func _update_stance(delta: float, move: Vector2, want_jump: bool) -> void:
 		_slide_t -= delta
 		if _slide_t <= 0.0 or want_jump or not grounded:
 			sliding = false
-	elif input_enabled and grounded and flat_speed > 4.8 and (Input.is_action_just_pressed("crouch") or _slide_buffer > 0.0) \
+	elif input_enabled and not downed and grounded and flat_speed > 4.8 and (Input.is_action_just_pressed("crouch") or _slide_buffer > 0.0) \
 			and (sprinting or flat_speed > 5.5 or _slide_buffer > 0.0):
 		_slide_buffer = 0.0
 		sliding = true
 		_slide_t = SLIDE_TIME
 		_slide_dir = Vector3(velocity.x, 0.0, velocity.z).normalized()
 		Audio.play3d("skid", global_transform.origin, -6.0, 1.4)
-	crouching = input_enabled and _crouch_wanted() and grounded and not sliding
+	crouching = input_enabled and _crouch_wanted() and grounded and not sliding and not downed
 	if sliding or crouching:
 		sprinting = false
 	if emoting:
@@ -340,6 +340,9 @@ var _jet_hold := 0.0
 
 
 func _fire_input(delta: float) -> void:
+	if downed:
+		cancel_use()
+		return
 	if Controls.edit_aim:             # the build editor owns the fire button (it selects tiles)
 		cancel_use()
 		return
@@ -461,7 +464,49 @@ func _charge_input(delta: float, item) -> void:
 		fire_at_crosshair()                         # empty: clicks, then reloads
 
 
+func _on_downed() -> void:
+	if builder.active:
+		builder.set_active(false)
+	_quick_slot = -1
+	_revive_target = null
+
+
+var _revive_target = null
+var _revive_t := 0.0
+
+
+func begin_revive(target) -> void:
+	if downed or target == null or not target.downed:
+		return
+	_revive_target = target
+	_revive_t = 0.0
+
+
+func _revive_hold(delta: float) -> bool:
+	if _revive_target == null:
+		return false
+	if not is_instance_valid(_revive_target) or not _revive_target.downed or downed or is_dead \
+			or not Input.is_action_pressed("interact") or global_transform.origin.distance_to(_revive_target.global_transform.origin) > INTERACT_RANGE + 0.6:
+		_revive_target = null
+		_revive_t = 0.0
+		cancel_use()
+		return false
+	_revive_t += delta
+	_use_total = REVIVE_TIME
+	_use_left = max(0.01, REVIVE_TIME - _revive_t)              # the HUD's progress bar shows it
+	if _revive_t >= REVIVE_TIME:
+		var t = _revive_target
+		_revive_target = null
+		_revive_t = 0.0
+		cancel_use()
+		revive_other(t)
+		emit_signal("picked_up", "Revived %s" % str(t.display_name))
+	return true
+
+
 func _interact_input(delta: float) -> void:
+	if _revive_hold(delta):
+		return
 	_interact_t -= delta
 	if _interact_t <= 0.0:
 		_interact_t = 0.1

@@ -11,6 +11,7 @@ const Items = preload("res://scripts/Items.gd")
 const Animator = preload("res://scripts/Animator.gd")
 
 signal died(victim, killer)
+signal downed_changed(is_down)
 signal damaged(amount, source)
 signal hit_landed(target, killed, headshot)
 signal picked_up(text)
@@ -132,6 +133,12 @@ var forward_speed := 0.0
 var sprinting := false
 var crouching := false            # hold crouch: slower, lower, steadier aim
 var sliding := false              # sprint then crouch: a short momentum slide
+const DOWNED_HEALTH := 40.0        # a downed fighter bleeds out from this much health...
+const BLEED_TIME := 30.0           # ...over this many seconds, unless a teammate gets them up
+const REVIVE_TIME := 3.5
+var downed := false                # "down but not out" (team modes): crawling, cannot fight, can be revived
+var _last_attacker = null
+var _revive_spot: Node
 var _burst_left := 0               # rounds still to come from a burst weapon
 var _burst_t := 0.0
 var _burst_aim := []
@@ -540,7 +547,7 @@ func can_use_selected() -> bool:
 
 # Call every frame while the player holds "fire" with a consumable selected.
 func use_selected(delta: float) -> void:
-	if is_dead or mode != Mode.GROUND or not can_use_selected():
+	if is_dead or downed or mode != Mode.GROUND or not can_use_selected():
 		cancel_use()
 		return
 	var item = selected_item()
@@ -583,7 +590,7 @@ func is_throwable_selected() -> bool:
 func throw_grenade(aim_from: Vector3, aim_dir: Vector3, slot: int = -1, damage_mult: float = 1.0) -> bool:
 	if slot < 0:
 		slot = selected
-	if is_dead or mode != Mode.GROUND or _fire_cd > 0.0 or slot >= slots.size() or slots[slot] == null:
+	if is_dead or downed or mode != Mode.GROUND or _fire_cd > 0.0 or slot >= slots.size() or slots[slot] == null:
 		return false
 	var item: Dictionary = slots[slot]
 	if item.kind != "consumable" or not Items.CONSUMABLES[item.id].get("throw", false):
@@ -692,6 +699,9 @@ func knockback(v: Vector3) -> void:
 
 
 func move_body(delta: float, wish: Vector3, speed: float, want_jump: bool) -> void:
+	if downed:
+		speed = min(speed, 1.3)                  # a downed fighter can only crawl
+		want_jump = false
 	var on_floor := is_on_floor()
 	var jetting := jet_active and jet_fuel > 0.0 and not is_dead
 	var launched := _knock_t > 0.0 and velocity.y > 0.5
@@ -1277,6 +1287,11 @@ func tick_gadgets(delta: float) -> void:
 
 
 func tick_weapon(delta: float) -> void:
+	if downed and net_owner == 0 and not is_dead:
+		health -= DOWNED_HEALTH / BLEED_TIME * delta          # bleeding out
+		if health <= 0.0:
+			_die(_last_attacker)
+			return
 	if _burst_left > 0:
 		_burst_t -= delta
 		if _burst_t <= 0.0:
@@ -1326,7 +1341,7 @@ func muzzle_position() -> Vector3:
 
 
 func try_fire(aim_from: Vector3, aim_dir: Vector3) -> bool:
-	if is_dead or mode != Mode.GROUND or _fire_cd > 0.0 or _reload_left > 0.0 or _use_left > 0.0:
+	if is_dead or downed or mode != Mode.GROUND or _fire_cd > 0.0 or _reload_left > 0.0 or _use_left > 0.0:
 		return false
 	var item = selected_item()
 	if item == null:
@@ -1491,6 +1506,14 @@ func take_damage(amount: float, source = null) -> void:
 		if Net.active and Net.in_match:
 			Net.send_damage(net_owner, net_key_v, amount, Net.key_of(source), false)
 		return
+	if downed:                        # already down: shots drain what is left, then it is over
+		health -= amount
+		if source != null and source != self:
+			_last_attacker = source
+		emit_signal("damaged", amount, source)
+		if health <= 0.0:
+			_die(source if source != null else _last_attacker)
+		return
 	cancel_use()
 	if bubble_t > 0.0:
 		amount *= 0.35
@@ -1511,10 +1534,69 @@ func take_damage(amount: float, source = null) -> void:
 	if source != null and source != self and is_instance_valid(source) and source.has_method("sprite_on_hit"):
 		source.sprite_on_hit(self, amount)
 	if health <= 0.0:
-		_die(source)
+		if _can_go_down():
+			go_down(source)
+		else:
+			_die(source)
+
+
+# Team modes: the last blow does not eliminate you while a teammate is still standing - you go down instead.
+func _can_go_down() -> bool:
+	if team < 0 or downed or mode != Mode.GROUND:
+		return false
+	for w in get_tree().get_nodes_in_group("world"):
+		return w.allies_standing(self)
+	return false
+
+
+func go_down(source = null) -> void:
+	downed = true
+	health = DOWNED_HEALTH
+	shield = 0.0
+	_last_attacker = source
+	cancel_use()
+	aiming = false
+	sprinting = false
+	emoting = false
+	_burst_left = 0
+	if has_method("_on_downed"):
+		call("_on_downed")                       # the player also puts the build tool away
+	if _revive_spot == null:
+		_revive_spot = preload("res://scripts/ReviveSpot.gd").new()
+		_revive_spot.fighter = self
+		add_child(_revive_spot)
+	Audio.play3d("death", global_transform.origin + Vector3(0, 1.0, 0), -8.0, 1.5)
+	emit_signal("downed_changed", true)
+
+
+# A teammate got them up: back on their feet with a little health.
+func revive() -> void:
+	if not downed or is_dead:
+		return
+	downed = false
+	health = 30.0
+	if _revive_spot != null:
+		_revive_spot.queue_free()
+		_revive_spot = null
+	Audio.play3d("heal_up", global_transform.origin + Vector3(0, 1.2, 0), -1.0)
+	emit_signal("downed_changed", false)
+
+
+# The reviver finished: tell whoever owns the downed fighter.
+func revive_other(target) -> void:
+	if target == null or not is_instance_valid(target) or not target.downed:
+		return
+	if target.net_owner == 0:
+		target.revive()
+	elif Net.active and Net.in_match:
+		Net.send_event("revive", target.net_key_v)
 
 
 func _die(killer, credit: bool = true) -> void:
+	downed = false
+	if _revive_spot != null:
+		_revive_spot.queue_free()
+		_revive_spot = null
 	is_dead = true
 	health = 0.0
 	collision_layer = 0
@@ -1562,6 +1644,7 @@ func net_state() -> Dictionary:
 	if grounded: flags |= 128
 	if cloak_t > 0.0: flags |= 256
 	flags |= Emotes.index_of(emote_id) << 9
+	if downed: flags |= 4096
 	return {"p": global_transform.origin, "y": rotation.y, "pt": aim_pitch, "m": mode, "v": velocity, "f": flags, "s": selected,
 		"i": selected_item(), "h": health, "sh": shield, "d": is_dead, "vs": vehicle_seat, "st": vehicle_steer,
 		"ai": air_input, "ap": air_pivot.rotation.y if air_pivot != null else 0.0}
@@ -1605,6 +1688,10 @@ func net_apply(s: Dictionary) -> void:
 	grounded = (f & 128) != 0
 	cloak_t = 1.0 if (f & 256) != 0 else 0.0
 	emote_id = Emotes.id_at((f >> 9) & 7)
+	var was_down := downed
+	downed = (f & 4096) != 0
+	if downed != was_down:
+		emit_signal("downed_changed", downed)
 	vehicle_seat = s.vs
 	vehicle_steer = s.st
 	air_input = s.ai

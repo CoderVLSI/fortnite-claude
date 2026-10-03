@@ -74,6 +74,47 @@ func _weapon_slot() -> int:
 	return 0
 
 
+# A teammate is down nearby and nobody is shooting at us: go and get them up.
+var _mate_t := 0.0
+var _mate = null
+var _revive_t := 0.0
+
+
+func _revive_task(delta: float) -> bool:
+	_mate_t -= delta
+	if _mate_t <= 0.0:
+		_mate_t = 0.5
+		_mate = null
+		var best := 45.0
+		for f in get_tree().get_nodes_in_group("fighters"):
+			if f != self and f.downed and not f.is_dead and is_ally(f):
+				var d: float = f.global_transform.origin.distance_to(global_transform.origin)
+				if d < best:
+					best = d
+					_mate = f
+	if _mate == null or not is_instance_valid(_mate) or not _mate.downed:
+		_revive_t = 0.0
+		return false
+	if _valid(target) and global_transform.origin.distance_to(target.global_transform.origin) < 22.0:
+		return false                                 # somebody is on us: fight first
+	var to: Vector3 = _mate.global_transform.origin - global_transform.origin
+	to.y = 0.0
+	if to.length() > 2.3:
+		_revive_t = 0.0
+		var wish := to.normalized()
+		sprinting = true
+		move_body(delta, wish, sprint_speed, false)
+		rotation.y = lerp_angle(rotation.y, atan2(-wish.x, -wish.z), clamp(9.0 * delta, 0.0, 1.0))
+	else:
+		move_body(delta, Vector3.ZERO, 0.0, false)
+		_revive_t += delta
+		if _revive_t >= REVIVE_TIME:
+			_revive_t = 0.0
+			revive_other(_mate)
+	animate(delta)
+	return true
+
+
 func _grenade_slot() -> int:
 	for i in range(1, slots.size()):
 		if slots[i] != null and slots[i].kind == "consumable" and slots[i].id == "grenade":
@@ -135,6 +176,12 @@ func _physics_process(delta: float) -> void:
 		_think = rand_range(0.25, 0.5)
 		_decide()
 	_nade_cd -= delta
+	if downed:                                  # crawling about until a teammate comes
+		move_body(delta, Vector3.ZERO, 0.0, false)
+		animate(delta)
+		return
+	if _revive_task(delta):
+		return
 	if state == State.WANDER and target == null and not is_boss and health < 70.0 + skill * 10.0:
 		var hs: int = _heal_slot()
 		if hs > 0:                           # nobody around: stand still and patch up

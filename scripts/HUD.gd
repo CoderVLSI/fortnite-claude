@@ -56,6 +56,7 @@ var shield_bar: Control
 var ammo_label: Label
 var storm_label: Label
 var warn_label: Label
+var down_label: Label
 var stats_label: Label
 var hint_label: Label
 var toast_label: Label
@@ -188,6 +189,10 @@ func _build() -> void:
 	_place(warn_label, 0.5, 0.0, Vector2(-230, 90), Vector2(460, 30))
 	warn_label.visible = false
 	root.add_child(warn_label)
+	down_label = _label("", Label.ALIGN_CENTER, Color(1.0, 0.4, 0.35))
+	_place(down_label, 0.5, 0.0, Vector2(-330, 126), Vector2(660, 34))
+	down_label.visible = false
+	root.add_child(down_label)
 
 	feed_box = VBoxContainer.new()
 	_place(feed_box, 0.0, 0.0, Vector2(16, 16), Vector2(520, 130))
@@ -783,6 +788,9 @@ func _process(delta: float) -> void:
 
 	var outside: bool = world.storm.active and not player.is_dead and not world.storm.is_inside(player.global_transform.origin)
 	warn_label.visible = outside
+	down_label.visible = player.downed and not player.is_dead
+	if down_label.visible:
+		down_label.text = "YOU ARE DOWN  -  bleeding out in %d s  -  a teammate can revive you" % int(ceil(player.health / (player.DOWNED_HEALTH / player.BLEED_TIME)))
 	storm_rect.color.a = (0.16 + sin(_t * 5.0) * 0.04) if outside else 0.0
 	if spec_root.visible:
 		if world.spectating:

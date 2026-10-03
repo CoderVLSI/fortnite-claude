@@ -130,6 +130,9 @@ func _pose_ground(f, delta: float) -> void:
 	if not f.grounded:
 		_pose_airborne(f, item)
 		return
+	if f.downed:
+		_pose_downed(f)
+		return
 	if f.emoting:
 		_pose_emote(f)
 		return
@@ -255,6 +258,23 @@ func _pose_emote(f) -> void:
 			_pose_sit()
 		_:
 			_pose_boogie()
+
+
+# Down but not out: face down on the ground, pulling forward on the forearms.
+func _pose_downed(f) -> void:
+	var c := sin(t * (6.0 if speed_smooth > 0.3 else 1.5))
+	hips_target_y = -0.82
+	_to("Hips", Vector3(-1.38, 0, c * 0.05))
+	_to("Spine", Vector3(0.25, 0, 0))
+	_to("Head", Vector3(0.85, 0, 0))
+	_to("ShoulderL", Vector3(2.35 + c * 0.5, 0, 0.45))
+	_to("ShoulderR", Vector3(2.35 - c * 0.5, 0, -0.45))
+	_to("ElbowL", Vector3(0.8 + c * 0.4, 0, 0))
+	_to("ElbowR", Vector3(0.8 - c * 0.4, 0, 0))
+	_to("HipL", Vector3(0.1 - c * 0.2, 0, 0.1))
+	_to("HipR", Vector3(0.1 + c * 0.2, 0, -0.1))
+	_to("KneeL", Vector3(-0.3, 0, 0))
+	_to("KneeR", Vector3(-0.3, 0, 0))
 
 
 # Knees pumping, arms alternating overhead, hips swaying.
