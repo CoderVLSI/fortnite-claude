@@ -16,9 +16,8 @@ var yaw := 0.0                  # drag offset, springs back to 0 when released
 var dragging := false
 var _t := 0.0
 var _wave := 0.0
-var env: Environment             # the lobby camera's environment: draws the backdrop image behind the 3D stage
-var _backdrop: TextureRect
-var _bg_layer: CanvasLayer
+var env = null                   # unused (kept so Menu can still ask for a camera environment)
+var _backdrop: MeshInstance
 var _bus: Spatial
 var _glider: Spatial
 var _floaters := []             # [node, base position, phase]
@@ -124,35 +123,25 @@ func _build_character() -> void:
 		add_child(_glider)
 
 
-# The generated lobby painting (assets/ui/lobby_bg.png) sits behind the 3D island and character. A canvas layer below
-# layer 0 is drawn as the 3D background when the camera's Environment uses BG_CANVAS. Without the image (not yet
-# imported) the lobby falls back to drifting rocks, clouds and the bus in the normal sky.
+# The generated lobby painting (assets/ui/lobby_bg.png) is a big unshaded quad far behind the stage, so it is drawn by
+# the 3D renderer like everything else (a canvas-layer backdrop covered the character). Without the image the lobby
+# falls back to drifting rocks, clouds and the bus in the normal sky.
 func _build_backdrop() -> void:
 	var tex = load("res://assets/ui/lobby_bg.png")
 	if tex == null:
 		_build_sky()
 		return
-	_bg_layer = CanvasLayer.new()
-	_bg_layer.layer = -10
-	add_child(_bg_layer)
-	_backdrop = TextureRect.new()
-	_backdrop.texture = tex
-	_backdrop.expand = true
-	_backdrop.stretch_mode = TextureRect.STRETCH_SCALE
-	_backdrop.set_anchors_and_margins_preset(Control.PRESET_WIDE)
-	_backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_bg_layer.add_child(_backdrop)
-	env = Environment.new()
-	env.background_mode = Environment.BG_CANVAS
-	env.background_canvas_max_layer = -10
-	env.ambient_light_color = Color(0.75, 0.78, 0.9)
-	env.ambient_light_energy = 0.9
-	var glow := _glider                                  # keep the glider; the painting already has the clouds and the bus
-	if glow != null:
-		glow.translation = Vector3(-0.2, 3.1, -1.8)
+	var quad := QuadMesh.new()
+	quad.size = Vector2(68.0, 38.25)                       # 16:9, wider than any phone / ultrawide view at this distance
+	var mat := SpatialMaterial.new()
+	mat.flags_unshaded = true
+	mat.flags_do_not_receive_shadows = true
+	mat.params_cull_mode = SpatialMaterial.CULL_DISABLED
+	mat.albedo_texture = tex
+	_backdrop = _mesh(quad, mat, Vector3(0, -1.0, -30.0))
+	_backdrop.cast_shadow = GeometryInstance.SHADOW_CASTING_SETTING_OFF
 
 
-# Only draw the backdrop while the lobby camera is the active one.
 func set_active(on: bool) -> void:
 	if _backdrop != null:
 		_backdrop.visible = on
@@ -217,8 +206,7 @@ func _process(delta: float) -> void:
 	_wave = max(0.0, _wave - delta)
 	if _backdrop != null:                                  # slow push-in / pull-out on the painting
 		var z := 1.04 + sin(_t * 0.12) * 0.03
-		_backdrop.rect_pivot_offset = _backdrop.rect_size / 2.0
-		_backdrop.rect_scale = Vector2(z, z)
+		_backdrop.scale = Vector3(z, z, 1.0)
 	_pose(delta)
 	if _glider != null:
 		_glider.translation.y = 3.1 + sin(_t * 1.1) * 0.12
