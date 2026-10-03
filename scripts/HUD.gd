@@ -54,6 +54,7 @@ var feed_box: VBoxContainer
 var flash_rect: ColorRect
 var storm_rect: ColorRect
 var end_panel: Panel
+var _dmg := []                  # floating damage numbers: {label, world position, age, headshot}
 var hv_root: Control            # health bar over the tree / rock / wall being hit with the pickaxe
 var hv_bar: Control
 var hv_label: Label
@@ -343,6 +344,7 @@ func bind(world_node) -> void:
 	scope_overlay.player = player
 	inventory.player = player
 	player.connect("harvested", self, "_on_harvested")
+	player.connect("damage_dealt", self, "_on_damage_dealt")
 	player.connect("damaged", self, "_on_player_damaged")
 	player.connect("hit_landed", self, "_on_hit_landed")
 	player.connect("picked_up", self, "show_toast")
@@ -467,6 +469,36 @@ func _on_pause_pressed() -> void:
 		world.menu.toggle_pause()
 
 
+func _on_damage_dealt(pos: Vector3, amount: float, headshot: bool, killed: bool) -> void:
+	if not Settings.damage_numbers:
+		return
+	var col := Color(1.0, 0.85, 0.2) if headshot else (Color(1.0, 0.4, 0.35) if killed else Color.white)
+	var l := _label(str(int(round(amount))), Label.ALIGN_CENTER, col)
+	l.rect_size = Vector2(90, 30)
+	l.rect_pivot_offset = Vector2(45, 15)
+	l.rect_scale = Vector2(1.5, 1.5) if headshot else Vector2.ONE
+	root.add_child(l)
+	_dmg.append({"label": l, "pos": pos + Vector3(rand_range(-0.25, 0.25), 0.0, rand_range(-0.25, 0.25)), "age": 0.0})
+	while _dmg.size() > 14:                                  # a shotgun blast makes several numbers at once
+		_dmg[0].label.queue_free()
+		_dmg.pop_front()
+
+
+func _update_damage_numbers(delta: float) -> void:
+	var cam: Camera = player.camera
+	for i in range(_dmg.size() - 1, -1, -1):
+		var d: Dictionary = _dmg[i]
+		d.age += delta
+		var l: Label = d.label
+		if d.age > 0.9 or cam == null or cam.is_position_behind(d.pos):
+			l.queue_free()
+			_dmg.remove(i)
+			continue
+		var sp: Vector2 = cam.unproject_position(d.pos)
+		l.rect_position = sp - Vector2(45, 15 + d.age * 70.0)      # drifts upward
+		l.modulate.a = clamp(1.0 - (d.age - 0.45) / 0.45, 0.0, 1.0)
+
+
 func _on_harvested(pos: Vector3, fraction: float, kind: String, label: String, id: String) -> void:
 	if id != _hv_id:
 		_hv_id = id
@@ -576,6 +608,7 @@ func _process(delta: float) -> void:
 	warn_label.visible = outside
 	storm_rect.color.a = (0.16 + sin(_t * 5.0) * 0.04) if outside else 0.0
 	_update_harvest_bar(delta)
+	_update_damage_numbers(delta)
 	if end_bg.visible and end_bg.modulate.a < 1.0:
 		end_bg.modulate.a = min(1.0, end_bg.modulate.a + delta * 1.2)
 	_flash = max(0.0, _flash - delta * 2.5)
@@ -669,7 +702,7 @@ func _update_prompts() -> void:
 	_update_badge()
 	var jump_key := "JUMP" if Controls.touch_mode else "SPACE"
 	if player.builder.active:
-		bus_label.text = "BUILD  click: place   Z X C V: piece   wheel: material   Q: exit" if not Controls.touch_mode else "BUILD   pick a piece, FIRE places"
+		bus_label.text = "BUILD  click: place   %s %s %s %s: piece   wheel: material   %s: exit" % [Controls.key_label("build_wall"), Controls.key_label("build_floor"), Controls.key_label("build_ramp"), Controls.key_label("build_roof"), Controls.key_label("build_toggle")] if not Controls.touch_mode else "BUILD   pick a piece, FIRE places"
 		bus_label.visible = true
 		return
 	match player.mode:

@@ -744,6 +744,19 @@ def make_potion(name, color, size):
     export(name, [p.build()])
 
 
+def make_grenade():
+    olive = material("gren_olive", (0.22, 0.30, 0.14), rough=0.6)
+    steel = material("gren_steel", (0.55, 0.57, 0.60), rough=0.3)
+    ring = material("gren_ring", (0.85, 0.7, 0.2), rough=0.3)
+    g = Part("Grenade")
+    g.blob((0, 0, 0.12), 0.11, olive, squash=1.2, jitter=0.0)                    # faceted body
+    g.cone((0, 0, 0.255), 0.04, 0.04, 0.05, steel, segments=8)                   # fuse cap
+    g.box((0.03, 0, 0.285), (0.075, 0.014, 0.012), steel)                        # spoon lever
+    g.box((0.07, 0, 0.215), (0.012, 0.014, 0.14), steel, rot=(0.0, 0.25, 0.0))
+    g.cone((-0.035, 0, 0.29), 0.022, 0.022, 0.012, ring, segments=10, axis="Y")  # pull ring
+    export("grenade", [g.build()])
+
+
 def make_ammo_pickup():
     brass = material("ammo_brass", (0.85, 0.65, 0.2), rough=0.3)
     box = material("ammo_box", (0.25, 0.35, 0.2))
@@ -1222,6 +1235,12 @@ def main():
     make_potion("mini_shield", (0.25, 0.55, 1.0), 0.8)
     reset_scene()
     make_potion("shield_potion", (0.20, 0.45, 1.0), 1.25)
+    reset_scene()
+    make_potion("slurp_juice", (0.20, 0.90, 0.85), 0.95)
+    reset_scene()
+    make_potion("chug_jug", (0.55, 0.80, 1.0), 1.5)
+    reset_scene()
+    make_grenade()
 
 
 if __name__ == "__main__":

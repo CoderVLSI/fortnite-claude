@@ -134,7 +134,33 @@ func _run() -> void:
 	click.pressed = true
 	click.position = L.slots[3].position + Vector2(40, 40)
 	hud.inventory._gui_input(click)
+	var unclick := InputEventMouseButton.new()
+	unclick.button_index = BUTTON_LEFT
+	unclick.pressed = false
+	unclick.position = click.position
+	hud.inventory._gui_input(unclick)
 	check(p.selected == 3, "clicking an equipment slot equips it")
+	# drag item 3 onto slot 1: they swap and the equipped item follows
+	var held_item = p.slots[3]
+	var other_item = p.slots[1]
+	var press := InputEventMouseButton.new()
+	press.button_index = BUTTON_LEFT
+	press.pressed = true
+	press.position = L.slots[3].position + Vector2(40, 40)
+	hud.inventory._gui_input(press)
+	var mv := InputEventMouseMotion.new()
+	mv.position = L.slots[1].position + Vector2(40, 40)
+	hud.inventory._gui_input(mv)
+	var rel := InputEventMouseButton.new()
+	rel.button_index = BUTTON_LEFT
+	rel.pressed = false
+	rel.position = mv.position
+	hud.inventory._gui_input(rel)
+	check(p.slots[1] == held_item and p.slots[3] == other_item and p.selected == 1, "dragging an item onto another slot swaps them and keeps it equipped")
+	p.swap_slots(1, 3)                  # put them back for the drop test
+	check(p.slots[3] == held_item, "swap_slots is reversible")
+	p.select_slot(3)
+	hud.inventory._hover = 3
 	var key := InputEventKey.new()
 	key.scancode = KEY_X
 	key.pressed = true

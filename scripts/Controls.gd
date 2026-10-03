@@ -25,31 +25,36 @@ func _ready() -> void:
 	touch_mode = OS.has_touchscreen_ui_hint() or OS.has_feature("mobile") or ("--touch" in args)
 
 
+# Every keyboard / mouse action the player can rebind (Settings > Controls): [action, label].
+const BINDABLE := [
+	["move_forward", "Move Forward"], ["move_back", "Move Backward"], ["move_left", "Move Left"], ["move_right", "Move Right"],
+	["jump", "Jump"], ["sprint", "Sprint"], ["crouch", "Crouch / Slide"], ["fire", "Fire"], ["aim", "Aim / Scope"],
+	["reload", "Reload"], ["interact", "Pick Up / Interact"], ["pickaxe", "Pickaxe"],
+	["slot_1", "Item Slot 1"], ["slot_2", "Item Slot 2"], ["slot_3", "Item Slot 3"], ["slot_4", "Item Slot 4"],
+	["build_toggle", "Build Mode"], ["build_wall", "Build: Wall"], ["build_floor", "Build: Floor"],
+	["build_ramp", "Build: Ramp"], ["build_roof", "Build: Roof"],
+	["inventory", "Inventory"], ["map", "Map"], ["emote", "Emote"],
+]
+
+# Default keyboard / mouse bindings: action -> [[type, code], ...] with type "key" or "mouse".
+const DEFAULTS := {
+	"move_forward": [["key", KEY_W], ["key", KEY_UP]], "move_back": [["key", KEY_S], ["key", KEY_DOWN]],
+	"move_left": [["key", KEY_A], ["key", KEY_LEFT]], "move_right": [["key", KEY_D], ["key", KEY_RIGHT]],
+	"jump": [["key", KEY_SPACE]], "sprint": [["key", KEY_SHIFT]], "crouch": [["key", KEY_CONTROL]],
+	"fire": [["mouse", BUTTON_LEFT]], "aim": [["mouse", BUTTON_RIGHT]], "reload": [["key", KEY_R]],
+	"interact": [["key", KEY_E]], "pickaxe": [["key", KEY_F]],
+	"slot_1": [["key", KEY_1]], "slot_2": [["key", KEY_2]], "slot_3": [["key", KEY_3]], "slot_4": [["key", KEY_4]],
+	"build_toggle": [["key", KEY_Q]], "build_wall": [["key", KEY_Z]], "build_floor": [["key", KEY_X]],
+	"build_ramp": [["key", KEY_C]], "build_roof": [["key", KEY_V]],
+	"inventory": [["key", KEY_TAB]], "map": [["key", KEY_M]], "emote": [["key", KEY_B]],
+}
+
+
 func _register_actions() -> void:
-	_key("move_forward", KEY_W)
-	_key("move_forward", KEY_UP)
-	_key("move_back", KEY_S)
-	_key("move_back", KEY_DOWN)
-	_key("move_left", KEY_A)
-	_key("move_left", KEY_LEFT)
-	_key("move_right", KEY_D)
-	_key("move_right", KEY_RIGHT)
-	_key("jump", KEY_SPACE)
-	_key("sprint", KEY_SHIFT)
-	_key("reload", KEY_R)
-	_key("interact", KEY_E)
-	_key("map", KEY_M)
-	_key("inventory", KEY_TAB)
-	_key("build_toggle", KEY_Q)
-	_key("build_toggle", KEY_F)
-	_key("build_wall", KEY_Z)
-	_key("build_floor", KEY_X)
-	_key("build_ramp", KEY_C)
-	_key("build_roof", KEY_V)
-	for i in range(5):
-		_key("slot_%d" % (i + 1), KEY_1 + i)
-	_mouse("fire", BUTTON_LEFT)
-	_mouse("aim", BUTTON_RIGHT)
+	for a in DEFAULTS:
+		if not InputMap.has_action(a):
+			InputMap.add_action(a, 0.2)
+	apply_bindings()
 	# Gamepad: left stick = move, right stick = look, R2/RB = fire, A = jump.
 	_axis("move_left", JOY_AXIS_0, -1.0)
 	_axis("move_right", JOY_AXIS_0, 1.0)
@@ -62,12 +67,74 @@ func _register_actions() -> void:
 	_pad("jump", JOY_XBOX_A)
 	_pad("reload", JOY_XBOX_X)
 	_pad("sprint", JOY_BUTTON_8)  # left stick click
+	_pad("crouch", JOY_BUTTON_9)  # right stick click
 	_pad("fire", JOY_R2)
 	_pad("aim", JOY_L2)
 	_axis("aim", JOY_AXIS_6, 1.0)  # left trigger
 	_axis("fire", JOY_AXIS_7, 1.0)  # right trigger
 	_pad("interact", JOY_XBOX_Y)
 	_pad("inventory", JOY_SELECT)
+	_pad("emote", JOY_DPAD_UP)
+
+
+# (Re)build every action's keyboard / mouse events from the saved overrides, else the defaults. Gamepad events stay.
+func apply_bindings() -> void:
+	for action in DEFAULTS:
+		for ev in InputMap.get_action_list(action):
+			if ev is InputEventKey or ev is InputEventMouseButton:
+				InputMap.action_erase_event(action, ev)
+		var list: Array = Settings.keybinds.get(action, DEFAULTS[action])
+		for entry in list:
+			if entry[0] == "key":
+				_key(action, int(entry[1]))
+			else:
+				_mouse(action, int(entry[1]))
+
+
+# Bind one key / mouse button to an action, taking it away from any other action that used it. Saved immediately.
+func set_binding(action: String, type: String, code: int) -> void:
+	for other in DEFAULTS:
+		if other == action:
+			continue
+		var list: Array = Settings.keybinds.get(other, DEFAULTS[other]).duplicate(true)
+		var kept := []
+		for entry in list:
+			if not (entry[0] == type and int(entry[1]) == code):
+				kept.append(entry)
+		if kept.size() != list.size():
+			Settings.keybinds[other] = kept
+	Settings.keybinds[action] = [[type, code]]
+	apply_bindings()
+	Settings.save_settings()
+
+
+func reset_bindings() -> void:
+	Settings.keybinds = {}
+	apply_bindings()
+	Settings.save_settings()
+
+
+# One short label for the HUD hints ("Z", "LMB", "Ctrl"); follows the player's rebinding.
+func key_label(action: String) -> String:
+	for ev in InputMap.get_action_list(action):
+		if ev is InputEventKey:
+			var t := OS.get_scancode_string(ev.scancode)
+			var short := {"Control": "Ctrl", "Escape": "Esc", "Space": "Space", "Shift": "Shift"}
+			return short.get(t, t)
+		elif ev is InputEventMouseButton:
+			return ["", "LMB", "RMB", "MMB", "Wheel+", "Wheel-"][clamp(ev.button_index, 0, 5)]
+	return "-"
+
+
+# Short text for what is bound to an action ("W / Up", "Mouse Left", "Unbound").
+func binding_text(action: String) -> String:
+	var parts := []
+	for ev in InputMap.get_action_list(action):
+		if ev is InputEventKey:
+			parts.append(OS.get_scancode_string(ev.scancode))
+		elif ev is InputEventMouseButton:
+			parts.append(["", "Mouse Left", "Mouse Right", "Mouse Middle", "Wheel Up", "Wheel Down"][clamp(ev.button_index, 0, 5)])
+	return " / ".join(parts) if parts.size() > 0 else "Unbound"
 
 
 func _add(action: String, event: InputEvent) -> void:

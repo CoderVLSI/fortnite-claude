@@ -20,6 +20,7 @@ var builder
 var _interact_t := 0.0
 var _audio_ready := false
 var _last_look_time := 0.0
+var _aim_latch := false     # toggle-aim mode (Settings > Gameplay)
 var combat_until := 0.0     # seconds (ticks) until which the music stays in "combat"
 
 
@@ -150,8 +151,12 @@ func _ground_process(delta: float) -> void:
 		for i in range(BUILD_ACTIONS.size()):
 			if Input.is_action_just_pressed(BUILD_ACTIONS[i]):
 				press_piece(i)
-		for i in range(Items.SLOT_COUNT):
-			if Input.is_action_just_pressed("slot_%d" % (i + 1)):
+		if Input.is_action_just_pressed("pickaxe"):          # F: the pickaxe
+			if builder.active:
+				builder.set_active(false)
+			select_slot(0)
+		for i in range(1, Items.SLOT_COUNT):                 # 1-4: the item slots, in order
+			if Input.is_action_just_pressed("slot_%d" % i):
 				if builder.active:
 					builder.set_active(false)          # picking an item leaves build mode
 				select_slot(i)
@@ -195,7 +200,14 @@ func _update_aim() -> void:
 	var gun: bool = item != null and item.kind == "weapon" and not builder.active
 	if not gun:
 		Controls.touch_aim = false
-	var wants: bool = gun and (Input.is_action_pressed("aim") or Controls.touch_aim) and _can_aim()
+		_aim_latch = false
+	if Settings.aim_toggle:
+		if Input.is_action_just_pressed("aim"):
+			_aim_latch = not _aim_latch
+	else:
+		_aim_latch = false
+	var pressed: bool = _aim_latch if Settings.aim_toggle else Input.is_action_pressed("aim")
+	var wants: bool = gun and (pressed or Controls.touch_aim) and _can_aim()
 	if wants:
 		sprinting = false
 	aiming = wants and not is_reloading() and not is_using()
@@ -217,6 +229,11 @@ func _fire_input(delta: float) -> void:
 		cancel_use()
 		return
 	if item.kind == "consumable":
+		if is_throwable_selected():
+			if Input.is_action_just_pressed("fire"):
+				var a := aim_origin_and_dir()
+				throw_grenade(a[0], a[1])
+			return
 		use_selected(delta)
 		return
 	if automatic or Input.is_action_just_pressed("fire"):

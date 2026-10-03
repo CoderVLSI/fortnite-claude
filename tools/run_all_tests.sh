@@ -26,5 +26,6 @@ run build_test --no-bus --skip-menu
 run poi_test --no-bus --skip-menu
 run scope_test --no-bus --skip-menu
 run inventory_test --no-bus --skip-menu
+run mechanics_test --no-bus --skip-menu
 run menu_test
 exit $fail

@@ -5,7 +5,7 @@ extends CanvasLayer
 # character, a player card, the mode card with the big PLAY button and a tab bar.
 
 const FONT_PATH := "res://assets/fonts/DejaVuSans-Bold.ttf"
-const HELP_PC := "Move: WASD        Look: mouse        Fire: left click        Aim / scope: right click\nJump / handbrake: Space        Sprint: Shift        Reload / horn: R\nPick up / swap / open / enter vehicle: E        Inventory: Tab  (X drops)        Build: Q toggles, Z X C V = wall / floor / ramp / roof, wheel = material\nHotbar: 1-5 or wheel        Map: M        Pause: Esc"
+const HELP_PC := "Move: WASD        Look: mouse        Fire: left click        Aim / scope: right click\nJump / handbrake: Space        Sprint: Shift        Reload / horn: R\nPick up / swap / open / enter vehicle: E        Inventory: Tab  (X drops)        Build: Q toggles, Z X C V = wall / floor / ramp / roof, wheel = material\nItems: 1-4 or wheel, F = pickaxe        Map: M        Emote: B        Crouch / slide: Ctrl        Pause: Esc  (all keys can be changed in Settings > Controls)"
 const HELP_TOUCH := "Left thumb: move    Right side: look    FIRE / JUMP / SPRINT buttons, scope button to aim down sights\nPICK UP appears next to loot, chests and vehicles    BUILD toggles building\nTap the hotbar to switch items, the bag button for the inventory    Tap the minimap for the island map"
 const HELP_GOAL := "Ride the Sky Ferry, jump, glide down and loot.  Fight bots, stay inside the shrinking storm,\ndrive vehicles, swim, climb ledges, take on the Warden at Iron Bunker for Mythic loot.\nBe the last one standing."
 
@@ -31,6 +31,12 @@ var state := "hidden"            # title | paused | hidden
 var _orbit_t := 0.0
 var _font: DynamicFont
 var _settings_return := "title"
+var settings_pages := {}
+var settings_tabs := {}
+var rebind_buttons := {}
+var _rebind_action := ""
+var name_edit: LineEdit
+var name_label: Label
 var mode_info: Label
 var stat_labels := {}
 var tip_label: Label
@@ -268,6 +274,7 @@ func _build_title() -> Control:
 	var name_l := _label(Settings.player_name, 30, Color.white)
 	name_l.rect_position = Vector2(88, 14)
 	card.add_child(name_l)
+	name_label = name_l
 	var sub := _label("SOLO  -  BATTLE ROYALE", 15, Color(0.65, 0.78, 1.0))
 	sub.rect_position = Vector2(90, 52)
 	card.add_child(sub)
@@ -318,34 +325,43 @@ func _build_title() -> Control:
 	return p
 
 
+# Settings is a set of dedicated pages (tabs): AUDIO, GRAPHICS, CONTROLS (look settings + a rebindable key list) and GAMEPLAY.
 func _build_settings() -> Control:
+	var gold := Color(1.0, 0.88, 0.45)
 	var p := Panel.new()
-	p.rect_size = Vector2(700, 560)
 	p.anchor_left = 0.5
 	p.anchor_right = 0.5
 	p.anchor_top = 0.5
 	p.anchor_bottom = 0.5
-	p.margin_left = -350
-	p.margin_right = 350
-	p.margin_top = -280
-	p.margin_bottom = 280
-	var col := _column(p, Vector2(40, 24), Vector2(620, 500))
-	col.add_child(_label("SETTINGS", 40, Color(1.0, 0.88, 0.45)))
-	col.add_child(_slider_row("Music volume", Settings.music_volume, 0.0, 1.0, "music"))
-	col.add_child(_slider_row("Effects volume", Settings.sfx_volume, 0.0, 1.0, "sfx"))
-	col.add_child(_slider_row("Look sensitivity", Settings.look_sensitivity, 0.3, 2.5, "sens"))
-	var inv := CheckBox.new()
-	inv.text = "Invert Y axis"
-	inv.pressed = Settings.invert_y
-	inv.connect("toggled", self, "_on_invert")
-	col.add_child(inv)
-	var fps := CheckBox.new()
-	fps.text = "Show FPS"
-	fps.pressed = Settings.show_fps
-	fps.connect("toggled", self, "_on_fps")
-	col.add_child(fps)
+	p.margin_left = -520
+	p.margin_right = 520
+	p.margin_top = -335
+	p.margin_bottom = 335
+	var col := _column(p, Vector2(36, 16), Vector2(968, 640))
+	col.add_constant_override("separation", 10)
+	col.add_child(_label("SETTINGS", 38, gold))
+	var tabs := HBoxContainer.new()
+	tabs.add_constant_override("separation", 10)
+	col.add_child(tabs)
+	for t in [["AUDIO", "audio"], ["GRAPHICS", "graphics"], ["CONTROLS", "controls"], ["GAMEPLAY", "gameplay"]]:
+		var b := Button.new()
+		b.text = t[0]
+		b.rect_min_size = Vector2(190, 50)
+		b.connect("pressed", self, "_show_settings_page", [t[1]])
+		tabs.add_child(b)
+		settings_tabs[t[1]] = b
+	var holder := Control.new()
+	holder.rect_min_size = Vector2(968, 450)
+	col.add_child(holder)
+	settings_pages["audio"] = _page(holder)
+	settings_pages["audio"].add_child(_slider_row("Music volume", Settings.music_volume, 0.0, 1.0, "music"))
+	settings_pages["audio"].add_child(_slider_row("Effects volume", Settings.sfx_volume, 0.0, 1.0, "sfx"))
+
+	settings_pages["graphics"] = _page(holder)
 	var qrow := HBoxContainer.new()
-	qrow.add_child(_label("Graphics  ", 0))
+	var ql := _label("Graphics quality", 0)
+	ql.rect_min_size = Vector2(230, 0)
+	qrow.add_child(ql)
 	var ob := OptionButton.new()
 	ob.add_item("Low (fast)")
 	ob.add_item("Medium")
@@ -353,10 +369,141 @@ func _build_settings() -> Control:
 	ob.selected = Settings.quality
 	ob.connect("item_selected", self, "_on_quality")
 	qrow.add_child(ob)
-	col.add_child(qrow)
+	settings_pages["graphics"].add_child(qrow)
+	var fps := CheckBox.new()
+	fps.text = "Show FPS"
+	fps.pressed = Settings.show_fps
+	fps.connect("toggled", self, "_on_fps")
+	settings_pages["graphics"].add_child(fps)
+
+	var cp := _page(holder)
+	settings_pages["controls"] = cp
+	var look_row := HBoxContainer.new()
+	look_row.add_child(_slider_row("Look sensitivity", Settings.look_sensitivity, 0.3, 2.5, "sens"))
+	var inv := CheckBox.new()
+	inv.text = "Invert Y axis"
+	inv.pressed = Settings.invert_y
+	inv.connect("toggled", self, "_on_invert")
+	look_row.add_child(inv)
+	cp.add_child(look_row)
+	cp.add_child(_label("Click a key, then press the new key or mouse button (Esc or a left click cancels)", 16, Color(0.7, 0.8, 1.0)))
+	var scroll := ScrollContainer.new()
+	scroll.rect_min_size = Vector2(968, 255)
+	scroll.scroll_horizontal_enabled = false
+	cp.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.add_constant_override("separation", 5)
+	list.rect_min_size = Vector2(930, 0)
+	scroll.add_child(list)
+	var groups := {"move_forward": "MOVEMENT", "fire": "COMBAT", "pickaxe": "ITEMS", "build_toggle": "BUILDING", "inventory": "INTERFACE AND EXTRAS"}
+	for entry in Controls.BINDABLE:
+		if groups.has(entry[0]):
+			list.add_child(_label(groups[entry[0]], 18, Color(0.6, 0.85, 1.0)))
+		var row := HBoxContainer.new()
+		var rl := _label(entry[1], 0)
+		rl.rect_min_size = Vector2(300, 0)
+		row.add_child(rl)
+		var kb := Button.new()
+		kb.rect_min_size = Vector2(300, 38)
+		kb.text = Controls.binding_text(entry[0])
+		kb.connect("pressed", self, "_begin_rebind", [entry[0]])
+		row.add_child(kb)
+		rebind_buttons[entry[0]] = kb
+		list.add_child(row)
+	var reset := Button.new()
+	reset.text = "RESET ALL KEYS TO DEFAULT"
+	reset.rect_min_size = Vector2(380, 44)
+	reset.connect("pressed", self, "_on_reset_keys")
+	cp.add_child(reset)
+
+	var gp := _page(holder)
+	settings_pages["gameplay"] = gp
+	var nrow := HBoxContainer.new()
+	var nl := _label("Player name", 0)
+	nl.rect_min_size = Vector2(230, 0)
+	nrow.add_child(nl)
+	name_edit = LineEdit.new()
+	name_edit.text = Settings.player_name
+	name_edit.max_length = 14
+	name_edit.rect_min_size = Vector2(340, 44)
+	name_edit.connect("text_changed", self, "_on_name_changed")
+	nrow.add_child(name_edit)
+	gp.add_child(nrow)
+	var at := CheckBox.new()
+	at.text = "Toggle aim (tap right click to scope in and out instead of holding)"
+	at.pressed = Settings.aim_toggle
+	at.connect("toggled", self, "_on_aim_toggle")
+	gp.add_child(at)
+	var dn := CheckBox.new()
+	dn.text = "Show damage numbers"
+	dn.pressed = Settings.damage_numbers
+	dn.connect("toggled", self, "_on_damage_numbers")
+	gp.add_child(dn)
+
 	col.add_child(_button("BACK", "settings_back", 240))
 	root.add_child(p)
+	_show_settings_page("audio")
 	return p
+
+
+func _page(holder: Control) -> VBoxContainer:
+	var v := VBoxContainer.new()
+	v.rect_position = Vector2.ZERO
+	v.rect_size = Vector2(968, 450)
+	v.add_constant_override("separation", 12)
+	v.visible = false
+	holder.add_child(v)
+	return v
+
+
+func _show_settings_page(id: String) -> void:
+	_cancel_rebind()
+	for k in settings_pages:
+		settings_pages[k].visible = (k == id)
+		settings_tabs[k].modulate = Color(1.0, 0.88, 0.35) if k == id else Color.white
+	Audio.play2d("ui_click", -8.0)
+
+
+func _begin_rebind(action: String) -> void:
+	_cancel_rebind()
+	_rebind_action = action
+	rebind_buttons[action].text = "Press a key..."
+	Audio.play2d("ui_click", -8.0)
+
+
+func _cancel_rebind() -> void:
+	if _rebind_action != "":
+		rebind_buttons[_rebind_action].text = Controls.binding_text(_rebind_action)
+		_rebind_action = ""
+
+
+func _refresh_bindings() -> void:
+	for a in rebind_buttons:
+		rebind_buttons[a].text = Controls.binding_text(a)
+
+
+func _on_reset_keys() -> void:
+	_cancel_rebind()
+	Controls.reset_bindings()
+	_refresh_bindings()
+	Audio.play2d("ui_click", -6.0)
+
+
+func _on_name_changed(text: String) -> void:
+	Settings.player_name = text.strip_edges().to_upper() if text.strip_edges() != "" else "PLAYER"
+	Settings.save_settings()
+	if name_label != null:
+		name_label.text = Settings.player_name
+
+
+func _on_aim_toggle(on: bool) -> void:
+	Settings.aim_toggle = on
+	Settings.save_settings()
+
+
+func _on_damage_numbers(on: bool) -> void:
+	Settings.damage_numbers = on
+	Settings.save_settings()
 
 
 func _slider_row(text: String, value: float, lo: float, hi: float, id: String) -> Control:
@@ -504,6 +651,7 @@ func _open_sub(panel: Control, back_to: String) -> void:
 
 
 func _back_from_sub() -> void:
+	_cancel_rebind()
 	settings_panel.visible = false
 	help_panel.visible = false
 	if _settings_return == "title":
@@ -586,6 +734,25 @@ func _process(delta: float) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	if _rebind_action != "" and event.is_pressed() and not event.is_echo():
+		if event is InputEventKey:
+			if event.scancode == KEY_ESCAPE:
+				_cancel_rebind()
+			else:
+				Controls.set_binding(_rebind_action, "key", event.scancode)
+				_rebind_action = ""
+				_refresh_bindings()
+			get_tree().set_input_as_handled()
+			return
+		elif event is InputEventMouseButton:
+			if event.button_index == BUTTON_LEFT:
+				_cancel_rebind()                              # a left click elsewhere just cancels (it would also steal Fire)
+			elif event.button_index <= BUTTON_MIDDLE:
+				Controls.set_binding(_rebind_action, "mouse", event.button_index)
+				_rebind_action = ""
+				_refresh_bindings()
+				get_tree().set_input_as_handled()
+				return
 	if event is InputEventKey and event.pressed and event.scancode == KEY_ESCAPE and not event.echo:
 		if world != null and world.hud != null and world.hud.inventory.visible:
 			world.hud.close_inventory()                 # Esc closes the inventory screen before it pauses the game

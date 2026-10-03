@@ -16,6 +16,10 @@ var player
 var _tex := {}                       # icons kept alive between draws
 var _big: DynamicFont
 var _hover := -1
+var _drag_from := -1                 # equipment slot being dragged (press on an item, then move)
+var _dragging := false
+var _press_pos := Vector2.ZERO
+var _drag_pos := Vector2.ZERO
 var _rects := {}                     # filled by _layout(): "slots" [Rect2], "drop", "back"
 
 
@@ -98,27 +102,52 @@ func _input(event: InputEvent) -> void:
 			get_tree().set_input_as_handled()
 
 
+func _slot_at(pos: Vector2) -> int:
+	var L := _layout()
+	for i in range(L.slots.size()):
+		if L.slots[i].has_point(pos):
+			return i
+	return -1
+
+
+# Press on an item to pick it up; drag it onto another item slot to swap / move it; a plain click equips it.
 func _gui_input(event: InputEvent) -> void:
 	if player == null:
 		return
 	var L := _layout()
 	if event is InputEventMouseMotion:
-		_hover = -1
-		for i in range(L.slots.size()):
-			if L.slots[i].has_point(event.position):
-				_hover = i
-	elif event is InputEventMouseButton and event.pressed and event.button_index == BUTTON_LEFT:
-		for i in range(L.slots.size()):
-			if L.slots[i].has_point(event.position) and player.slots[i] != null:
-				_hover = i
-				player.select_slot(i)
-				Audio.play2d("ui_slot", -6.0)
+		_drag_pos = event.position
+		_hover = _slot_at(event.position)
+		if _drag_from >= 0 and not _dragging and event.position.distance_to(_press_pos) > 8.0 and _drag_from >= 1:
+			_dragging = true
+	elif event is InputEventMouseButton and event.button_index == BUTTON_LEFT:
+		if event.pressed:
+			var i := _slot_at(event.position)
+			if i >= 0 and player.slots[i] != null:
+				_drag_from = i
+				_dragging = false
+				_press_pos = event.position
+				_drag_pos = event.position
 				return
-		if L.drop.has_point(event.position):
-			player.drop_slot(_shown_index())
-		elif L.back.has_point(event.position):
-			Audio.play2d("ui_click", -6.0)
-			emit_signal("closed")
+			if L.drop.has_point(event.position):
+				player.drop_slot(_shown_index())
+			elif L.back.has_point(event.position):
+				Audio.play2d("ui_click", -6.0)
+				emit_signal("closed")
+		else:
+			if _drag_from < 0:
+				return
+			var target := _slot_at(event.position)
+			if _dragging:
+				if target >= 1 and target != _drag_from and player.swap_slots(_drag_from, target):
+					Audio.play2d("ui_slot", -4.0)
+					_hover = target
+			elif target == _drag_from:
+				_hover = target
+				player.select_slot(_drag_from)                # a plain click equips
+				Audio.play2d("ui_slot", -6.0)
+			_drag_from = -1
+			_dragging = false
 
 
 # ------------------------------------------------------------------ drawing
@@ -156,11 +185,27 @@ func _draw() -> void:
 			elif item.kind == "consumable":
 				label = str(item.count)
 		_tile(r, tex, label, col, font)
-		draw_string(font, r.position + Vector2(6, 20), str(i + 1), Color(1, 1, 1, 0.8))
+		if item != null and tex == null:                       # no generated icon yet: a simple stand-in
+			var mid := r.position + r.size / 2.0
+			draw_circle(mid, 24.0, Color(0.30, 0.40, 0.18) if item.id == "grenade" else col)
+			if item.id == "grenade":
+				draw_rect(Rect2(mid + Vector2(-6, -34), Vector2(12, 12)), Color(0.65, 0.67, 0.7))
+		draw_string(font, r.position + Vector2(6, 20), Controls.key_label("pickaxe") if i == 0 else Controls.key_label("slot_%d" % i), Color(1, 1, 1, 0.8))
+		if _dragging and i == _drag_from:
+			draw_rect(r, Color(0, 0, 0, 0.55))                                      # the item being carried
+		elif _dragging and i == _hover and i >= 1:
+			draw_rect(r.grow(3.0), Color(0.3, 1.0, 0.45, 1.0), false, 4.0)         # a valid drop target
 		if i == player.selected:
 			draw_rect(r.grow(3.0), Color(1.0, 0.92, 0.1, 1.0), false, 4.0)         # equipped = yellow
 		elif i == _hover:
 			draw_rect(r.grow(2.0), Color(1, 1, 1, 0.9), false, 2.0)
+	if _dragging and _drag_from >= 0 and player.slots[_drag_from] != null:
+		var ghost: Rect2 = Rect2(_drag_pos - Vector2(44, 44), Vector2(88, 88))
+		var gi = icon(icon_name_of(player.slots[_drag_from]))
+		if gi != null:
+			draw_texture_rect(gi, ghost, false, Color(1, 1, 1, 0.85))
+		else:
+			draw_rect(ghost, Color(1, 1, 1, 0.5))
 	_button(L.drop, "X   Drop", Color(0.16, 0.24, 0.45, 0.95), font)
 	_button(L.back, "TAB   Back", Color(0.16, 0.24, 0.45, 0.95), font)
 
@@ -216,13 +261,18 @@ func _draw_details(font: Font, big: Font) -> void:
 				["Reload Time", "%.1f s" % s.reload], ["Range", "%.0f m" % s.range]]
 		"consumable":
 			var c: Dictionary = Items.CONSUMABLES[item.id]
-			kind_text = "%s | Consumable" % Items.RARITIES[c.rarity].name
+			kind_text = "%s | %s" % [Items.RARITIES[c.rarity].name, "Throwable" if c.get("throw", false) else "Consumable"]
 			name_text = c.name.to_upper()
+			if c.get("throw", false):
+				rows.append(["Damage", "up to 127"])
+				rows.append(["Blast Radius", "8 m"])
+				rows.append(["Fuse", "2.4 s"])
 			if c.heal > 0.0:
 				rows.append(["Heals", "+%.0f (up to %.0f)" % [c.heal, c.heal_cap]])
 			if c.shield > 0.0:
 				rows.append(["Shield", "+%.0f (up to %.0f)" % [c.shield, c.shield_cap]])
-			rows.append(["Use Time", "%.1f s" % c.time])
+			if not c.get("throw", false):
+				rows.append(["Use Time", "%.1f s" % c.time])
 			rows.append(["Carried", "%d / %d" % [item.count, c.stack]])
 		_:
 			rows = [["Damage", "20"], ["Swing Rate", "1.8"], ["Gathers", "wood, stone, metal"]]

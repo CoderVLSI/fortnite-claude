@@ -68,6 +68,12 @@ const CONSUMABLES := {
 		"time": 2.0, "stack": 6, "rarity": 1},
 	"shield_potion": {"name": "Shield Potion", "heal": 0.0, "heal_cap": 0.0, "shield": 50.0, "shield_cap": 100.0,
 		"time": 4.0, "stack": 2, "rarity": 2},
+	"slurp_juice": {"name": "Slurp Juice", "heal": 25.0, "heal_cap": 100.0, "shield": 25.0, "shield_cap": 100.0,
+		"time": 2.5, "stack": 4, "rarity": 2},
+	"chug_jug": {"name": "Chug Jug", "heal": 100.0, "heal_cap": 100.0, "shield": 100.0, "shield_cap": 100.0,
+		"time": 10.0, "stack": 1, "rarity": 4},
+	"grenade": {"name": "Grenade", "heal": 0.0, "heal_cap": 0.0, "shield": 0.0, "shield_cap": 0.0,
+		"time": 0.0, "stack": 6, "rarity": 1, "throw": true},
 }
 
 const MODEL_DIR := "res://assets/models/"
@@ -200,13 +206,15 @@ static func random_weapon(rng: RandomNumberGenerator, bonus: int = 0) -> Diction
 
 
 static func random_consumable(rng: RandomNumberGenerator) -> Dictionary:
-	var table := ["bandage", "bandage", "bandage", "mini_shield", "mini_shield", "medkit", "shield_potion"]
+	var table := ["bandage", "bandage", "bandage", "mini_shield", "mini_shield", "medkit", "shield_potion", "slurp_juice", "grenade", "grenade"]
 	var id: String = table[rng.randi() % table.size()]
 	var count := 1
 	if id == "bandage":
 		count = 3 + rng.randi() % 4
-	elif id == "mini_shield":
+	elif id == "mini_shield" or id == "slurp_juice":
 		count = 1 + rng.randi() % 2
+	elif id == "grenade":
+		count = 2 + rng.randi() % 3
 	return make_consumable(id, count)
 
 
@@ -246,6 +254,7 @@ static func chest_loot(kind: String, rng: RandomNumberGenerator) -> Array:
 			loot.append(ammo_for(vw, rng, 2.5))
 			loot.append(make_consumable("shield_potion", 2))
 			loot.append(make_consumable("medkit", 1))
+			loot.append(make_consumable("chug_jug", 1))
 			loot.append(make_material("metal", 150))
 			loot.append(make_material("stone", 100))
 		"supply":     # supply drop: top-tier weapons plus shield/heal
@@ -257,6 +266,7 @@ static func chest_loot(kind: String, rng: RandomNumberGenerator) -> Array:
 			loot.append(w2)
 			loot.append(make_consumable("shield_potion", 2))
 			loot.append(make_consumable("medkit", 1))
+			loot.append(make_consumable("grenade", 3))
 			loot.append(ammo_for(w1, rng, 2.0))
 			loot.append(ammo_for(w2, rng, 2.0))
 			loot.append(make_material("wood", 100))

@@ -92,6 +92,46 @@ func _run() -> void:
 	var cfg := ConfigFile.new()
 	check(cfg.load("user://settings.cfg") == OK and abs(float(cfg.get_value("audio", "music", -1)) - 0.35) < 0.001, "settings are saved to user://settings.cfg")
 	yield(_shot("menu_settings"), "completed")
+
+	# dedicated pages + key rebinding
+	var controls = root.get_node("Controls")
+	check(menu.settings_pages.size() == 4 and menu.settings_tabs.size() == 4, "settings has four dedicated pages")
+	menu._show_settings_page("controls")
+	check(menu.settings_pages["controls"].visible and not menu.settings_pages["audio"].visible, "tabs switch pages")
+	check(controls.binding_text("pickaxe") == "F" and controls.key_label("slot_1") == "1", "defaults: pickaxe F, items 1-4")
+	menu._begin_rebind("jump")
+	var kj := InputEventKey.new()
+	kj.scancode = KEY_J
+	kj.pressed = true
+	menu._input(kj)
+	check(controls.binding_text("jump") == "J" and menu.rebind_buttons["jump"].text == "J", "pressing a key rebinds the action")
+	var has_space := false
+	for ev in InputMap.get_action_list("jump"):
+		if ev is InputEventKey and ev.scancode == KEY_SPACE:
+			has_space = true
+	check(not has_space, "the old key no longer triggers the action")
+	menu._begin_rebind("reload")
+	menu._input(kj)
+	check(controls.binding_text("reload") == "J" and controls.binding_text("jump") == "Unbound", "a key moves from the action that had it (jump is now unbound)")
+	menu._begin_rebind("reload")
+	var kesc := InputEventKey.new()
+	kesc.scancode = KEY_ESCAPE
+	kesc.pressed = true
+	menu._input(kesc)
+	check(controls.binding_text("reload") == "J" and menu.state == "settings", "Esc cancels a rebind without pausing")
+	var cfg2 := ConfigFile.new()
+	check(cfg2.load("user://settings.cfg") == OK and cfg2.has_section_key("keybinds", "reload"), "rebinds are saved")
+	menu._on_reset_keys()
+	check(controls.binding_text("jump") == "Space" and controls.binding_text("reload") == "R", "reset restores the default keys")
+	menu._on_aim_toggle(true)
+	menu._on_damage_numbers(false)
+	check(settings.aim_toggle and not settings.damage_numbers, "gameplay options are stored")
+	menu._on_aim_toggle(false)
+	menu._on_damage_numbers(true)
+	menu._on_name_changed("rookie")
+	check(settings.player_name == "ROOKIE", "the player name can be changed")
+	menu._on_name_changed("player")
+	menu._show_settings_page("audio")
 	menu._on_button("settings_back")
 
 	menu._on_button("play")

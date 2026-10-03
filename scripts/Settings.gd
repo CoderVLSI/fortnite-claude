@@ -15,6 +15,9 @@ var player_name := "PLAYER"
 var matches := 0                  # career stats shown on the lobby card
 var wins := 0
 var elims := 0
+var aim_toggle := false           # tap to aim instead of hold
+var damage_numbers := true
+var keybinds := {}                # action -> [[type, code], ...]; only the actions the player changed
 var autostart := false            # runtime only: skip the title screen after "Play again"
 
 
@@ -33,6 +36,11 @@ func load_settings() -> void:
 	invert_y = bool(cfg.get_value("controls", "invert_y", invert_y))
 	quality = int(cfg.get_value("graphics", "quality", quality))
 	show_fps = bool(cfg.get_value("graphics", "show_fps", show_fps))
+	aim_toggle = bool(cfg.get_value("gameplay", "aim_toggle", aim_toggle))
+	damage_numbers = bool(cfg.get_value("gameplay", "damage_numbers", damage_numbers))
+	if cfg.has_section("keybinds"):
+		for action in cfg.get_section_keys("keybinds"):
+			keybinds[action] = cfg.get_value("keybinds", action, [])
 	player_name = str(cfg.get_value("profile", "name", player_name))
 	matches = int(cfg.get_value("profile", "matches", matches))
 	wins = int(cfg.get_value("profile", "wins", wins))
@@ -47,6 +55,10 @@ func save_settings() -> void:
 	cfg.set_value("controls", "invert_y", invert_y)
 	cfg.set_value("graphics", "quality", quality)
 	cfg.set_value("graphics", "show_fps", show_fps)
+	cfg.set_value("gameplay", "aim_toggle", aim_toggle)
+	cfg.set_value("gameplay", "damage_numbers", damage_numbers)
+	for action in keybinds:
+		cfg.set_value("keybinds", action, keybinds[action])
 	cfg.set_value("profile", "name", player_name)
 	cfg.set_value("profile", "matches", matches)
 	cfg.set_value("profile", "wins", wins)

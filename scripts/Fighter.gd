@@ -14,6 +14,7 @@ signal died(victim, killer)
 signal damaged(amount, source)
 signal hit_landed(target, killed, headshot)
 signal picked_up(text)
+signal damage_dealt(pos, amount, headshot, killed)    # for the HUD's floating damage numbers
 signal harvested(pos, fraction, kind, label, id)   # a pickaxe hit on a tree / rock / build piece: what is left (0 = gone)
 signal slot_changed
 signal landed
@@ -21,6 +22,7 @@ signal landed
 enum Mode { GROUND, BUS, FREEFALL, GLIDE, SWIM, MANTLE, VEHICLE }
 
 const MODEL_PATH := "res://assets/models/player.glb"
+const Grenade = preload("res://scripts/Grenade.gd")
 const GLIDER_PATH := "res://assets/models/glider.glb"
 const DEPLOY_ALTITUDE := 75.0
 const WATER_LEVEL := 0.0
@@ -206,6 +208,27 @@ func _swap_into(t: int, item: Dictionary):
 	last_item_slot = t
 	_apply_selected()
 	return old
+
+
+# Move an item between two item slots (an empty target just moves it). The same item stays equipped.
+func swap_slots(a: int, b: int) -> bool:
+	if is_dead or a == b or a < 1 or b < 1 or a >= slots.size() or b >= slots.size():
+		return false
+	if slots[a] == null and slots[b] == null:
+		return false
+	var t = slots[a]
+	slots[a] = slots[b]
+	slots[b] = t
+	if selected == a:
+		selected = b
+	elif selected == b:
+		selected = a
+	if last_item_slot == a:
+		last_item_slot = b
+	elif last_item_slot == b:
+		last_item_slot = a
+	emit_signal("slot_changed")
+	return true
 
 
 # Drop the item in slot i on the ground in front of the character. The pickaxe cannot be dropped.
@@ -422,6 +445,35 @@ func use_selected(delta: float) -> void:
 			_apply_selected()
 		else:
 			emit_signal("slot_changed")
+
+
+# A throwable (grenade) is thrown instantly with "fire"; the rest of the stack stays in the slot.
+func is_throwable_selected() -> bool:
+	var item = selected_item()
+	return item != null and item.kind == "consumable" and Items.CONSUMABLES[item.id].get("throw", false)
+
+
+func throw_grenade(aim_from: Vector3, aim_dir: Vector3) -> bool:
+	if is_dead or mode != Mode.GROUND or _fire_cd > 0.0 or not is_throwable_selected():
+		return false
+	var item = selected_item()
+	_fire_cd = 0.9
+	_swing = 0.3
+	Audio.play3d("swing", global_transform.origin + Vector3(0, 1.3, 0), -4.0, 0.7)
+	var g := Grenade.new()
+	g.thrower = self
+	get_parent().add_child(g)
+	g.global_transform.origin = global_transform.origin + Vector3(0, 1.55, 0) + aim_dir * 0.9
+	g.linear_velocity = aim_dir * 17.0 + Vector3(0, 4.0, 0) + Vector3(velocity.x, 0, velocity.z) * 0.6
+	g.angular_velocity = Vector3(rand_range(-6, 6), rand_range(-6, 6), rand_range(-6, 6))
+	item.count -= 1
+	if item.count <= 0:
+		slots[selected] = null
+		selected = 0
+		_apply_selected()
+	else:
+		emit_signal("slot_changed")
+	return true
 
 
 func cancel_use() -> void:
@@ -864,8 +916,10 @@ func _fire_ray(aim_from: Vector3, aim_dir: Vector3, show_tracer: bool) -> void:
 			var head: bool = hit.position.y > target.global_transform.origin.y + 1.42
 			var was_alive: bool = not target.is_dead
 			var falloff: float = 1.0 - 0.35 * clamp(aim_from.distance_to(hit.position) / weapon_range, 0.0, 1.0)
-			target.take_damage(gun_damage * falloff * (head_mult if head else 1.0), self)
+			var dealt: float = gun_damage * falloff * (head_mult if head else 1.0)
+			target.take_damage(dealt, self)
 			emit_signal("hit_landed", target, was_alive and target.is_dead, head)
+			emit_signal("damage_dealt", hit.position, dealt, head, was_alive and target.is_dead)
 	if show_tracer:
 		_spawn_tracer(muzzle_position(), end)
 

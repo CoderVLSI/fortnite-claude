@@ -28,7 +28,8 @@ static func wanted_size() -> Vector2:
 
 func icon(name: String):
 	if not _icons.has(name):
-		_icons[name] = load(ICON_DIR + name + ".png")
+		var path: String = ICON_DIR + name + ".png"
+		_icons[name] = load(path) if ResourceLoader.exists(path) else null      # not every item has generated art yet
 	return _icons[name]
 
 
@@ -146,7 +147,7 @@ func _draw_slot(i: int, font: Font) -> void:
 			draw_string(font, r.position + Vector2(SLOT - w - 5, SLOT - 12), count, Color.white)
 	if selected:
 		draw_rect(r.grow(2.0), Color(1, 1, 1, 0.95), false, 3.0)
-	draw_string(font, r.position + Vector2(5, 17), str(i + 1), Color(1, 1, 1, 0.75))
+	draw_string(font, r.position + Vector2(5, 17), Controls.key_label("pickaxe") if i == 0 else Controls.key_label("slot_%d" % i), Color(1, 1, 1, 0.75))
 
 
 # Fortnite-style build row: [Q build mode] [wall Z] [floor X] [ramp C] [roof V], right-aligned over the item slots.
@@ -160,8 +161,8 @@ func _draw_build_row(font: Font) -> void:
 	var q := Rect2(Vector2(0, y), Vector2(SLOT, SLOT))
 	draw_rect(q, Color(0.05, 0.07, 0.12, 0.62 if not active else 0.8))
 	draw_rect(q, Color(0.45, 0.78, 1.0, 0.95) if active else Color(1, 1, 1, 0.35), false, 3.0 if active else 2.0)
-	var qw := font.get_string_size("Q").x
-	draw_string(font, q.position + Vector2((SLOT - qw) / 2.0, SLOT / 2.0 + 8.0), "Q", Color.white)
+	var qw := font.get_string_size(Controls.key_label("build_toggle")).x
+	draw_string(font, q.position + Vector2((SLOT - qw) / 2.0, SLOT / 2.0 + 8.0), Controls.key_label("build_toggle"), Color.white)
 	for i in range(4):
 		var r := Rect2(Vector2((i + 1) * (SLOT + GAP), y), Vector2(SLOT, SLOT))
 		var chosen: bool = active and builder.piece == i
@@ -175,7 +176,7 @@ func _draw_build_row(font: Font) -> void:
 		draw_rect(Rect2(r.position + Vector2(SLOT - 30, SLOT - 24), Vector2(28, 20)), Color(0, 0, 0, 0.55))
 		draw_string(font, r.position + Vector2(SLOT - 27, SLOT - 8), str(builder.COST) if builder != null else "10", Color.white if afford else Color(1.0, 0.4, 0.3))
 		draw_rect(r, Color(0.45, 0.78, 1.0, 1.0) if chosen else Color(1, 1, 1, 0.35), false, 3.0 if chosen else 2.0)
-		draw_string(font, r.position + Vector2(5, 17), ["Z", "X", "C", "V"][i], Color(1, 1, 1, 0.9))
+		draw_string(font, r.position + Vector2(5, 17), Controls.key_label(["build_wall", "build_floor", "build_ramp", "build_roof"][i]), Color(1, 1, 1, 0.9))
 
 
 func _draw_icon(item: Dictionary, c: Vector2) -> void:
@@ -237,3 +238,12 @@ func _draw_consumable(id: String, c: Vector2) -> void:
 			draw_circle(c + Vector2(0, 5), 14.0, Color(0.22, 0.50, 1.0))
 			draw_rect(Rect2(c + Vector2(-4, -15), Vector2(8, 12)), Color(0.55, 0.78, 1.0))
 			draw_circle(c + Vector2(-4, 1), 3.5, Color(1, 1, 1, 0.6))
+		"grenade":
+			draw_circle(c + Vector2(0, 5), 13.0, Color(0.30, 0.40, 0.18))
+			draw_rect(Rect2(c + Vector2(-4, -12), Vector2(8, 7)), Color(0.6, 0.62, 0.66))
+			draw_line(c + Vector2(2, -12), c + Vector2(14, -8), Color(0.7, 0.72, 0.76), 3.0)
+			draw_circle(c + Vector2(-8, -10), 4.0, Color(0.9, 0.75, 0.2))
+		_:                                   # slurp juice, chug jug and anything new: a potion in its rarity colour
+			var col: Color = Items.RARITIES[Items.CONSUMABLES[id].rarity].color
+			draw_circle(c + Vector2(0, 5), 14.0, col)
+			draw_rect(Rect2(c + Vector2(-4, -15), Vector2(8, 12)), col.lightened(0.4))

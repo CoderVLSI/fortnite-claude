@@ -279,7 +279,7 @@ func _run() -> void:
 	# --- chests: each variety opens and drops its contents
 	var spots := [Vector3(4, 0, 0), Vector3(-4, 0, 0), Vector3(0, 0, 5)]
 	var kinds := ["chest", "ammo_box", "supply"]
-	var expected := [4, 3, 9]       # weapon + ammo + consumable + materials, 2 ammo + materials, 2 guns + 2 heals + 2 ammo + 3 materials
+	var expected := [4, 3, 10]       # weapon+ammo+consumable+materials; 2 ammo+materials; 2 guns+3 heals/grenades+2 ammo+3 materials
 	for i in range(3):
 		var pos: Vector3 = p.global_transform.origin + spots[i]
 		var chest = world._add_chest(kinds[i], Vector3(pos.x, world.terrain.height_at(pos.x, pos.z), pos.z), 0.0)
