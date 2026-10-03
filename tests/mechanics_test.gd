@@ -193,8 +193,12 @@ func _run() -> void:
 		if n is RigidBody:
 			nades_before += 1
 	var thrown := false
-	for i in range(60 * 6):
+	for i in range(60 * 14):
 		yield(self, "physics_frame")
+		if i % 120 == 119:
+			hb._nade_cd = 0.0                       # the bot only decides now and then: give it several chances
+			p.global_transform.origin = hb.global_transform.origin + Vector3(0, 0, 15.0)
+			p.velocity = Vector3.ZERO
 		var now := 0
 		for n in world.get_children():
 			if n is RigidBody:

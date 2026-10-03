@@ -484,6 +484,25 @@ def make_shotgun():
     export("shotgun", [g.build(), empty("Muzzle", (0, 1.04, 0.045))])
 
 
+def make_rocket_launcher():
+    # A shoulder-fired tube: grip origin, barrel along +Y (Godot -Z), the rocket's warhead poking out of the front.
+    m = _gun_mats()
+    g = Part("RocketLauncher")
+    g.cone((0, 0.34, 0.07), 0.095, 0.095, 1.05, m["dark"], segments=12, axis="Y")          # launch tube
+    g.cone((0, 0.86, 0.07), 0.115, 0.115, 0.10, m["steel"], segments=12, axis="Y")         # muzzle flare ring
+    g.cone((0, -0.18, 0.07), 0.12, 0.12, 0.12, m["steel"], segments=12, axis="Y")          # rear blast cone
+    g.cone((0, 0.95, 0.07), 0.07, 0.0, 0.22, m["orange"], segments=10, axis="Y")           # the warhead
+    g.box((0, 0.32, 0.20), (0.05, 0.22, 0.07), m["dark"])                                  # sight rail
+    g.box((0, 0.58, 0.215), (0.02, 0.02, 0.05), m["brass"])                                # front post
+    g.box((0, 0.12, 0.215), (0.05, 0.04, 0.05), m["steel"])                                # rear sight
+    g.box((0, 0.20, -0.07), (0.05, 0.10, 0.18), m["dark"], rot=(0.2, 0, 0))                # pistol grip
+    g.box((0, 0.46, -0.05), (0.05, 0.08, 0.14), m["dark"], rot=(0.15, 0, 0))               # front handle
+    for yy in (0.10, 0.45, 0.80):                                                          # warning stripes round the tube
+        g.cone((0, yy, 0.07), 0.099, 0.099, 0.05, m["orange"], segments=12, axis="Y")
+    g.box((0, 0.34, 0.166), (0.03, 0.9, 0.012), m["accent"])
+    export("rocket_launcher", [g.build(), empty("Muzzle", (0, 1.08, 0.07))])
+
+
 def make_sniper():
     m = _gun_mats()
     g = Part("Sniper")
@@ -1331,6 +1350,10 @@ def make_boat():
 
 
 def main():
+    if os.environ.get("ONLY") == "rocket":
+        reset_scene()
+        make_rocket_launcher()
+        return
     if os.environ.get("ONLY") == "windows":       # houses, POI buildings and towers again, with their window markers
         reset_scene()
         make_house("house_a", 8.0, 7.0, 3.2, (0.93, 0.90, 0.82), (0.68, 0.22, 0.17), (0.42, 0.30, 0.20), 1.9, [-2.2, 2.2])
@@ -1361,7 +1384,7 @@ def main():
     make_house("house_b", 10.0, 8.0, 3.4, (0.55, 0.65, 0.78), (0.22, 0.26, 0.34), (0.90, 0.90, 0.92), 1.6, [-3.0, 0.0, 3.0])
     reset_scene()
     make_tower()
-    for fn in (make_pistol, make_smg, make_shotgun, make_sniper, make_pickaxe, make_pistol_mythic, make_smg_mythic,
+    for fn in (make_pistol, make_smg, make_shotgun, make_sniper, make_rocket_launcher, make_pickaxe, make_pistol_mythic, make_smg_mythic,
                make_assault_mythic, make_shotgun_mythic, make_sniper_mythic, make_bandage, make_medkit,
                make_ammo_pickup, make_chest, make_ammo_box, make_supply, make_bus, make_glider):
         reset_scene()
