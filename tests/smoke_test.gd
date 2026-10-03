@@ -417,15 +417,6 @@ func _run() -> void:
 
 	# --- audio events fired during all of the above
 	var audio = root.get_node("Audio")
-	# every mythic weapon plays its own shot (the sniper keeps the generic mythic boom)
-	for wid in ["pistol", "smg", "assault", "shotgun", "sniper"]:
-		p.slots[1] = Items.make_weapon(wid, Items.MYTHIC)
-		p.slots[1].mag = 5
-		p.select_slot(1)
-		p._fire_cd = 0.0
-		p.try_fire(p.global_transform.origin + Vector3(0, 1.5, 0), Vector3(0, 1, 0))
-		var want_snd: String = "shot_mythic" if wid == "sniper" else "shot_mythic_" + wid
-		check(audio.count_of(want_snd) > 0 and audio._stream(want_snd) != null, "mythic %s plays %s" % [wid, want_snd])
 	for snd in ["shot_rifle", "reload", "hitmarker", "chest_open", "ammo_box_open", "loot_pickup", "hit_wood", "consume_potion", "shield_up", "heal_up", "swing"]:
 		check(audio.count_of(snd) > 0, "sound played: " + snd)
 	var steps := 0

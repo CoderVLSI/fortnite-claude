@@ -785,8 +785,7 @@ func try_fire(aim_from: Vector3, aim_dir: Vector3) -> bool:
 	item.mag -= 1
 	var snd := "shot_" + ("rifle" if item.id == "assault" else item.id)
 	if item.rarity == Items.MYTHIC:
-		# dedicated shot per mythic weapon; the sniper keeps the generic mythic boom
-		snd = "shot_mythic" if item.id == "sniper" else "shot_mythic_" + item.id
+		snd = "shot_mythic"
 	Audio.play3d(snd, muzzle_position(), -2.0 if is_in_group("player") else -6.0, rand_range(0.96, 1.04))
 	for i in range(pellets):
 		_fire_ray(aim_from, aim_dir, i < 3)
