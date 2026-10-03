@@ -166,10 +166,9 @@ class JunkObject extends Spatial:
 		for piece in tree.get_nodes_in_group("build_pieces"):
 			if not visual_only and is_instance_valid(piece) and not piece.is_dead and piece.global_transform.origin.distance_to(pos) < 5.0:
 				piece.take_damage(5000.0, thrower)
-		for w in tree.get_nodes_in_group("world"):
-			for c in w.get_children():
-				if not visual_only and c is Spatial and c.has_meta("hits_max") and not c.has_meta("fallen") and Vector2(c.global_transform.origin.x - pos.x, c.global_transform.origin.z - pos.z).length() < 8.0:
-					w.collapse_and_sync(c)
+		if not visual_only:
+			for w in tree.get_nodes_in_group("world"):
+				w.break_pieces_near(pos, 7.0)
 		var dust: CPUParticles = preload("res://scripts/SpriteCreature.gd").particles(Color(0.7, 0.66, 0.6, 0.85), 80, 1.6, 8.0, 80.0, 4.0, 2.5)
 		dust.one_shot = true
 		dust.explosiveness = 0.9

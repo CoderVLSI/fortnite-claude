@@ -10,6 +10,7 @@ const CAMERA_DISTANCE := 3.6
 const INTERACT_RANGE := 3.2
 const SLIDE_TIME := 0.85
 const SLIDE_SPEED := 11.5
+var _slide_buffer := 0.0
 const BUILD_ACTIONS := ["build_wall", "build_floor", "build_ramp", "build_roof"]
 
 var input_enabled := true
@@ -209,11 +210,16 @@ func _ground_process(delta: float) -> void:
 # Crouch (hold), slide (crouch while sprinting) and emote (tap) state for this frame.
 func _update_stance(delta: float, move: Vector2, want_jump: bool) -> void:
 	var flat_speed := Vector2(velocity.x, velocity.z).length()
+	_slide_buffer = max(0.0, _slide_buffer - delta)
+	if input_enabled and not grounded and Input.is_action_just_pressed("crouch") and flat_speed > 4.8:
+		_slide_buffer = 0.45                      # crouch pressed just before landing: slide as soon as you touch down
 	if sliding:
 		_slide_t -= delta
 		if _slide_t <= 0.0 or want_jump or not grounded:
 			sliding = false
-	elif input_enabled and Input.is_action_just_pressed("crouch") and sprinting and grounded and flat_speed > 5.5:
+	elif input_enabled and grounded and flat_speed > 4.8 and (Input.is_action_just_pressed("crouch") or _slide_buffer > 0.0) \
+			and (sprinting or flat_speed > 5.5 or _slide_buffer > 0.0):
+		_slide_buffer = 0.0
 		sliding = true
 		_slide_t = SLIDE_TIME
 		_slide_dir = Vector3(velocity.x, 0.0, velocity.z).normalized()

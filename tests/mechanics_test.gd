@@ -248,6 +248,25 @@ func _run() -> void:
 	yield(_frames(80), "completed")
 	check(not p.sliding, "the slide ends by itself")
 
+	# --- slide buffered in the air: crouch before landing, slide on touch-down
+	p.global_transform.origin = Vector3(24.0, world.terrain.height_at(24.0, 50.0) + 0.7, 50.0)
+	p.velocity = Vector3(0, 0, -7.0)
+	Input.action_press("move_forward")
+	Input.action_press("sprint")
+	yield(_frames(3), "completed")
+	Input.action_press("crouch")
+	yield(_frames(3), "completed")
+	Input.action_release("crouch")
+	var slid := false
+	for i in range(60):
+		yield(_frames(1), "completed")
+		if p.sliding:
+			slid = true
+	check(slid, "pressing crouch just before landing slides on touch-down")
+	Input.action_release("move_forward")
+	Input.action_release("sprint")
+	p.sliding = false
+
 	# --- emote: tap to dance, moving cancels it
 	p.velocity = Vector3.ZERO
 	yield(_frames(30), "completed")

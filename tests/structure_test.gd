@@ -85,42 +85,63 @@ func _run() -> void:
 	check(not p._can_reach(chest), "the same chest behind a wall cannot be opened")
 	wall.queue_free()
 
-	# destructible buildings
+	# buildings break a piece at a time
 	var bld = null
-	for c in world.get_children():
-		if c.has_meta("hits_max") and c.get_meta("hits_max") <= 16:
+	for c in get_nodes_in_group("structures"):
+		if c.has_meta("res") and str(c.get_meta("res")).begins_with("house") and c.global_transform.origin.distance_to(p.global_transform.origin) < 400.0:
 			bld = c
 			break
 	check(bld != null, "buildings are destructible")
 	var body = null
-	for k in bld.get_children():
-		if k is StaticBody and k.has_meta("structure"):
-			body = k
-			break
-	if body == null:
-		for k in bld.get_children():
-			for kk in k.get_children():
-				if kk is StaticBody and kk.has_meta("structure"):
-					body = kk
+	var stack := [bld]
+	while stack.size() > 0 and body == null:
+		var n = stack.pop_back()
+		if n is StaticBody and n.has_meta("structure"):
+			body = n
+		for k in n.get_children():
+			stack.append(k)
 	check(body != null, "a building has pickaxe-able walls")
+	check(not bld.has_meta("pieces"), "an untouched building is still one cheap mesh")
 	var fractions := []
 	p.connect("harvested", self, "_on_harvest", [fractions])
-	var max_hits: int = int(bld.get_meta("hits_max"))
-	for i in range(max_hits):
-		world.harvest_hit(body, 0, "wood", p, bld.global_transform.origin)
-	check(fractions.size() == max_hits and fractions[0] > fractions[fractions.size() - 1] and fractions[fractions.size() - 1] == 0.0, "the building's health bar drains to zero (%d reports)" % fractions.size())
-	check(bld.has_meta("fallen"), "the building comes down")
-	yield(_frames(10), "completed")
-	var solid := false
-	for k in bld.get_children():
-		if k is StaticBody and k.collision_layer != 0:
-			solid = true
-	check(not solid, "its walls stop blocking")
-	for i in range(220):
-		yield(self, "idle_frame")
-		if not is_instance_valid(bld):
+	var at: Vector3 = bld.global_transform.origin + Vector3(0, 1.4, 0)
+	world.harvest_hit(body, 0, "wood", p, at)
+	check(bld.has_meta("pieces") and bld.get_meta("pieces").size() >= 6, "the first hit cuts it into pieces (%d)" % (bld.get_meta("pieces").size() if bld.has_meta("pieces") else 0))
+	var pieces: Array = bld.get_meta("pieces")
+	var idx: int = world._piece_near(pieces, at)
+	var target = pieces[idx]
+	var guard := 0
+	while pieces[idx] != null and guard < 12:
+		var pb = null
+		for k in target.get_children():
+			if k is StaticBody:
+				pb = k
+		if pb == null:
 			break
-	check(not is_instance_valid(bld) or bld.is_queued_for_deletion(), "the ruins are cleared away")
+		world.harvest_hit(pb, 0, "wood", p, at)
+		guard += 1
+	check(pieces[idx] == null, "five or so hits break that piece (%d hits)" % (guard + 1))
+	check(fractions.size() >= 2 and fractions[0] > fractions[fractions.size() - 1] and fractions[fractions.size() - 1] == 0.0, "its health bar drains to zero (%d reports)" % fractions.size())
+	var alive := 0
+	for q in pieces:
+		if q != null:
+			alive += 1
+	check(alive == pieces.size() - 1 and not bld.has_meta("fallen"), "only that piece is gone, the rest of the house stands (%d of %d left)" % [alive, pieces.size()])
+	yield(_frames(10), "completed")
+	# an explosion takes down everything around it, still piece by piece
+	world.break_pieces_near(bld.global_transform.origin + Vector3(0, 1.5, 0), 2.5)
+	alive = 0
+	for q in pieces:
+		if q != null:
+			alive += 1
+	check(alive < pieces.size() - 1 and alive > 0, "a blast removes the pieces around it but not the whole house (%d left)" % alive)
+	for i in range(240):
+		yield(self, "idle_frame")
+	var freed := 0
+	for q in pieces:
+		if q == null:
+			freed += 1
+	check(freed >= pieces.size() - alive, "broken pieces are cleared away")
 
 	print("STRUCTURE_RESULT failures=", failures.size())
 	for f in failures:

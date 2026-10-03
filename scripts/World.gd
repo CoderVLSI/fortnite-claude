@@ -335,9 +335,9 @@ func _add_trimesh_collision(node: Node, harvest_kind: String, root: Node = null,
 		root.set_meta("net_id", "b%d" % _struct_seq)
 		net_nodes["b%d" % _struct_seq] = root
 		_struct_seq += 1
-		root.set_meta("hits_max", STRUCTURE_HITS.get(res, 20))
+		root.set_meta("harvest_kind", harvest_kind)
+		root.set_meta("res", res)
 		root.set_meta("sink", STRUCTURE_SINK.get(res, 6.0))
-		root.set_meta("hits", 0)
 
 
 func _add_door(inst: Spatial, res: String) -> void:
@@ -896,35 +896,302 @@ const HARVEST_LABELS := {"wood": "TREE", "stone": "ROCK", "metal": "METAL"}
 
 func harvest_hit(body, shape_idx: int, kind: String, by, at: Vector3 = Vector3.ZERO) -> void:
 	var yield_mult: float = 1.0 + 0.25 * by.sprite_level() if by.has_sprite("king") else 1.0
-	by.add_material(kind, int((8 + rng.randi() % 5) * yield_mult))
+	var gain := int((8 + rng.randi() % 5) * yield_mult)
 	var local_hit: bool = by.net_owner == 0 and net_live
+	var crit := false
 	if body.has_meta("structure"):
 		var root = body.get_meta("structure")
-		_structure_hit(root, kind, by, at)
-		if local_hit and is_instance_valid(root) and root.has_meta("net_id"):
-			Net.send_event("harvest", ["S", root.get_meta("net_id"), kind])
+		if not is_instance_valid(root) or root.has_meta("fallen"):
+			return
+		if not root.has_meta("pieces"):
+			_slice_structure(root)                           # the first hit cuts the building into pieces
+		var pieces: Array = root.get_meta("pieces")
+		var pidx: int = int(body.get_meta("piece_idx")) if body.has_meta("piece_idx") else _piece_near(pieces, at)
+		if pidx < 0 or pidx >= pieces.size() or pieces[pidx] == null:
+			pidx = _piece_near(pieces, at)
+		if pidx < 0:
+			return
+		var pm: MeshInstance = pieces[pidx]
+		crit = _weak_check("p%d:%d" % [root.get_instance_id(), pidx], pm.get_transformed_aabb().get_center(), by, at)
+		by.add_material(kind, gain * (2 if crit else 1))
+		_structure_hit(root, at, kind, by, pidx, 2 if crit else 1)
+		if local_hit and root.has_meta("net_id"):
+			Net.send_event("harvest", ["S", root.get_meta("net_id"), kind, pidx, 2 if crit else 1])
 		return
 	if not _props.has(body.name):
+		by.add_material(kind, gain)
 		return
-	_prop_hit(body.name, shape_idx, kind, by, at)
+	var data: Dictionary = _props[body.name]
+	if shape_idx < data.transforms.size():
+		crit = _weak_check("%s:%d" % [body.name, shape_idx], data.transforms[shape_idx].origin + Vector3(0, 1.2, 0), by, at)
+	by.add_material(kind, gain * (2 if crit else 1))
+	_prop_hit(body.name, shape_idx, kind, by, at, 2 if crit else 1)
 	if local_hit:
-		Net.send_event("harvest", ["P", body.name, shape_idx, kind])
+		Net.send_event("harvest", ["P", body.name, shape_idx, kind, 2 if crit else 1])
 
 
-func _structure_hit(root, kind: String, by, at: Vector3) -> void:
-	if is_instance_valid(root) and root.has_meta("hits_max") and not root.has_meta("fallen"):
-		var sh: int = int(root.get_meta("hits")) + 1
-		root.set_meta("hits", sh)
-		var smax: int = int(root.get_meta("hits_max"))
-		if by != null:
-			by.emit_signal("harvested", at, clamp(1.0 - float(sh) / smax, 0.0, 1.0), kind, "BUILDING", "struct:%d" % root.get_instance_id())
-		if sh >= smax:
-			_collapse(root)
+# ------------------------------------------------------------------ pieces: buildings break a chunk at a time
+
+const PIECE_CELL := 3.2
+const PIECE_HITS := {"highrise_a": 8, "highrise_b": 8, "highrise_c": 8, "bunker": 9, "tower": 8, "warehouse": 7, "container": 8}
 
 
-func _prop_hit(body_name: String, shape_idx: int, kind: String, by, at: Vector3) -> void:
+# A pickaxe hit (or explosion) on one piece of a building. idx < 0 finds the piece nearest `at`.
+func _structure_hit(root, at: Vector3, kind: String, by, idx: int = -1, inc: int = 1) -> void:
+	if not is_instance_valid(root) or root.has_meta("fallen"):
+		return
+	if not root.has_meta("pieces"):
+		_slice_structure(root)
+	var pieces: Array = root.get_meta("pieces")
+	if idx < 0:
+		idx = _piece_near(pieces, at)
+	if idx < 0 or idx >= pieces.size() or pieces[idx] == null or not is_instance_valid(pieces[idx]):
+		return
+	var pm: MeshInstance = pieces[idx]
+	var h: int = int(pm.get_meta("hits")) + inc
+	pm.set_meta("hits", h)
+	var mx: int = int(pm.get_meta("hits_max"))
+	if by != null:
+		by.emit_signal("harvested", at, clamp(1.0 - float(h) / mx, 0.0, 1.0), kind, "WALL", "piece:%d:%d" % [root.get_instance_id(), idx])
+	if h >= mx:
+		_break_piece(root, idx)
+
+
+func _piece_near(pieces: Array, at: Vector3) -> int:
+	var best := -1
+	var best_d := 1e9
+	for i in range(pieces.size()):
+		var pm = pieces[i]
+		if pm == null or not is_instance_valid(pm):
+			continue
+		var box: AABB = pm.get_transformed_aabb()
+		var q: Vector3 = (at - box.get_center()).abs() - box.size * 0.5
+		var d: float = Vector3(max(q.x, 0.0), max(q.y, 0.0), max(q.z, 0.0)).length()
+		if d < best_d:
+			best_d = d
+			best = i
+	return best
+
+
+# Cut every mesh of a structure into ~3 m pieces, each with its own collision, so that hits break a piece, not the house.
+func _slice_structure(root: Spatial) -> void:
+	var sources := []
+	_collect_meshes(root, sources)
+	var inv: Transform = root.global_transform.affine_inverse()
+	var kind: String = str(root.get_meta("harvest_kind")) if root.has_meta("harvest_kind") else "wood"
+	var res: String = str(root.get_meta("res")) if root.has_meta("res") else ""
+	var hits_max: int = PIECE_HITS.get(res, 5)
+	var pieces := []
+	for mi in sources:
+		var mesh = mi.mesh
+		if not (mesh is ArrayMesh):
+			continue
+		var rel: Transform = inv * mi.global_transform
+		var cells := {}
+		for sfc in range(mesh.get_surface_count()):
+			var arr: Array = mesh.surface_get_arrays(sfc)
+			var verts: PoolVector3Array = arr[Mesh.ARRAY_VERTEX]
+			var norms = arr[Mesh.ARRAY_NORMAL]
+			var uvs = arr[Mesh.ARRAY_TEX_UV]
+			var cols = arr[Mesh.ARRAY_COLOR]
+			var idxs = arr[Mesh.ARRAY_INDEX]
+			var n_tri: int = (idxs.size() if idxs != null else verts.size()) / 3
+			for t in range(n_tri):
+				var tri := [0, 0, 0]
+				for k in range(3):
+					tri[k] = idxs[t * 3 + k] if idxs != null else t * 3 + k
+				var cen: Vector3 = rel.xform((verts[tri[0]] + verts[tri[1]] + verts[tri[2]]) / 3.0)
+				var key := Vector3(floor(cen.x / PIECE_CELL), floor(cen.y / PIECE_CELL), floor(cen.z / PIECE_CELL))
+				if not cells.has(key):
+					cells[key] = {}
+				if not cells[key].has(sfc):
+					cells[key][sfc] = {"v": [], "n": [], "uv": [], "c": []}
+				var d: Dictionary = cells[key][sfc]
+				for k in range(3):
+					d.v.append(verts[tri[k]])
+					if norms != null:
+						d.n.append(norms[tri[k]])
+					if uvs != null:
+						d.uv.append(uvs[tri[k]])
+					if cols != null:
+						d.c.append(cols[tri[k]])
+		var parent: Node = mi.get_parent()
+		for key in cells:
+			var m := ArrayMesh.new()
+			for sfc in cells[key]:
+				var d: Dictionary = cells[key][sfc]
+				var a := []
+				a.resize(Mesh.ARRAY_MAX)
+				a[Mesh.ARRAY_VERTEX] = PoolVector3Array(d.v)
+				if d.n.size() > 0:
+					a[Mesh.ARRAY_NORMAL] = PoolVector3Array(d.n)
+				if d.uv.size() > 0:
+					a[Mesh.ARRAY_TEX_UV] = PoolVector2Array(d.uv)
+				if d.c.size() > 0:
+					a[Mesh.ARRAY_COLOR] = PoolColorArray(d.c)
+				m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a)
+				var mat = mi.get_surface_material(sfc)
+				if mat == null:
+					mat = mesh.surface_get_material(sfc)
+				m.surface_set_material(m.get_surface_count() - 1, mat)
+			var pm := MeshInstance.new()
+			pm.mesh = m
+			pm.transform = mi.transform
+			pm.cast_shadow = mi.cast_shadow
+			pm.set_meta("hits", 0)
+			pm.set_meta("hits_max", hits_max)
+			parent.add_child(pm)
+			pm.create_trimesh_collision()
+			for c in pm.get_children():
+				if c is StaticBody:
+					c.set_meta("harvest", kind)
+					c.set_meta("structure", root)
+					c.set_meta("piece_idx", pieces.size())
+			pieces.append(pm)
+		parent.remove_child(mi)
+		mi.queue_free()
+	root.set_meta("pieces", pieces)
+
+
+func _collect_meshes(node: Node, out: Array) -> void:
+	if node is MeshInstance and node.mesh != null:
+		out.append(node)
+		return
+	for c in node.get_children():
+		if c is AutoDoor:
+			continue
+		_collect_meshes(c, out)
+
+
+# One piece is gone: its collision vanishes at once, the mesh drops away in a puff of dust.
+func _break_piece(root, idx: int) -> void:
+	if not root.has_meta("pieces"):
+		return
+	var pieces: Array = root.get_meta("pieces")
+	if idx < 0 or idx >= pieces.size() or pieces[idx] == null or not is_instance_valid(pieces[idx]):
+		return
+	var pm: MeshInstance = pieces[idx]
+	pieces[idx] = null
+	var center: Vector3 = pm.get_transformed_aabb().get_center()
+	for c in pm.get_children():
+		if c is StaticBody:
+			c.collision_layer = 0
+			c.queue_free()
+	Audio.play3d("building_collapse", center, -4.0, rand_range(1.3, 1.6))
+	Audio.play3d("hit_wood", center, 2.0, 0.6)
+	var dust := preload("res://scripts/SpriteCreature.gd").particles(Color(0.72, 0.68, 0.6, 0.8), 28, 1.0, 4.0, 70.0, 2.0, 2.4)
+	dust.one_shot = true
+	dust.explosiveness = 0.9
+	add_child(dust)
+	dust.global_transform.origin = center
+	get_tree().create_timer(2.0).connect("timeout", dust, "queue_free")
+	var tw := Tween.new()
+	add_child(tw)
+	tw.interpolate_property(pm, "translation:y", pm.translation.y, pm.translation.y - 2.2, 0.7, Tween.TRANS_QUAD, Tween.EASE_IN)
+	tw.interpolate_property(pm, "scale", pm.scale, pm.scale * 0.35, 0.7, Tween.TRANS_QUAD, Tween.EASE_IN)
+	tw.interpolate_property(pm, "rotation:z", pm.rotation.z, pm.rotation.z + rand_range(-0.5, 0.5), 0.7, Tween.TRANS_QUAD, Tween.EASE_IN)
+	tw.start()
+	get_tree().create_timer(0.8).connect("timeout", pm, "queue_free")
+	get_tree().create_timer(0.9).connect("timeout", tw, "queue_free")
+	var alive := 0
+	for q in pieces:
+		if q != null:
+			alive += 1
+	if alive == 0:
+		root.set_meta("fallen", true)
+
+
+# Explosions (junk rift, grenades): everything within `radius` of `pos` is taken down piece by piece.
+func break_pieces_near(pos: Vector3, radius: float, broadcast: bool = true) -> void:
+	for st in get_tree().get_nodes_in_group("structures"):
+		if not is_instance_valid(st) or st.has_meta("fallen") or st.global_transform.origin.distance_to(pos) > radius + 28.0:
+			continue
+		if not st.has_meta("pieces"):
+			_slice_structure(st)
+		var pieces: Array = st.get_meta("pieces")
+		for i in range(pieces.size()):
+			var pm = pieces[i]
+			if pm != null and is_instance_valid(pm) and pm.get_transformed_aabb().get_center().distance_to(pos) < radius:
+				_break_piece(st, i)
+	if broadcast and net_live:
+		Net.send_event("bnear", [pos, radius])
+
+
+# ------------------------------------------------------------------ weak points
+
+var _wp_key := ""
+var _wp_pos := Vector3.ZERO
+var _wp_node: Spatial
+var _wp_time := 0.0
+
+
+# A glowing weak spot appears on whatever you are chopping. Hit it for double materials and double damage; then it moves.
+func _weak_check(key: String, center: Vector3, by, at: Vector3) -> bool:
+	if by == null or by != player:
+		return false
+	var crit := false
+	if _wp_key == key and _wp_node != null and is_instance_valid(_wp_node):
+		crit = at.distance_to(_wp_pos) < 0.9
+	if crit or _wp_key != key:
+		_weak_place(key, center, by, at)
+	_wp_time = 6.0
+	if crit:
+		Audio.play3d("hitmarker", at, 4.0, 0.8)
+		Audio.play3d("hit_metal", at, 0.0, 1.5)
+		if hud != null:
+			hud.show_toast("WEAK POINT!  double materials")
+	return crit
+
+
+func _weak_place(key: String, center: Vector3, by, at: Vector3) -> void:
+	_wp_key = key
+	var to_p: Vector3 = by.global_transform.origin - center
+	to_p.y = 0.0
+	to_p = to_p.normalized() if to_p.length() > 0.01 else Vector3.BACK
+	var side: Vector3 = to_p.cross(Vector3.UP).normalized()
+	var pos: Vector3 = at + side * rand_range(-0.9, 0.9) + Vector3.UP * rand_range(-0.6, 0.8)
+	var space := get_world().direct_space_state
+	var hit := space.intersect_ray(pos + to_p * 1.4, pos - to_p * 1.4, [by], 1)       # snap it onto the surface
+	_wp_pos = hit.position + hit.normal * 0.06 if hit else pos
+	if _wp_node == null or not is_instance_valid(_wp_node):
+		_wp_node = Spatial.new()
+		var core := MeshInstance.new()
+		var sph := SphereMesh.new()
+		sph.radius = 0.16
+		sph.height = 0.32
+		sph.radial_segments = 10
+		sph.rings = 5
+		core.mesh = sph
+		var mat := SpatialMaterial.new()
+		mat.albedo_color = Color(1.0, 0.75, 0.15)
+		mat.emission_enabled = true
+		mat.emission = Color(1.0, 0.6, 0.1)
+		mat.emission_energy = 3.0
+		mat.flags_unshaded = true
+		mat.flags_no_depth_test = true
+		core.material_override = mat
+		core.cast_shadow = GeometryInstance.SHADOW_CASTING_SETTING_OFF
+		_wp_node.add_child(core)
+		add_child(_wp_node)
+	_wp_node.global_transform.origin = _wp_pos
+	_wp_node.visible = true
+
+
+func _weak_tick(delta: float) -> void:
+	if _wp_node == null or not is_instance_valid(_wp_node):
+		return
+	_wp_time -= delta
+	if _wp_time <= 0.0:
+		_wp_node.visible = false
+		_wp_key = ""
+		return
+	var k: float = 1.0 + sin(OS.get_ticks_msec() * 0.012) * 0.28
+	_wp_node.scale = Vector3(k, k, k)
+
+
+func _prop_hit(body_name: String, shape_idx: int, kind: String, by, at: Vector3, inc: int = 1) -> void:
 	var data: Dictionary = _props[body_name]
-	var hits: int = data.hits.get(shape_idx, 0) + 1
+	var hits: int = data.hits.get(shape_idx, 0) + inc
 	data.hits[shape_idx] = hits
 	var left: float = clamp(1.0 - float(hits) / HARVEST_HITS, 0.0, 1.0)
 	if by != null:
@@ -1256,6 +1523,7 @@ func _audio_process(delta: float) -> void:
 
 
 func _process(delta: float) -> void:
+	_weak_tick(delta)
 	if net_live:
 		_net_process(delta)
 	_audio_process(delta)
@@ -1518,9 +1786,11 @@ func net_event(from: int, kind: String, data) -> void:
 			if data[0] == "S":
 				var root = net_nodes.get(data[1])
 				if root != null:
-					_structure_hit(root, data[2], null, Vector3.ZERO)
+					_structure_hit(root, Vector3.ZERO, data[2], null, int(data[3]), int(data[4]))
 			elif _props.has(data[1]):
-				_prop_hit(data[1], int(data[2]), data[3], null, Vector3.ZERO)
+				_prop_hit(data[1], int(data[2]), data[3], null, Vector3.ZERO, int(data[4]))
+		"bnear":
+			break_pieces_near(data[0], data[1], false)
 		"veh_claim":
 			var vc = net_nodes.get(data)
 			if vc != null and is_instance_valid(vc):
