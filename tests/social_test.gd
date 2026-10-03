@@ -91,6 +91,7 @@ func _run() -> void:
 	settings.team_size = 1
 	settings.friends = []
 	settings.recent = []
+	settings.save_settings()               # the lobby buttons saved their choice: put the user's config back
 	print("SOCIAL_RESULT failures=%d" % failures.size())
 	quit(1 if failures.size() > 0 else 0)
 
