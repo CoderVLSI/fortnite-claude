@@ -4,6 +4,7 @@ extends CanvasLayer
 # autoload keep running). The title screen is a Fortnite-style lobby: Lobby.gd's stage with the
 # character, a player card, the mode card with the big PLAY button and a tab bar.
 
+const SplashScreen = preload("res://scripts/ui/SplashScreen.gd")
 const FONT_PATH := "res://assets/fonts/DejaVuSans-Bold.ttf"
 const HELP_PC := "Move: WASD        Look: mouse        Fire: left click        Aim / scope: right click\nJump / handbrake: Space        Sprint: Shift        Reload / horn: R\nPick up / swap / open / enter vehicle: E        Inventory: Tab  (X drops)        Build: Q toggles, Z X C V = wall / floor / ramp / roof, wheel = material\nItems: 1-4 or wheel, F = pickaxe        Map: M        Emote: B        Crouch / slide: Ctrl        Pause: Esc  (all keys can be changed in Settings > Controls)"
 const HELP_TOUCH := "Left thumb: move    Right side: look    FIRE / JUMP / SPRINT buttons, scope button to aim down sights\nPICK UP appears next to loot, chests and vehicles    BUILD toggles building\nTap the hotbar to switch items, the bag button for the inventory    Tap the minimap for the island map"
@@ -21,6 +22,7 @@ const TIPS := [
 var world
 var lobby
 var root: Control
+var splash: Control
 var title_panel: Control
 var settings_panel: Control
 var help_panel: Control
@@ -55,6 +57,9 @@ func _ready() -> void:
 	root.theme = _make_theme()
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root)
+	splash = SplashScreen.new()
+	splash.connect("start", self, "show_title")
+	root.add_child(splash)
 	title_panel = _build_title()
 	settings_panel = _build_settings()
 	help_panel = _build_help()
@@ -569,6 +574,7 @@ func _build_pause() -> Control:
 # ------------------------------------------------------------------ state
 
 func _show_none() -> void:
+	splash.visible = false
 	title_panel.visible = false
 	settings_panel.visible = false
 	help_panel.visible = false
@@ -581,6 +587,19 @@ func _refresh_lobby() -> void:
 	stat_labels["elims"].text = str(Settings.elims)
 	var bots: int = world.profile.get("bots", 24) if world != null else 24
 	mode_info.text = "%d players  -  shrinking storm  -  Mythic boss" % (bots + 1)
+
+
+# The very first screen: the lightning title splash. Press the interact key (E) / tap to continue to the lobby.
+func show_splash() -> void:
+	state = "splash"
+	_show_none()
+	get_tree().paused = true
+	Controls.capture_mouse(false)
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	orbit_cam.make_current()
+	Audio.music("music_menu", 1.0)
+	root.mouse_filter = Control.MOUSE_FILTER_PASS
+	splash.open()
 
 
 func show_title() -> void:
@@ -615,7 +634,7 @@ func start_game() -> void:
 
 
 func toggle_pause() -> void:
-	if state == "title" or (world != null and world.match_over):
+	if state == "title" or state == "splash" or (world != null and world.match_over):
 		return
 	if state == "paused":
 		resume()

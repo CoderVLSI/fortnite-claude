@@ -117,7 +117,7 @@ func _ready() -> void:
 		Settings.autostart = false
 		menu.start_game()
 	else:
-		menu.show_title()
+		menu.show_splash()
 
 
 # Called by the menu when the player presses Play (or immediately with --skip-menu).

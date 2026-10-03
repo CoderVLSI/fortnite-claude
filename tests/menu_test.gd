@@ -45,7 +45,23 @@ func _run() -> void:
 	yield(self, "idle_frame")
 	var menu = world.menu
 
-	check(menu != null and menu.state == "title", "the game opens on the title screen")
+	check(menu != null and menu.state == "splash", "the game opens on the Storm Island splash")
+	check(menu.splash.visible and "START" in menu.splash.prompt_text(), "splash shows the start prompt (%s)" % menu.splash.prompt_text())
+	menu.splash.strike()
+	yield(self, "idle_frame")
+	check(menu.splash.bolt_count() > 0, "lightning bolts strike on the splash")
+	for i in range(25):
+		yield(self, "idle_frame")
+	yield(_shot("menu_splash"), "completed")
+	yield(create_timer(0.5), "timeout")
+	var ek := InputEventKey.new()
+	ek.scancode = KEY_E
+	ek.pressed = true
+	Input.parse_input_event(ek)
+	yield(self, "idle_frame")
+	yield(self, "idle_frame")
+	check(menu.state == "title" and not menu.splash.visible, "pressing E on the splash opens the title menu")
+	check(menu.state == "title", "the game opens on the title screen")
 	check(paused, "the world is paused behind the title screen")
 	check(menu.title_panel.visible and not world.hud.root.visible, "title menu visible, HUD hidden")
 	check(audio.current_music() == "music_menu", "menu music plays (%s)" % audio.current_music())
