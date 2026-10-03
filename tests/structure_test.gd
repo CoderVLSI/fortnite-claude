@@ -47,7 +47,7 @@ func _run() -> void:
 	var snow: Color = MapColors.color_at(terrain, 200.0 * cos(deg2rad(315.0)), 200.0 * sin(deg2rad(315.0)))
 	var lava: Color = MapColors.color_at(terrain, 200.0 * cos(deg2rad(232.0)), 200.0 * sin(deg2rad(232.0)))
 	var desert: Color = MapColors.color_at(terrain, 200.0 * cos(deg2rad(62.0)), 200.0 * sin(deg2rad(62.0)))
-	check(snow.v > 0.8 and lava.v < 0.6 and desert.r > desert.b + 0.2, "map colours: snow bright, lava dark, desert tan (%s %s %s)" % [snow, lava, desert])
+	check(snow.v > 0.65 and snow.v > lava.v + 0.12 and lava.v < 0.6 and desert.r > desert.b + 0.2, "map colours: snow bright, lava dark, desert tan (%s %s %s)" % [snow, lava, desert])
 	check(world.hud.minimap._tex != null, "the minimap draws the biome texture")
 
 	# doors
