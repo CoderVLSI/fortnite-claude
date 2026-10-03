@@ -38,8 +38,9 @@ TILES = {"weapons": ("0x4a6a9c", "0x1c2b4a", "0x9bb8e8"), "ammo": ("0x9c6a2e", "
 ASSETS = {}
 
 
-def add(name, group, prompt, size=128, key=True, dest=None):
-    ASSETS[name] = {"group": group, "size": size, "key": key, "dest": dest, "prompt": prompt}
+def add(name, group, prompt, size=128, key=True, dest=None, height=None):
+    """height=None -> square size x size; otherwise a 16:9-style size x height image (backgrounds)."""
+    ASSETS[name] = {"group": group, "size": size, "height": height, "key": key, "dest": dest, "prompt": prompt}
 
 
 # Weapons: Items.WEAPONS keys, shown side-on, barrel pointing right.
@@ -95,6 +96,13 @@ add("launcher_fg_432", "app", "game logo mark, %s, centred and small in the midd
     % (_APP, KEYED), size=432)
 add("launcher_bg_432", "app", "abstract seamless dark purple to blue night-sky gradient with faint stars, "
     "no objects, no text", size=432, key=False)
+
+# Title-screen / lobby backdrop (project window is 1280x720). Menu text and buttons are drawn by code over it,
+# so no text and a calmer centre.
+add("lobby_bg", "bg", "wide cinematic 16:9 game background illustration, a stylized colourful battle-royale island "
+    "seen from the sky at sunset, a glowing purple storm wall closing in on the horizon with lightning, a flying "
+    "battle bus in the distance, bright saturated colours, painterly, calm uncluttered centre, no text, no "
+    "characters, no logo", size=1280, height=720, key=False, dest=os.path.join(ROOT, "assets", "ui", "lobby_bg.jpg"))
 
 GROUPS = sorted({a["group"] for a in ASSETS.values()})
 
@@ -163,9 +171,12 @@ def pick_cheapest():
     return rows[0][1]
 
 
-def generate_via_images(model, prompt, key):
+def generate_via_images(model, prompt, key, aspect=None):
     """Image-only models (GPT Image, FLUX, ...) use POST /images, not chat/completions."""
-    resp = http("POST", API + "/images", key, {"model": model, "prompt": prompt, "n": 1})
+    payload = {"model": model, "prompt": prompt, "n": 1}
+    if aspect:
+        payload["aspect_ratio"] = aspect
+    resp = http("POST", API + "/images", key, payload)
     try:
         raw = base64.b64decode(resp["data"][0]["b64_json"])
     except (KeyError, IndexError, TypeError):
@@ -173,7 +184,7 @@ def generate_via_images(model, prompt, key):
     return raw, (resp.get("usage") or {}).get("cost")
 
 
-def generate(model, prompt, key):
+def generate(model, prompt, key, aspect=None):
     """Returns (image_bytes, cost_usd_or_None). Tries chat/completions, which Gemini-style models use;
     switches to /images when the API says the model needs it, and retries once with modalities=[image]."""
     payload = {"model": model, "usage": {"include": True},
@@ -182,7 +193,7 @@ def generate(model, prompt, key):
         resp = http("POST", API + "/chat/completions", key, dict(payload, modalities=["image", "text"]))
     except ApiError as e:
         if "/images" in e.body:
-            return generate_via_images(model, prompt, key)
+            return generate_via_images(model, prompt, key, aspect)
         if e.code not in (400, 404, 422):
             sys.exit(str(e))
         print("  first request failed (%s); retrying with modalities=[image]" % e.body[:160].replace("\n", " "))
@@ -208,10 +219,14 @@ def convert(raw, spec, dest):
     with tempfile.NamedTemporaryFile(suffix=".img", delete=False) as f:
         f.write(raw)
         tmp = f.name
-    vf = ["crop='min(iw,ih)':'min(iw,ih)'", "format=rgba"]
+    if spec["height"]:   # wide image: centre-crop to the target aspect
+        vf = ["crop='min(iw,ih*%d/%d)':'min(ih,iw*%d/%d)'" % (spec["size"], spec["height"], spec["height"], spec["size"]),
+              "format=rgba"]
+    else:
+        vf = ["crop='min(iw,ih)':'min(iw,ih)'", "format=rgba"]
     if spec["key"]:
         vf.append("colorkey=%s:0.30:0.08" % KEY_COLOUR)
-    vf.append("scale=%d:%d:flags=lanczos" % (spec["size"], spec["size"]))
+    vf.append("scale=%d:%d:flags=lanczos" % (spec["size"], spec["height"] or spec["size"]))
     os.makedirs(os.path.dirname(dest), exist_ok=True)
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", tmp, "-vf", ",".join(vf), "-frames:v", "1", dest],
                    check=True)
@@ -329,7 +344,7 @@ def main():
     spent = 0.0
     for i, n in enumerate(todo, 1):
         print("[%d/%d] %s via %s" % (i, len(todo), n, model))
-        raw, cost = generate(model, ASSETS[n]["prompt"], key)
+        raw, cost = generate(model, ASSETS[n]["prompt"], key, "16:9" if ASSETS[n]["height"] else None)
         convert(raw, ASSETS[n], dest_of(n))
         if ASSETS[n]["group"] in TILES:
             add_background(dest_of(n), ASSETS[n]["group"])
