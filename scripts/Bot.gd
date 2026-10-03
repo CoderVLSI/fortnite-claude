@@ -26,6 +26,7 @@ var _strafe_t := 0.0
 var _avoid_t := 0.0
 var _avoid_dir := 1.0
 var _stuck_t := 0.0
+var _nade_cd := 6.0             # seconds until this bot may throw a grenade
 
 
 func _ready() -> void:
@@ -53,10 +54,44 @@ func _equip_loadout() -> void:
 	if is_boss:
 		w = Items.make_weapon(["assault", "shotgun", "sniper", "smg"][world.rng.randi() % 4], Items.MYTHIC)
 	give_weapon(w.id, w.rarity)
+	if not is_boss:                          # a few heals, and now and then a grenade or two
+		var heal_id: String = ["bandage", "bandage", "mini_shield", "slurp_juice", "medkit"][world.rng.randi() % 5]
+		pickup(Items.make_consumable(heal_id, 3 if heal_id == "bandage" else 1))
+		if world.rng.randf() < 0.3:
+			pickup(Items.make_consumable("grenade", 2))
+		select_slot(_weapon_slot())
 	for type in reserves.keys():
 		reserves[type] = 99999
 	# bots reload instantly-ish and never run dry
 	spread_deg += (1.0 - skill) * 1.5
+
+
+func _weapon_slot() -> int:
+	for i in range(1, slots.size()):
+		if slots[i] != null and slots[i].kind == "weapon":
+			return i
+	return 0
+
+
+func _grenade_slot() -> int:
+	for i in range(1, slots.size()):
+		if slots[i] != null and slots[i].kind == "consumable" and Items.CONSUMABLES[slots[i].id].get("throw", false):
+			return i
+	return -1
+
+
+# The first heal / shield item that would actually do something right now (-1 = none).
+func _heal_slot() -> int:
+	for i in range(1, slots.size()):
+		var it = slots[i]
+		if it == null or it.kind != "consumable":
+			continue
+		var c: Dictionary = Items.CONSUMABLES[it.id]
+		if c.get("throw", false):
+			continue
+		if (c.heal > 0.0 and health < c.heal_cap - 10.0) or (c.shield > 0.0 and shield < c.shield_cap - 15.0):
+			return i
+	return -1
 
 
 func _on_died(_victim, _killer) -> void:
@@ -83,6 +118,21 @@ func _physics_process(delta: float) -> void:
 	if _think <= 0.0:
 		_think = rand_range(0.25, 0.5)
 		_decide()
+	_nade_cd -= delta
+	if state == State.WANDER and target == null and not is_boss and health < 70.0 + skill * 10.0:
+		var hs: int = _heal_slot()
+		if hs > 0:                           # nobody around: stand still and patch up
+			if selected != hs:
+				select_slot(hs)
+			use_selected(delta)
+			move_body(delta, Vector3.ZERO, 0.0, false)
+			animate(delta)
+			return
+	if is_using() and (state != State.WANDER or target != null):
+		cancel_use()                         # spotted someone mid-heal: back to the gun
+	var held = selected_item()
+	if held == null or held.kind != "weapon":
+		select_slot(_weapon_slot())
 
 	var origin := global_transform.origin
 	var wish := Vector3.ZERO
@@ -123,6 +173,13 @@ func _physics_process(delta: float) -> void:
 				elif dist < prefer * 0.4:
 					wish -= fwd
 				face = fwd
+				if _nade_cd <= 0.0 and dist > 9.0 and dist < 24.0 and _line_of_sight(target):
+					var gs: int = _grenade_slot()
+					if gs > 0:
+						var eye2 := origin + Vector3(0, 1.45, 0)
+						var aim: Vector3 = (target.global_transform.origin + Vector3(0, 1.0, 0) - eye2).normalized()
+						throw_grenade(eye2, aim, gs, 0.6)
+					_nade_cd = rand_range(8.0, 16.0)
 				_react -= delta
 				shoot = _react <= 0.0 and _line_of_sight(target)
 				if shoot:

@@ -166,6 +166,46 @@ func _run() -> void:
 		yield(self, "idle_frame")
 	check(hud._dmg.size() == 0, "the number fades away")
 
+	# --- bots: heal when hurt and alone, throw grenades at a visible enemy
+	var BotScript = load("res://scripts/Bot.gd")
+	var hb = BotScript.new()
+	hb.name = "HealBot"
+	hb.world = world
+	hb.display_name = "Medic"
+	hb.map_half = 236.0
+	hb.translation = Vector3(60.0, world.terrain.height_at(60.0, -80.0) + 1.0, -80.0)
+	world.add_child(hb)
+	yield(_frames(10), "completed")
+	hb.max_health = 100.0
+	hb.health = 35.0
+	hb.slots[2] = Items.make_consumable("bandage", 4)
+	var hp0: float = hb.health
+	yield(_frames(60 * 9), "completed")
+	check(hb.health > hp0 + 12.0, "a hurt bot with nobody around heals itself (%.0f -> %.0f)" % [hp0, hb.health])
+	check(hb.selected_item() != null and hb.selected_item().kind == "weapon", "and goes back to its gun afterwards")
+	hb.slots[3] = Items.make_consumable("grenade", 2)
+	hb.health = 100.0
+	hb._nade_cd = 0.0
+	p.global_transform.origin = hb.global_transform.origin + Vector3(0, 0, 15.0)
+	p.velocity = Vector3.ZERO
+	var nades_before := 0
+	for n in world.get_children():
+		if n is RigidBody:
+			nades_before += 1
+	var thrown := false
+	for i in range(60 * 6):
+		yield(self, "physics_frame")
+		var now := 0
+		for n in world.get_children():
+			if n is RigidBody:
+				now += 1
+		if now > nades_before or (hb.slots[3] != null and hb.slots[3].count < 2):
+			thrown = true
+			break
+	check(thrown, "a bot with grenades throws one at a visible enemy")
+	hb.queue_free()
+	p.health = p.max_health
+
 	# --- crouch: slower, lower camera, steadier aim
 	p.select_slot(0)
 	p.max_health = 1000000.0

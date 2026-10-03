@@ -10,6 +10,7 @@ const MAX_DAMAGE := 115.0
 const PIECE_DAMAGE := 300.0
 
 var thrower = null
+var damage_mult := 1.0               # bots throw weaker grenades than the player's
 var fuse := 2.4
 var _mat: SpatialMaterial
 var _t := 0.0
@@ -88,7 +89,7 @@ func _explode() -> void:
 		var d: float = chest.distance_to(pos)
 		if d >= RADIUS:
 			continue
-		var dmg: float = MAX_DAMAGE * (1.0 - d / RADIUS) + 12.0
+		var dmg: float = (MAX_DAMAGE * (1.0 - d / RADIUS) + 12.0) * damage_mult
 		var block := space.intersect_ray(pos + Vector3(0, 0.3, 0), chest, [self], 1)    # cover soaks up most of the blast
 		if block:
 			dmg *= 0.35

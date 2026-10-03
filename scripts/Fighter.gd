@@ -461,24 +461,32 @@ func is_throwable_selected() -> bool:
 	return item != null and item.kind == "consumable" and Items.CONSUMABLES[item.id].get("throw", false)
 
 
-func throw_grenade(aim_from: Vector3, aim_dir: Vector3) -> bool:
-	if is_dead or mode != Mode.GROUND or _fire_cd > 0.0 or not is_throwable_selected():
+func throw_grenade(aim_from: Vector3, aim_dir: Vector3, slot: int = -1, damage_mult: float = 1.0) -> bool:
+	if slot < 0:
+		slot = selected
+	if is_dead or mode != Mode.GROUND or _fire_cd > 0.0 or slot >= slots.size() or slots[slot] == null:
 		return false
-	var item = selected_item()
+	var item: Dictionary = slots[slot]
+	if item.kind != "consumable" or not Items.CONSUMABLES[item.id].get("throw", false):
+		return false
 	_fire_cd = 0.9
 	_swing = 0.3
 	Audio.play3d("swing", global_transform.origin + Vector3(0, 1.3, 0), -4.0, 0.7)
 	var g := Grenade.new()
 	g.thrower = self
+	g.damage_mult = damage_mult
 	get_parent().add_child(g)
 	g.global_transform.origin = global_transform.origin + Vector3(0, 1.55, 0) + aim_dir * 0.9
 	g.linear_velocity = aim_dir * 17.0 + Vector3(0, 4.0, 0) + Vector3(velocity.x, 0, velocity.z) * 0.6
 	g.angular_velocity = Vector3(rand_range(-6, 6), rand_range(-6, 6), rand_range(-6, 6))
 	item.count -= 1
 	if item.count <= 0:
-		slots[selected] = null
-		selected = 0
-		_apply_selected()
+		slots[slot] = null
+		if selected == slot:
+			selected = 0
+			_apply_selected()
+		else:
+			emit_signal("slot_changed")
 	else:
 		emit_signal("slot_changed")
 	return true
