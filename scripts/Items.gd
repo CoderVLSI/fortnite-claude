@@ -49,6 +49,9 @@ static func scope_of(id: String) -> Dictionary:
 	return SCOPES.get(id, SCOPES["assault"])
 
 
+const MATERIAL_COLORS := {"wood": Color(0.80, 0.55, 0.25), "stone": Color(0.72, 0.74, 0.78), "metal": Color(0.45, 0.70, 1.0)}
+const MATERIAL_NAMES := {"wood": "Wood", "stone": "Stone", "metal": "Metal"}
+
 const AMMO := {
 	"light": {"name": "Light Ammo", "color": Color(0.95, 0.75, 0.25), "pack": 30},
 	"medium": {"name": "Medium Ammo", "color": Color(0.55, 0.85, 0.35), "pack": 30},
@@ -85,6 +88,17 @@ static func make_consumable(id: String, count: int = 1) -> Dictionary:
 	return {"kind": "consumable", "id": id, "count": count}
 
 
+# Building materials lying on the floor: collected by walking over them, like ammo.
+static func make_material(kind: String, count: int) -> Dictionary:
+	return {"kind": "material", "id": kind, "count": count}
+
+
+static func random_material(rng: RandomNumberGenerator, lo: int, hi: int) -> Dictionary:
+	var r := rng.randf()
+	var kind := "wood" if r < 0.45 else ("stone" if r < 0.75 else "metal")
+	return make_material(kind, rng.randi_range(lo, hi) / 5 * 5)
+
+
 static func make_ammo(type: String, count: int = 0) -> Dictionary:
 	return {"kind": "ammo", "id": type, "count": count if count > 0 else AMMO[type].pack}
 
@@ -101,6 +115,8 @@ static func rarity_of(item: Dictionary) -> int:
 static func color_of(item: Dictionary) -> Color:
 	if item.kind == "ammo":
 		return AMMO[item.id].color
+	if item.kind == "material":
+		return MATERIAL_COLORS[item.id]
 	if item.kind == "pickaxe":
 		return RARITIES[0].color
 	return RARITIES[rarity_of(item)].color
@@ -117,6 +133,8 @@ static func name_of(item: Dictionary) -> String:
 			return n if item.count <= 1 else "%s x%d" % [n, item.count]
 		"ammo":
 			return "%s x%d" % [AMMO[item.id].name, item.count]
+		"material":
+			return "%s x%d" % [MATERIAL_NAMES[item.id], item.count]
 	return "Pickaxe"
 
 
@@ -215,17 +233,21 @@ static func chest_loot(kind: String, rng: RandomNumberGenerator) -> Array:
 			loot.append(w)
 			loot.append(ammo_for(w, rng, 1.5))
 			loot.append(random_consumable(rng))
+			loot.append(random_material(rng, 30, 70))
 		"ammo_box":   # ammo box: lots of ammo, two types
 			var types: Array = AMMO.keys()
 			types.shuffle()
 			for i in range(2):
 				loot.append(make_ammo(types[i], int(AMMO[types[i]].pack * (1.5 + rng.randf()))))
+			loot.append(random_material(rng, 20, 45))
 		"vault":      # bunker vault: epic+ weapon with a good chance of a mythic
 			var vw := make_weapon(["assault", "sniper", "shotgun", "smg", "pistol"][rng.randi() % 5], MYTHIC if rng.randf() < 0.5 else 4)
 			loot.append(vw)
 			loot.append(ammo_for(vw, rng, 2.5))
 			loot.append(make_consumable("shield_potion", 2))
 			loot.append(make_consumable("medkit", 1))
+			loot.append(make_material("metal", 150))
+			loot.append(make_material("stone", 100))
 		"supply":     # supply drop: top-tier weapons plus shield/heal
 			var w1 := make_weapon(["assault", "sniper", "shotgun", "smg"][rng.randi() % 4], 3 + rng.randi() % 2)
 			if rng.randf() < 0.12:       # 1 in 8 supply drops carries a mythic
@@ -237,6 +259,9 @@ static func chest_loot(kind: String, rng: RandomNumberGenerator) -> Array:
 			loot.append(make_consumable("medkit", 1))
 			loot.append(ammo_for(w1, rng, 2.0))
 			loot.append(ammo_for(w2, rng, 2.0))
+			loot.append(make_material("wood", 100))
+			loot.append(make_material("stone", 100))
+			loot.append(make_material("metal", 100))
 	return loot
 
 

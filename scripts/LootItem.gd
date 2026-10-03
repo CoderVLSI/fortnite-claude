@@ -18,10 +18,13 @@ func setup(it: Dictionary) -> void:
 func _ready() -> void:
 	add_to_group("interactable")
 	var color := Items.color_of(item)
-	var scene = load(Items.model_of(item))
-	_model = scene.instance() if scene != null else Spatial.new()
-	var s := 1.5 if item.kind == "weapon" else 1.8
-	_model.scale = Vector3(s, s, s)
+	if item.kind == "material":
+		_model = _material_sprite()
+	else:
+		var scene = load(Items.model_of(item))
+		_model = scene.instance() if scene != null else Spatial.new()
+		var s := 1.5 if item.kind == "weapon" else 1.8
+		_model.scale = Vector3(s, s, s)
 	add_child(_model)
 
 	var beam := MeshInstance.new()
@@ -37,6 +40,19 @@ func _ready() -> void:
 	ring.cast_shadow = GeometryInstance.SHADOW_CASTING_SETTING_OFF
 	add_child(ring)
 	_rest_y = 0.55
+
+
+# Materials show their icon as a camera-facing sprite (the generated wood / stone / metal icons).
+func _material_sprite() -> Spatial:
+	var sprite := Sprite3D.new()
+	var path: String = "res://assets/icons/material_%s.png" % item.id
+	sprite.texture = load(path) if ResourceLoader.exists(path) else null
+	sprite.billboard = SpatialMaterial.BILLBOARD_ENABLED
+	sprite.pixel_size = 0.0085
+	sprite.shaded = false
+	sprite.double_sided = true
+	sprite.alpha_cut = Sprite3D.ALPHA_CUT_DISABLED
+	return sprite
 
 
 func _cache() -> Dictionary:
@@ -88,7 +104,7 @@ func _physics_process(_delta: float) -> void:
 		if p.is_dead:
 			continue
 		var d: float = p.global_transform.origin.distance_to(global_transform.origin)
-		if item.kind == "ammo" and d < 1.9:
+		if (item.kind == "ammo" or item.kind == "material") and d < 1.9:
 			interact(p)
 			return
 		var r := Items.rarity_of(item)
@@ -115,7 +131,7 @@ func interact(by) -> void:
 	if not res.ok:
 		Audio.play2d("ui_error", -4.0)
 		return
-	Audio.play2d("ammo_pickup" if item.kind == "ammo" else "loot_pickup", -3.0)
+	Audio.play2d("ammo_pickup" if (item.kind == "ammo" or item.kind == "material") else "loot_pickup", -3.0)
 	var rar := Items.rarity_of(item)
 	if item.kind == "weapon" and rar >= 1:
 		Audio.play2d("rarity_%d" % (rar + 1), -6.0)

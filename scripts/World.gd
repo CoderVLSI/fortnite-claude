@@ -713,6 +713,12 @@ func _drop_inventory(victim) -> void:
 		if it.kind == "weapon":
 			var ammo := Items.make_ammo(Items.WEAPONS[it.id].ammo, Items.AMMO[Items.WEAPONS[it.id].ammo].pack)
 			spawn_item(ammo, pos + Vector3(cos(a + 1.0), 0.2, sin(a + 1.0)) * 1.4)
+	for kind in Items.MATERIAL_NAMES:                  # and whatever materials they were carrying
+		var have: int = victim.materials.get(kind, 0)
+		if have >= 10:
+			var a2 := float(n) * 1.7 + 0.6
+			spawn_item(Items.make_material(kind, have), pos + Vector3(cos(a2), 0.2, sin(a2)) * 1.2)
+			n += 1
 
 
 func _near_building(p: Vector2, dist: float) -> bool:

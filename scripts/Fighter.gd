@@ -319,6 +319,9 @@ func pickup(item: Dictionary) -> Dictionary:
 		"ammo":
 			add_ammo(item.count, item.id)
 			return {"ok": true, "text": "+%d %s" % [item.count, Items.AMMO[item.id].name], "dropped": null}
+		"material":
+			add_material(item.id, item.count)
+			return {"ok": true, "text": "+%d %s" % [item.count, Items.MATERIAL_NAMES[item.id]], "dropped": null}
 		"weapon":
 			for i in range(1, slots.size()):
 				if slots[i] == null:

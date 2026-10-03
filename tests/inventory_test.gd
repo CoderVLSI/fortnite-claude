@@ -157,6 +157,33 @@ func _run() -> void:
 	yield(_frames(4), "completed")
 	check(not hud.inventory.visible, "Tab again closes it")
 
+	# building materials: every container variety holds some, walking over a stack collects it, fallen fighters drop theirs
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	for kind in ["chest", "ammo_box", "vault", "supply"]:
+		var has_mats := false
+		for it in Items.chest_loot(kind, rng):
+			if it.kind == "material":
+				has_mats = true
+		check(has_mats, "a %s drops building materials" % kind)
+	p.materials = {"wood": 0, "stone": 0, "metal": 0}
+	world.spawn_item(Items.make_material("stone", 40), p.global_transform.origin + Vector3(0.6, 0.1, 0.0))
+	yield(_frames(30), "completed")
+	check(p.materials.stone == 40, "walking over a material stack collects it (%d stone)" % p.materials.stone)
+	p.materials = {"wood": 80, "stone": 0, "metal": 25}
+	p.is_dead = true                    # a fallen fighter does not auto-collect its own drops
+	world._drop_inventory(p)
+	yield(_frames(8), "completed")
+	p.is_dead = false
+	var dropped_wood := false
+	var dropped_metal := false
+	for it in _floor_items(world):
+		if it.kind == "material" and it.id == "wood" and it.count == 80:
+			dropped_wood = true
+		if it.kind == "material" and it.id == "metal" and it.count == 25:
+			dropped_metal = true
+	check(dropped_wood and dropped_metal, "an eliminated fighter drops the materials they carried")
+
 	print("INVENTORY_RESULT failures=", failures.size())
 	quit(1 if failures.size() > 0 else 0)
 
