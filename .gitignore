@@ -10,3 +10,7 @@ build/
 *.jks
 # Local test artifacts
 tests/out/
+
+# Python bytecode
+__pycache__/
+*.pyc
