@@ -12,6 +12,8 @@ signal device_changed(using_pad)            # the last thing the player touched 
 const MOVE_ACTIONS = ["move_forward", "move_back", "move_left", "move_right"]
 
 var touch_mode := false
+var wheel_open := false           # the emote wheel is up: the mouse / right stick pick an emote instead of turning the camera
+var wheel_delta := Vector2.ZERO   # mouse movement collected for the wheel
 var using_pad := false            # the last input came from a controller (HUD hints switch to its button names)
 var menu_open := false            # a menu is up: it is navigated with focus (D-pad / stick + A), not the pointer emulation
 var pad_name := ""                # "" while no controller is connected
@@ -291,7 +293,10 @@ func _input(event: InputEvent) -> void:
 		if using_pad and event.pressed and not event.has_meta("pad_click"):
 			_set_using_pad(false)
 	if event is InputEventMouseMotion and Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
-		mouse_look += event.relative
+		if wheel_open:
+			wheel_delta += event.relative
+		else:
+			mouse_look += event.relative
 	elif edit_aim and event is InputEventMouseButton:
 		pass               # while editing, the wheel may be bound to Reset Edit: it must not also scroll the hotbar
 	elif event is InputEventMouseButton and event.pressed and event.button_index == BUTTON_WHEEL_UP:
@@ -377,6 +382,10 @@ func get_move() -> Vector2:
 
 # Look delta in radians (x = yaw, y = pitch), consuming accumulated pointer motion.
 func consume_look(delta: float) -> Vector2:
+	if wheel_open:
+		mouse_look = Vector2.ZERO
+		touch_look = Vector2.ZERO
+		return Vector2.ZERO
 	var l := (mouse_look * MOUSE_SENSITIVITY + touch_look * TOUCH_SENSITIVITY) * Settings.look_sensitivity * look_scale
 	mouse_look = Vector2.ZERO
 	touch_look = Vector2.ZERO

@@ -10,7 +10,6 @@ const CAMERA_DISTANCE := 3.6
 const INTERACT_RANGE := 3.2
 const SLIDE_TIME := 0.85
 const SLIDE_SPEED := 11.5
-const EMOTE_LENGTH := 4.5
 const BUILD_ACTIONS := ["build_wall", "build_floor", "build_ramp", "build_roof"]
 
 var input_enabled := true
@@ -54,7 +53,7 @@ func _build_camera() -> void:
 	spring.add_excluded_object(get_rid())
 	camera = Camera.new()
 	camera.fov = 72.0
-	camera.far = 520.0
+	camera.far = 420.0
 	camera.near = 0.15
 	spring.add_child(camera)
 	camera.make_current()
@@ -224,13 +223,28 @@ func _update_stance(delta: float, move: Vector2, want_jump: bool) -> void:
 		sprinting = false
 	if emoting:
 		emote_t += delta
-		if move.length() > 0.2 or want_jump or Input.is_action_pressed("fire") or sliding or emote_t > EMOTE_LENGTH:
+		if move.length() > 0.2 or want_jump or Input.is_action_pressed("fire") or sliding or emote_t > Emotes.length_of(emote_id):
 			emoting = false
-	elif input_enabled and Input.is_action_just_pressed("emote") and grounded and not sliding and not crouching and not aiming \
-			and move.length() < 0.2 and not builder.active:
-		emoting = true
-		emote_t = 0.0
-		cancel_use()
+
+
+# Start an emote from the wheel (or the quick tap). Returns false when the player is busy.
+func start_emote(id: String) -> bool:
+	if not Emotes.is_emote(id) or not input_enabled or is_dead or mode != Mode.GROUND or emoting:
+		if emoting and Emotes.is_emote(id) and not is_dead and mode == Mode.GROUND:
+			emote_id = id                      # picking another one while dancing switches straight to it
+			emote_t = 0.0
+			Settings.last_emote = id
+			return true
+		return false
+	var move := Controls.get_move()
+	if not grounded or sliding or crouching or aiming or move.length() >= 0.2 or builder.active:
+		return false
+	emote_id = id
+	emoting = true
+	emote_t = 0.0
+	Settings.last_emote = id
+	cancel_use()
+	return true
 
 
 # A build piece key / button: enter build mode with that piece; pressing the chosen piece again leaves build mode.

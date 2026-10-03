@@ -56,6 +56,7 @@ const BOT_COLORS := [Color(0.85, 0.25, 0.22), Color(0.90, 0.60, 0.15), Color(0.7
 
 var rng := RandomNumberGenerator.new()
 var profile := {}
+var perf                      # Perf.gd: distance culling + the automatic graphics governor
 var terrain
 var storm
 var player
@@ -104,6 +105,9 @@ func _ready() -> void:
 	profile = _make_profile()
 	_setup_environment()
 	apply_quality()
+	perf = preload("res://scripts/Perf.gd").new()
+	perf.setup(self)
+	add_child(perf)
 
 	terrain = Terrain.new()
 	terrain.name = "Terrain"
@@ -234,7 +238,7 @@ func _setup_environment() -> void:
 	env.fog_enabled = true
 	env.fog_color = Color(0.74, 0.85, 0.96)
 	env.fog_depth_begin = 150.0
-	env.fog_depth_end = 520.0
+	env.fog_depth_end = 380.0
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.adjustment_enabled = true
 	env.adjustment_saturation = 1.18
@@ -247,7 +251,8 @@ func _setup_environment() -> void:
 	sun.rotation_degrees = Vector3(-50.0, -35.0, 0.0)
 	sun.light_energy = 0.95
 	sun.shadow_enabled = Settings.quality >= 1
-	sun.directional_shadow_max_distance = 90.0
+	sun.directional_shadow_max_distance = 70.0
+	sun.directional_shadow_mode = DirectionalLight.SHADOW_PARALLEL_2_SPLITS
 	add_child(sun)
 
 	var water := MeshInstance.new()
@@ -311,6 +316,7 @@ func _spawn_buildings(plan: Array) -> void:
 		inst.translation = Vector3(p.x, terrain.height_at(p.x, p.y), p.y)
 		inst.rotation.y = entry.yaw
 		add_child(inst)
+		inst.add_to_group("structures")
 		_add_trimesh_collision(inst, "metal" if entry.res == "tower" else "wood", inst, entry.res)
 		_add_door(inst, entry.res)
 		building_positions.append(p)
@@ -515,6 +521,7 @@ func _build_pois() -> void:
 			inst.translation = pos
 			inst.rotation.y = yaw
 			add_child(inst)
+			inst.add_to_group("structures")
 			if pr.has("tint"):
 				Items.apply_accent(inst, pr.tint)
 			if not pr.get("decor", false):
@@ -837,16 +844,33 @@ func _scatter_props(model: String, count: int, smin: float, smax: float, col_rad
 	inst.free()
 	if mesh == null:
 		return
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.mesh = mesh
-	mm.instance_count = transforms.size()
+	# One MultiMesh per 80 m square, so the renderer can skip (and not shadow) the squares that are out of view.
+	var cells := {}
+	var slots := []
 	for i in range(transforms.size()):
-		mm.set_instance_transform(i, transforms[i])
-	var mmi := MultiMeshInstance.new()
-	mmi.name = model.capitalize() + "s"
-	mmi.multimesh = mm
-	add_child(mmi)
+		var o: Vector3 = transforms[i].origin
+		var key := Vector2(floor(o.x / 80.0), floor(o.z / 80.0))
+		if not cells.has(key):
+			cells[key] = []
+		slots.append([key, cells[key].size()])
+		cells[key].append(i)
+	var mms := {}
+	for key in cells:
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = mesh
+		mm.instance_count = cells[key].size()
+		for k in range(cells[key].size()):
+			mm.set_instance_transform(k, transforms[cells[key][k]])
+		var mmi := MultiMeshInstance.new()
+		mmi.name = model.capitalize() + "s"
+		mmi.multimesh = mm
+		add_child(mmi)
+		mmi.add_to_group("scenery")
+		mms[key] = mm
+	var mm_of := []
+	for sl in slots:
+		mm_of.append([mms[sl[0]], sl[1]])
 
 	var body := StaticBody.new()
 	body.name = model.capitalize() + "Colliders"
@@ -862,7 +886,7 @@ func _scatter_props(model: String, count: int, smin: float, smax: float, col_rad
 		cs.shape = cyl
 		cs.translation = transforms[i].origin + Vector3(0, cyl.height / 2.0, 0)
 		body.add_child(cs)
-	_props[body.name] = {"mm": mm, "body": body, "hits": {}, "transforms": transforms}
+	_props[body.name] = {"mm_of": mm_of, "body": body, "hits": {}, "transforms": transforms}
 
 
 # Pickaxe hit on a harvestable thing. Trees / rocks run out after a few swings.
@@ -907,7 +931,7 @@ func _prop_hit(body_name: String, shape_idx: int, kind: String, by, at: Vector3)
 		by.emit_signal("harvested", at, left, kind, HARVEST_LABELS.get(kind, kind.to_upper()), "%s:%d" % [body_name, shape_idx])
 	if hits >= HARVEST_HITS and shape_idx < data.body.get_child_count():
 		var gone := Transform(Basis().scaled(Vector3(0.0001, 0.0001, 0.0001)), data.transforms[shape_idx].origin)
-		data.mm.set_instance_transform(shape_idx, gone)
+		data.mm_of[shape_idx][0].set_instance_transform(data.mm_of[shape_idx][1], gone)
 		data.body.get_child(shape_idx).set_deferred("disabled", true)
 
 

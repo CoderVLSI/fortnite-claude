@@ -13,6 +13,7 @@ const HOTBAR_HALF := 167.0       # half the hotbar width: the pickup ring and re
 signal map_pressed
 signal bag_pressed
 signal edit_pressed
+signal emote_pressed
 signal piece_pressed(index)
 signal material_pressed(name)
 
@@ -52,6 +53,7 @@ func _layout() -> void:
 		"reload": {"center": Vector2(w / 2.0 + HOTBAR_HALF + 235.0, h - 64), "radius": 40.0, "icon": "reload", "action": "reload"},
 		"interact": {"center": Vector2(w / 2.0 - HOTBAR_HALF - 72.0, h - 78), "radius": 58.0, "label": "PICK UP", "action": "interact", "hidden": true},
 	}
+	_buttons["emote"] = {"center": Vector2(64, 262.0), "radius": 32.0, "icon": "emote", "emote": true}
 	_buttons["edit"] = {"center": Vector2(w - 46, 486.0), "radius": 34.0, "icon": "edit", "edit": true}
 	for i in range(4):
 		_buttons["piece%d" % i] = {"center": Vector2(w - 46, 150.0 + i * 84.0), "radius": 36.0, "icon": "piece%d" % i, "piece": i}
@@ -104,7 +106,7 @@ func _input(event: InputEvent) -> void:
 		return
 	if event is InputEventScreenTouch and event.pressed and Controls.using_pad:
 		Controls.use_touch()
-	if Controls.using_pad:
+	if Controls.using_pad or Controls.wheel_open:
 		return
 	if event is InputEventScreenTouch:
 		if event.pressed:
@@ -140,6 +142,8 @@ func _down(index: int, pos: Vector2) -> void:
 				emit_signal("bag_pressed")
 			elif b.get("edit", false):
 				emit_signal("edit_pressed")
+			elif b.get("emote", false):
+				emit_signal("emote_pressed")
 			elif b.get("aim", false):
 				Controls.touch_aim = not Controls.touch_aim       # tap to scope in, tap again to scope out
 			elif b.get("toggle", false):
@@ -300,6 +304,13 @@ func _draw_icon(icon: String, c: Vector2, r: float, col: Color, chosen: bool) ->
 		"sprint":    # three chevrons pointing right with speed lines
 			for off in [-16.0, 2.0, 20.0]:
 				draw_polyline(PoolVector2Array([c + Vector2(off - 6, -18) * k, c + Vector2(off + 12, 0) * k, c + Vector2(off - 6, 18) * k]), col, 5.0 * max(k, 0.8))
+		"emote":     # a little dancing figure
+			draw_circle(c + Vector2(0, -22) * k, 7.0 * k, col)
+			draw_line(c + Vector2(0, -14) * k, c + Vector2(0, 8) * k, col, 4.0 * max(k, 0.8))
+			draw_line(c + Vector2(0, -8) * k, c + Vector2(-17, -20) * k, col, 3.5 * max(k, 0.8))
+			draw_line(c + Vector2(0, -8) * k, c + Vector2(17, -2) * k, col, 3.5 * max(k, 0.8))
+			draw_line(c + Vector2(0, 8) * k, c + Vector2(-12, 24) * k, col, 3.5 * max(k, 0.8))
+			draw_line(c + Vector2(0, 8) * k, c + Vector2(14, 22) * k, col, 3.5 * max(k, 0.8))
 		"edit":      # pencil over a grid
 			draw_rect(Rect2(c + Vector2(-17, -17), Vector2(34, 34)), Color(1, 1, 1, 0.22))
 			draw_line(c + Vector2(-17, -6), c + Vector2(17, -6), Color(1, 1, 1, 0.5), 1.5)

@@ -15,6 +15,7 @@ const Materials = preload("res://scripts/ui/Materials.gd")
 const InventoryScreen = preload("res://scripts/ui/InventoryScreen.gd")
 const BuildEditor = preload("res://scripts/ui/BuildEditor.gd")
 const TouchControls = preload("res://scripts/ui/TouchControls.gd")
+const EmoteWheel = preload("res://scripts/ui/EmoteWheel.gd")
 const NameTags = preload("res://scripts/ui/NameTags.gd")
 const FONT_PATH := "res://assets/fonts/DejaVuSans-Bold.ttf"
 
@@ -81,6 +82,7 @@ var end_stats: Label
 var _flash := 0.0
 var _toast_t := 0.0
 var _t := 0.0
+var emote_wheel
 var _big_font: DynamicFont
 
 
@@ -218,6 +220,9 @@ func _build() -> void:
 	tags.font = root.theme.default_font if root.theme != null else null
 	root.add_child(tags)
 	root.move_child(tags, 0)
+	emote_wheel = EmoteWheel.new()
+	emote_wheel.font = tags.font
+	root.add_child(emote_wheel)
 
 	prompt_label = _label("", Label.ALIGN_CENTER)
 	_place(prompt_label, 0.5, 0.5, Vector2(-260, 70), Vector2(520, 32))
@@ -310,6 +315,7 @@ func _build() -> void:
 	touch.connect("map_pressed", self, "toggle_map")
 	touch.connect("bag_pressed", self, "toggle_inventory")
 	touch.connect("edit_pressed", self, "try_edit")
+	touch.connect("emote_pressed", emote_wheel, "open_touch")
 	touch.connect("piece_pressed", self, "_on_piece_pressed")
 	touch.connect("material_pressed", self, "_on_material_pressed")
 	root.add_child(touch)
@@ -395,6 +401,8 @@ func bind(world_node) -> void:
 	minimap.world = world
 	crosshair.player = player
 	scope_overlay.player = player
+	emote_wheel.player = player
+	root.move_child(emote_wheel, root.get_child_count() - 1)
 	inventory.player = player
 	player.connect("harvested", self, "_on_harvested")
 	player.connect("damage_dealt", self, "_on_damage_dealt")

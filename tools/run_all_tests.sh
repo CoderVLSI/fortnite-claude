@@ -35,6 +35,8 @@ run gadget_test --no-bus --skip-menu
 run highrise_test --no-bus --skip-menu
 run skin_test --no-bus --skip-menu
 run accounts_test --no-bus --skip-menu
+run perf_test --no-bus --skip-menu
+run emote_test --no-bus --skip-menu
 run menu_test
 run pad_test
 RES=844x390 run mobile_test --touch

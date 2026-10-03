@@ -11,6 +11,7 @@ var look_sensitivity := 1.0       # multiplier on the base mouse / touch sensiti
 var invert_y := false
 var quality := 1                  # 0 low, 1 medium, 2 high (picked by platform on first run)
 var show_fps := false
+var auto_graphics := true          # lower the graphics by itself when the game runs slowly (Perf.gd)
 var player_name := "PLAYER"
 var matches := 0                  # career stats shown on the lobby card
 var wins := 0
@@ -20,13 +21,15 @@ var loadout := {"skin": "ranger", "pickaxe": "classic", "backbling": "none", "co
 var starter_sprite := "earth"    # the sprite you bring to a match (none / earth / fire / water)
 var damage_numbers := true
 var edit_on_release := false     # builds: false = press Edit once to start and again to confirm; true = hold it and let go to confirm
+var emote_wheel := []              # emote ids on the wheel, in order (Locker > Emotes); sanitised in Emotes.sanitize_wheel
+var last_emote := "boogie"
 var padbinds := {}                # action -> controller button (-1 = none); only the ones the player changed
 var keybinds := {}                # action -> [[type, code], ...]; only the actions the player changed
 var autostart := false            # runtime only: skip the title screen after "Play again"
 
 
 func _ready() -> void:
-	quality = 0 if OS.has_feature("mobile") else 2
+	quality = 0 if OS.has_feature("mobile") else 1
 	load_settings()
 
 
@@ -40,6 +43,7 @@ func load_settings() -> void:
 	invert_y = bool(cfg.get_value("controls", "invert_y", invert_y))
 	quality = int(cfg.get_value("graphics", "quality", quality))
 	show_fps = bool(cfg.get_value("graphics", "show_fps", show_fps))
+	auto_graphics = bool(cfg.get_value("graphics", "auto", auto_graphics))
 	aim_toggle = bool(cfg.get_value("gameplay", "aim_toggle", aim_toggle))
 	starter_sprite = str(cfg.get_value("gameplay", "starter_sprite", starter_sprite))
 	for c in loadout.keys():
@@ -49,6 +53,8 @@ func load_settings() -> void:
 	if cfg.has_section("keybinds"):
 		for action in cfg.get_section_keys("keybinds"):
 			keybinds[action] = cfg.get_value("keybinds", action, [])
+	emote_wheel = Array(str(cfg.get_value("gameplay", "emote_wheel", "")).split(",", false))
+	last_emote = str(cfg.get_value("gameplay", "last_emote", last_emote))
 	if cfg.has_section("padbinds"):
 		for action in cfg.get_section_keys("padbinds"):
 			padbinds[action] = int(cfg.get_value("padbinds", action, -1))
@@ -66,6 +72,7 @@ func save_settings() -> void:
 	cfg.set_value("controls", "invert_y", invert_y)
 	cfg.set_value("graphics", "quality", quality)
 	cfg.set_value("graphics", "show_fps", show_fps)
+	cfg.set_value("graphics", "auto", auto_graphics)
 	cfg.set_value("gameplay", "aim_toggle", aim_toggle)
 	cfg.set_value("gameplay", "starter_sprite", starter_sprite)
 	for c in loadout.keys():
@@ -74,6 +81,8 @@ func save_settings() -> void:
 	cfg.set_value("gameplay", "edit_hold_to_confirm", edit_on_release)
 	for action in keybinds:
 		cfg.set_value("keybinds", action, keybinds[action])
+	cfg.set_value("gameplay", "emote_wheel", PoolStringArray(emote_wheel).join(","))
+	cfg.set_value("gameplay", "last_emote", last_emote)
 	for action in padbinds:
 		cfg.set_value("padbinds", action, padbinds[action])
 	cfg.set_value("profile", "name", player_name)

@@ -22,6 +22,7 @@ signal landed
 
 enum Mode { GROUND, BUS, FREEFALL, GLIDE, SWIM, MANTLE, VEHICLE }
 
+const Emotes = preload("res://scripts/Emotes.gd")
 const MODEL_PATH := "res://assets/models/player.glb"
 const Grenade = preload("res://scripts/Grenade.gd")
 const Rift = preload("res://scripts/Rift.gd")
@@ -129,6 +130,9 @@ var forward_speed := 0.0
 var sprinting := false
 var crouching := false            # hold crouch: slower, lower, steadier aim
 var sliding := false              # sprint then crouch: a short momentum slide
+var emote_id := "boogie"        # which emote is playing (Emotes.gd)
+var _emote_music := ""
+var _emote_player: AudioStreamPlayer3D
 var emoting := false              # dancing: cancelled by moving, firing or jumping
 var emote_t := 0.0
 var _slide_t := 0.0
@@ -1009,8 +1013,36 @@ func animate(delta: float) -> void:
 	if animator == null:
 		return
 	_air_pose(delta)
+	_emote_audio()
 	_swing = max(0.0, _swing - delta)
+	if not visible:
+		return                         # far away and culled by Perf.gd: nobody can see the pose, so skip the rig
 	animator.update(self, delta)
+
+
+# Dance music plays from the dancer for everyone nearby, and stops when the emote does.
+func _emote_audio() -> void:
+	var want := Emotes.music_name(emote_id) if emoting and not is_dead and Emotes.SONGS.has(emote_id) and not Audio.muted else ""
+	if want == _emote_music:
+		return
+	_emote_music = want
+	if want == "":
+		if _emote_player != null:
+			_emote_player.stop()
+		return
+	var st = Emotes.stream(emote_id)
+	if st == null:
+		return
+	if _emote_player == null:
+		_emote_player = AudioStreamPlayer3D.new()
+		_emote_player.bus = "SFX"
+		_emote_player.unit_db = -2.0
+		_emote_player.unit_size = 8.0
+		_emote_player.max_distance = 70.0
+		_emote_player.attenuation_model = AudioStreamPlayer3D.ATTENUATION_INVERSE_DISTANCE
+		add_child(_emote_player)
+	_emote_player.stream = st
+	_emote_player.play()
 
 
 func reload_fraction_left() -> float:
@@ -1338,6 +1370,7 @@ func net_state() -> Dictionary:
 	if jet_active: flags |= 64
 	if grounded: flags |= 128
 	if cloak_t > 0.0: flags |= 256
+	flags |= Emotes.index_of(emote_id) << 9
 	return {"p": global_transform.origin, "y": rotation.y, "pt": aim_pitch, "m": mode, "v": velocity, "f": flags, "s": selected,
 		"i": selected_item(), "h": health, "sh": shield, "d": is_dead, "vs": vehicle_seat, "st": vehicle_steer,
 		"ai": air_input, "ap": air_pivot.rotation.y if air_pivot != null else 0.0}
@@ -1380,6 +1413,7 @@ func net_apply(s: Dictionary) -> void:
 	jet_active = (f & 64) != 0
 	grounded = (f & 128) != 0
 	cloak_t = 1.0 if (f & 256) != 0 else 0.0
+	emote_id = Emotes.id_at((f >> 9) & 7)
 	vehicle_seat = s.vs
 	vehicle_steer = s.st
 	air_input = s.ai

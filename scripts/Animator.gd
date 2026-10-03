@@ -195,8 +195,29 @@ func _pose_ground(f, delta: float) -> void:
 		_to("KneeR", Vector3(-1.85, 0, 0))
 
 
-# Default dance: knees pumping, arms alternating overhead, hips swaying.
+# The emote on the wheel that is playing (f.emote_id): each is a looping or one-shot pose driven by the clock `t`.
 func _pose_emote(f) -> void:
+	match f.emote_id:
+		"wave":
+			_pose_wave(f)
+		"floss":
+			_pose_floss()
+		"robot":
+			_pose_robot()
+		"twirl":
+			_pose_twirl()
+		"flex":
+			_pose_flex(f)
+		"cheer":
+			_pose_cheer()
+		"sit":
+			_pose_sit()
+		_:
+			_pose_boogie()
+
+
+# Knees pumping, arms alternating overhead, hips swaying.
+func _pose_boogie() -> void:
 	var beat := t * 7.0
 	var s := sin(beat)
 	hips_target_y = -0.10 - abs(sin(beat)) * 0.16
@@ -211,6 +232,122 @@ func _pose_emote(f) -> void:
 	_to("ShoulderR", Vector3(2.5 - s * 0.35, 0, -0.35))
 	_to("ElbowL", Vector3(0.7 - s * 0.4, 0, 0))
 	_to("ElbowR", Vector3(0.7 + s * 0.4, 0, 0))
+
+
+# One arm up, waving from the elbow; the other relaxed.
+func _pose_wave(f) -> void:
+	var w := sin(t * 11.0)
+	hips_target_y = 0.0
+	_to("Hips", Vector3(0, 0.12, 0))
+	_to("Spine", Vector3(0, 0.08, 0))
+	_to("Head", Vector3(0, 0.25, 0.12))
+	_to("ShoulderR", Vector3(2.7, 0, -0.55))
+	_to("ElbowR", Vector3(0.5 + w * 0.55, 0, 0))
+	_to("ShoulderL", Vector3(0.05, 0, 0.1))
+	_to("ElbowL", Vector3(0.15, 0, 0))
+	for j in ["HipL", "HipR", "KneeL", "KneeR"]:
+		_to(j, Vector3.ZERO)
+
+
+# Hips swinging side to side while the arms swing the opposite way.
+func _pose_floss() -> void:
+	var b := t * 9.0
+	var s := sin(b)
+	hips_target_y = -0.16
+	_to("Hips", Vector3(0, 0, s * 0.30))
+	_to("Spine", Vector3(0.12, 0, -s * 0.20))
+	_to("Head", Vector3(0.05, 0, 0))
+	_to("HipL", Vector3(0.35, 0, 0.1 * s))
+	_to("HipR", Vector3(0.35, 0, 0.1 * s))
+	_to("KneeL", Vector3(-0.7, 0, 0))
+	_to("KneeR", Vector3(-0.7, 0, 0))
+	_to("ShoulderL", Vector3(-0.2, 0, 0.35 - s * 0.9))
+	_to("ShoulderR", Vector3(-0.2, 0, -0.35 - s * 0.9))
+	_to("ElbowL", Vector3(0.1, 0, 0))
+	_to("ElbowR", Vector3(0.1, 0, 0))
+
+
+# Jerky, stepped robot moves: the pose snaps every half beat.
+func _pose_robot() -> void:
+	var k := int(floor(t * 4.0)) % 4
+	hips_target_y = -0.05 - (0.05 if k % 2 == 0 else 0.0)
+	_to("Hips", Vector3(0, [0.0, 0.5, 0.0, -0.5][k], 0))
+	_to("Spine", Vector3(0, [0.0, -0.4, 0.0, 0.4][k], 0))
+	_to("Head", Vector3(0, [0.5, 0.0, -0.5, 0.0][k], 0))
+	_to("ShoulderL", Vector3([1.57, 2.4, 1.57, 0.2][k], 0, 0.2))
+	_to("ElbowL", Vector3([1.57, 0.0, 1.57, 1.57][k], 0, 0))
+	_to("ShoulderR", Vector3([0.2, 1.57, 2.4, 1.57][k], 0, -0.2))
+	_to("ElbowR", Vector3([1.57, 1.57, 0.0, 1.57][k], 0, 0))
+	_to("HipL", Vector3([0.3, 0.0, 0.3, 0.0][k], 0, 0))
+	_to("HipR", Vector3([0.0, 0.3, 0.0, 0.3][k], 0, 0))
+	_to("KneeL", Vector3([-0.5, 0.0, -0.5, 0.0][k], 0, 0))
+	_to("KneeR", Vector3([0.0, -0.5, 0.0, -0.5][k], 0, 0))
+
+
+# Arms out, spinning round and round.
+func _pose_twirl() -> void:
+	hips_target_y = -0.04 - abs(sin(t * 3.0)) * 0.05
+	_to("Hips", Vector3(0, t * 5.5, 0))
+	_to("Spine", Vector3(0, 0, sin(t * 3.0) * 0.08))
+	_to("Head", Vector3(-0.1, 0, 0))
+	_to("ShoulderL", Vector3(0, 0, 1.45))
+	_to("ShoulderR", Vector3(0, 0, -1.45))
+	_to("ElbowL", Vector3(0.1, 0, 0))
+	_to("ElbowR", Vector3(0.1, 0, 0))
+	_to("HipL", Vector3(0.1, 0, 0.1))
+	_to("HipR", Vector3(0.1, 0, -0.1))
+	_to("KneeL", Vector3(-0.2, 0, 0))
+	_to("KneeR", Vector3(-0.2, 0, 0))
+
+
+# Both arms up with bent elbows; a slow pump of the chest.
+func _pose_flex(f) -> void:
+	var p := sin(t * 5.0) * 0.08
+	hips_target_y = -0.06
+	_to("Hips", Vector3(0, 0, 0))
+	_to("Spine", Vector3(-0.1 + p, 0, 0))
+	_to("Head", Vector3(-0.12, 0, 0))
+	_to("ShoulderL", Vector3(0.3, 0, 1.55 + p))
+	_to("ShoulderR", Vector3(0.3, 0, -1.55 - p))
+	_to("ElbowL", Vector3(2.3, 0, 0))
+	_to("ElbowR", Vector3(2.3, 0, 0))
+	_to("HipL", Vector3(0.0, 0, 0.18))
+	_to("HipR", Vector3(0.0, 0, -0.18))
+	_to("KneeL", Vector3(-0.15, 0, 0))
+	_to("KneeR", Vector3(-0.15, 0, 0))
+
+
+# Hopping on the spot with both arms in the air.
+func _pose_cheer() -> void:
+	var h := abs(sin(t * 6.0))
+	hips_target_y = 0.05 + h * 0.22
+	_to("Hips", Vector3(0, 0, 0))
+	_to("Spine", Vector3(-0.1, 0, sin(t * 6.0) * 0.06))
+	_to("Head", Vector3(-0.2, 0, 0))
+	_to("ShoulderL", Vector3(2.9, 0, 0.3 + h * 0.3))
+	_to("ShoulderR", Vector3(2.9, 0, -0.3 - h * 0.3))
+	_to("ElbowL", Vector3(0.2, 0, 0))
+	_to("ElbowR", Vector3(0.2, 0, 0))
+	_to("HipL", Vector3(0.3 - h * 0.3, 0, 0.1))
+	_to("HipR", Vector3(0.3 - h * 0.3, 0, -0.1))
+	_to("KneeL", Vector3(-0.6 + h * 0.5, 0, 0))
+	_to("KneeR", Vector3(-0.6 + h * 0.5, 0, 0))
+
+
+# Sitting on an invisible chair, one foot tapping.
+func _pose_sit() -> void:
+	hips_target_y = -0.62
+	_to("Hips", Vector3(0, 0, 0))
+	_to("Spine", Vector3(-0.1, 0, 0))
+	_to("Head", Vector3(0.05, sin(t * 1.4) * 0.25, 0))
+	_to("HipL", Vector3(1.5, 0, 0.12))
+	_to("HipR", Vector3(1.5, 0, -0.12))
+	_to("KneeL", Vector3(-1.5 + max(0.0, sin(t * 7.0)) * 0.25, 0, 0))
+	_to("KneeR", Vector3(-1.5, 0, 0))
+	_to("ShoulderL", Vector3(0.7, 0, 0.25))
+	_to("ShoulderR", Vector3(0.7, 0, -0.25))
+	_to("ElbowL", Vector3(1.2, 0, 0))
+	_to("ElbowR", Vector3(1.2, 0, 0))
 
 
 # Sliding: leaning back with one leg out in front.

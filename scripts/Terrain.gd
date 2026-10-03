@@ -114,37 +114,43 @@ func build() -> void:
 			row.append(height_at(-half + i * cell, -half + j * cell))
 		heights.append(row)
 
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for i in range(n):
-		for j in range(n):
-			var a := _vertex(heights, i, j, n)
-			var b := _vertex(heights, i + 1, j, n)
-			var c := _vertex(heights, i + 1, j + 1, n)
-			var d := _vertex(heights, i, j + 1, n)
-			# Godot front faces are clockwise when seen from above.
-			for v in [a, b, c, a, c, d]:
-				st.add_color(v[1])
-				st.add_normal(v[2])
-				st.add_vertex(v[0])
-	var mesh := st.commit()
-
+	# The ground is cut into square chunks so the renderer can skip (and not shadow) the ones out of view.
 	var mat := SpatialMaterial.new()
 	mat.vertex_color_use_as_albedo = true
 	mat.roughness = 1.0
 	mat.params_cull_mode = SpatialMaterial.CULL_BACK
-	var mi := MeshInstance.new()
-	mi.mesh = mesh
-	mi.material_override = mat
-	mi.name = "TerrainMesh"
-	add_child(mi)
+	var faces := PoolVector3Array()
+	var chunk := 16
+	for ci in range(0, n, chunk):
+		for cj in range(0, n, chunk):
+			var st := SurfaceTool.new()
+			st.begin(Mesh.PRIMITIVE_TRIANGLES)
+			for i in range(ci, min(ci + chunk, n)):
+				for j in range(cj, min(cj + chunk, n)):
+					var a := _vertex(heights, i, j, n)
+					var b := _vertex(heights, i + 1, j, n)
+					var c := _vertex(heights, i + 1, j + 1, n)
+					var d := _vertex(heights, i, j + 1, n)
+					# Godot front faces are clockwise when seen from above.
+					for v in [a, b, c, a, c, d]:
+						st.add_color(v[1])
+						st.add_normal(v[2])
+						st.add_vertex(v[0])
+						faces.append(v[0])
+			var mi := MeshInstance.new()
+			mi.mesh = st.commit()
+			mi.material_override = mat
+			mi.name = "TerrainMesh"
+			add_child(mi)
 
 	var body := StaticBody.new()
 	body.name = "TerrainBody"
 	body.collision_layer = 1
 	body.collision_mask = 0
 	var shape := CollisionShape.new()
-	shape.shape = mesh.create_trimesh_shape()
+	var concave := ConcavePolygonShape.new()
+	concave.set_faces(faces)
+	shape.shape = concave
 	body.add_child(shape)
 	add_child(body)
 

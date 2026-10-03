@@ -7,6 +7,7 @@ extends CanvasLayer
 const Sprites = preload("res://scripts/Sprites.gd")
 const Skins = preload("res://scripts/Skins.gd")
 const Cosmetics = preload("res://scripts/Cosmetics.gd")
+const Emotes = preload("res://scripts/Emotes.gd")
 const Items = preload("res://scripts/Items.gd")
 const SplashScreen = preload("res://scripts/ui/SplashScreen.gd")
 const FONT_PATH := "res://assets/fonts/DejaVuSans-Bold.ttf"
@@ -416,6 +417,11 @@ func _build_settings() -> Control:
 	fps.pressed = Settings.show_fps
 	fps.connect("toggled", self, "_on_fps")
 	settings_pages["graphics"].add_child(fps)
+	var auto := CheckBox.new()
+	auto.text = "Auto-adjust graphics when the game runs slowly"
+	auto.pressed = Settings.auto_graphics
+	auto.connect("toggled", self, "_on_auto_graphics")
+	settings_pages["graphics"].add_child(auto)
 
 	var cp := _page(holder)
 	settings_pages["controls"] = cp
@@ -995,9 +1001,9 @@ func _build_locker(parent: Control) -> void:
 	grid.add_constant_override("hseparation", 6)
 	grid.add_constant_override("vseparation", 6)
 	locker_panel.add_child(grid)
-	for cat in Cosmetics.CATEGORIES:
+	for cat in Cosmetics.CATEGORIES + ["emote"]:
 		var b := Button.new()
-		b.text = Cosmetics.TITLES[cat]
+		b.text = Cosmetics.TITLES.get(cat, "EMOTES")
 		b.rect_min_size = Vector2(134, 40)
 		b.connect("pressed", self, "locker_show", [cat])
 		grid.add_child(b)
@@ -1025,6 +1031,9 @@ func locker_show(cat: String) -> void:
 	for ch in locker_list.get_children():
 		locker_list.remove_child(ch)
 		ch.queue_free()
+	if cat == "emote":
+		_locker_emotes()
+		return
 	var t: Dictionary = Cosmetics.table(cat)
 	for id in Cosmetics.order(cat):
 		var d: Dictionary = t[id]
@@ -1045,6 +1054,42 @@ func locker_show(cat: String) -> void:
 	locker_desc.text = "%s  -  %s" % [Items.RARITIES[cur.rarity].name, cur.desc]
 	if get_tree() != null:
 		Audio.play2d("ui_click", -10.0)
+
+
+# Emotes: click to put one on the wheel or take it off (the wheel keeps at least one and holds up to 8).
+func _locker_emotes() -> void:
+	var wheel: Array = Emotes.sanitize_wheel(Settings.emote_wheel)
+	for id in Emotes.ORDER:
+		var d: Dictionary = Emotes.LIST[id]
+		var b := Button.new()
+		var on: bool = id in wheel
+		b.text = ("[x]  " if on else "      ") + d.name
+		b.rect_min_size = Vector2(390, 50)
+		b.align = Button.ALIGN_LEFT
+		b.clip_text = true
+		var rc: Color = Cosmetics.rarity_color(d.rarity)
+		b.add_color_override("font_color", rc.lightened(0.25))
+		b.add_color_override("font_color_hover", rc.lightened(0.5))
+		if on:
+			b.modulate = Color(1.0, 0.95, 0.6)
+		b.connect("pressed", self, "locker_toggle_emote", [id])
+		locker_list.add_child(b)
+	locker_desc.text = "Emote wheel: %d / %d  -  hold %s in a match to open it. Click to add or remove." % [wheel.size(), Emotes.WHEEL_SIZE, Controls.key_label("emote")]
+	if get_tree() != null:
+		Audio.play2d("ui_click", -10.0)
+
+
+func locker_toggle_emote(id: String) -> void:
+	var wheel: Array = Emotes.sanitize_wheel(Settings.emote_wheel)
+	if id in wheel:
+		if wheel.size() > 1:
+			wheel.erase(id)
+	elif wheel.size() < Emotes.WHEEL_SIZE:
+		wheel.append(id)
+	Settings.emote_wheel = wheel
+	Settings.save_settings()
+	Audio.play2d("ui_click", -6.0)
+	locker_show("emote")
 
 
 func locker_select(cat: String, id: String) -> void:
@@ -1341,6 +1386,11 @@ func _on_slider(value: float, id: String) -> void:
 
 func _on_invert(on: bool) -> void:
 	Settings.invert_y = on
+	Settings.save_settings()
+
+
+func _on_auto_graphics(on: bool) -> void:
+	Settings.auto_graphics = on
 	Settings.save_settings()
 
 
