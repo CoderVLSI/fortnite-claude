@@ -16,6 +16,7 @@ var matches := 0                  # career stats shown on the lobby card
 var wins := 0
 var elims := 0
 var aim_toggle := false           # tap to aim instead of hold
+var skin := "ranger"             # the character skin chosen in the lobby
 var starter_sprite := "earth"    # the sprite you bring to a match (none / earth / fire / water)
 var damage_numbers := true
 var edit_on_release := true      # builds: confirm an edit when the Edit key is let go (Fortnite style)
@@ -40,6 +41,7 @@ func load_settings() -> void:
 	show_fps = bool(cfg.get_value("graphics", "show_fps", show_fps))
 	aim_toggle = bool(cfg.get_value("gameplay", "aim_toggle", aim_toggle))
 	starter_sprite = str(cfg.get_value("gameplay", "starter_sprite", starter_sprite))
+	skin = str(cfg.get_value("player", "skin", skin))
 	damage_numbers = bool(cfg.get_value("gameplay", "damage_numbers", damage_numbers))
 	edit_on_release = bool(cfg.get_value("gameplay", "edit_on_release", edit_on_release))
 	if cfg.has_section("keybinds"):
@@ -61,6 +63,7 @@ func save_settings() -> void:
 	cfg.set_value("graphics", "show_fps", show_fps)
 	cfg.set_value("gameplay", "aim_toggle", aim_toggle)
 	cfg.set_value("gameplay", "starter_sprite", starter_sprite)
+	cfg.set_value("player", "skin", skin)
 	cfg.set_value("gameplay", "damage_numbers", damage_numbers)
 	cfg.set_value("gameplay", "edit_on_release", edit_on_release)
 	for action in keybinds:

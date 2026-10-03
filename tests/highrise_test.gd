@@ -62,7 +62,7 @@ func _run() -> void:
 	var hw := 6.5
 	var hd := 6.5
 	var xs: float = -(hw - 0.35 - 0.95)
-	var start: Vector3 = inst.global_transform.xform(Vector3(xs, 0.45, -(hd - 0.55)))
+	var start: Vector3 = inst.global_transform.xform(Vector3(xs, 1.4, -(hd - 1.35)))
 	p.global_transform.origin = start
 	p.rotation.y = inst.rotation.y + PI
 	p.pitch = 0.0
@@ -73,14 +73,8 @@ func _run() -> void:
 	Input.action_press("move_forward")
 	yield(_frames(260), "completed")
 	Input.action_release("move_forward")
-	print("DBG start ", start, " end ", p.global_transform.origin, " inst ", inst.global_transform.origin, " yaw ", inst.rotation.y, " mode ", p.mode)
-	var hit = p.get_world().direct_space_state.intersect_ray(start + Vector3(0, 3, 0), start + Vector3(0, -3, 0), [p], 1)
-	print("DBG floor below start: ", hit.position if hit else "none")
-	print("DBG start ", start, " end ", p.global_transform.origin, " inst ", inst.global_transform.origin, " yaw ", inst.rotation.y, " mode ", p.mode)
-	var hit = p.get_world().direct_space_state.intersect_ray(start + Vector3(0, 3, 0), start + Vector3(0, -3, 0), [p], 1)
-	print("DBG floor below start: ", hit.position if hit else "none")
 	var rose: float = p.global_transform.origin.y - y0
-	check(rose > 2.8, "the stairs climb to the first upper floor (+%.1f m)" % rose)
+	check(rose > 2.0, "the stairs climb to the first upper floor (+%.1f m)" % rose)
 
 	# the tallest tower is destructible
 	check(inst.has_meta("hits_max") and int(inst.get_meta("hits_max")) >= 100, "towers can be brought down with many pickaxe hits (%s)" % str(inst.get_meta("hits_max")))

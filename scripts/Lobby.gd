@@ -5,6 +5,7 @@ extends Spatial
 
 const Items = preload("res://scripts/Items.gd")
 const MODEL := "res://assets/models/player.glb"
+const Skins = preload("res://scripts/Skins.gd")
 const ORIGIN := Vector3(4000, 300, 0)
 const CAMERA_POS := Vector3(0.0, 1.35, 5.0)      # relative to ORIGIN, looks at CAMERA_TARGET
 const CAMERA_TARGET := Vector3(0.0, 1.05, 0.0)
@@ -99,6 +100,7 @@ func _build_character() -> void:
 	character = res.instance()
 	character.rotation_degrees = Vector3(0, 168, 0)      # faces the camera (+Z), turned slightly
 	add_child(character)
+	Skins.apply(character, Settings.skin, Color(0.20, 0.45, 0.95))
 	for n in ["Hips", "Spine", "Head", "ShoulderL", "ElbowL", "HandL", "ShoulderR", "ElbowR", "HandR", "HipL", "KneeL", "HipR", "KneeR"]:
 		var node := character.find_node(n, true, false)
 		if node:
@@ -186,6 +188,13 @@ func _build_lights() -> void:
 	rim.light_energy = 0.9
 	rim.omni_range = 16.0
 	add_child(rim)
+
+
+# Try on a skin in the lobby.
+func set_skin(id: String) -> void:
+	if character != null:
+		Skins.apply(character, id, Color(0.20, 0.45, 0.95))
+		wave()
 
 
 func wave() -> void:

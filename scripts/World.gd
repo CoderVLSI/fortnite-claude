@@ -25,6 +25,7 @@ const AutoDoor = preload("res://scripts/AutoDoor.gd")
 const WildSprite = preload("res://scripts/WildSprite.gd")
 const SpriteCreature = preload("res://scripts/SpriteCreature.gd")
 const Sprites = preload("res://scripts/Sprites.gd")
+const Skins = preload("res://scripts/Skins.gd")
 
 const MAP_HALF := 240.0                  # a 480 m island (it was 320 m)
 const MAP_SCALE := MAP_HALF / 160.0      # POI radii and spacing are authored for the old 160 m island
@@ -137,6 +138,7 @@ func _ready() -> void:
 # Called by the menu when the player presses Play (or immediately with --skip-menu).
 func on_game_started() -> void:
 	hud.root.visible = true
+	player.set_skin(Settings.skin)
 	if Settings.starter_sprite != "none" and not ("--skip-menu" in OS.get_cmdline_args()):
 		player.equip_sprite(Settings.starter_sprite)
 	Audio.music("music_bus" if profile.use_bus else "music_game", 0.5)
@@ -955,6 +957,7 @@ func _spawn_fighters() -> void:
 		bot.world = self
 		bot.display_name = BOT_NAMES[i % BOT_NAMES.size()]
 		bot.vest_color = BOT_COLORS[i % BOT_COLORS.size()]
+		bot.skin_id = Skins.ORDER[(i * 3 + 1) % Skins.ORDER.size()]
 		bot.skill = rng.randf_range(0.2, 0.85)
 		bot.map_half = MAP_HALF - 4.0
 		bot.translation = _spawn_point(p)

@@ -5,6 +5,7 @@ extends CanvasLayer
 # character, a player card, the mode card with the big PLAY button and a tab bar.
 
 const Sprites = preload("res://scripts/Sprites.gd")
+const Skins = preload("res://scripts/Skins.gd")
 const SplashScreen = preload("res://scripts/ui/SplashScreen.gd")
 const FONT_PATH := "res://assets/fonts/DejaVuSans-Bold.ttf"
 const HELP_PC := "Move: WASD        Look: mouse        Fire: left click        Aim / scope: right click\nJump / handbrake: Space        Sprint: Shift        Reload / horn: R\nPick up / swap / open / enter vehicle: E        Inventory: Tab  (X drops)        Build: Q toggles, Z X C V = wall / floor / ramp / roof, wheel = material\nItems: 1-4 or wheel, F = pickaxe        Map: M        Emote: B        Crouch / slide: Ctrl        Pause: Esc  (all keys can be changed in Settings > Controls)"
@@ -24,6 +25,9 @@ var world
 var lobby
 var root: Control
 var sprite_button: Button
+var skin_name_label: Label
+var skin_desc_label: Label
+var skin_count_label: Label
 var splash: Control
 var title_panel: Control
 var settings_panel: Control
@@ -296,6 +300,32 @@ func _build_title() -> Control:
 		stat_labels[k[1]] = val
 		x += 104.0
 
+	# skin picker
+	var skin_card := Panel.new()
+	skin_card.add_stylebox_override("panel", _flat(Color(0.04, 0.07, 0.17, 0.78), Color(1, 1, 1, 0.18), 10, 2))
+	_place(skin_card, 0.0, 0.0, Vector2(26, 254), Vector2(330, 128))
+	p.add_child(skin_card)
+	var skin_cap := _label("SKIN", 14, Color(0.65, 0.78, 1.0))
+	skin_cap.rect_position = Vector2(16, 8)
+	skin_card.add_child(skin_cap)
+	skin_name_label = _label("", 24, Color.white)
+	skin_name_label.rect_position = Vector2(16, 26)
+	skin_card.add_child(skin_name_label)
+	skin_desc_label = _label("", 14, Color(0.85, 0.9, 1.0))
+	skin_desc_label.rect_position = Vector2(16, 58)
+	skin_card.add_child(skin_desc_label)
+	for sb in [["<", -1, 16.0], [">", 1, 262.0]]:
+		var b := Button.new()
+		b.text = sb[0]
+		b.rect_position = Vector2(sb[2], 80)
+		b.rect_size = Vector2(52, 38)
+		b.connect("pressed", self, "_cycle_skin", [sb[1]])
+		skin_card.add_child(b)
+	skin_count_label = _label("", 16, Color(0.7, 0.8, 1.0))
+	skin_count_label.rect_position = Vector2(140, 88)
+	skin_card.add_child(skin_count_label)
+	_refresh_skin()
+
 	# mode card with the PLAY button
 	var mode := Panel.new()
 	mode.add_stylebox_override("panel", _flat(Color(0.04, 0.07, 0.17, 0.80), Color(1, 1, 1, 0.18), 10, 2))
@@ -512,6 +542,25 @@ func _on_name_changed(text: String) -> void:
 	Settings.save_settings()
 	if name_label != null:
 		name_label.text = Settings.player_name
+
+
+func _cycle_skin(dir: int) -> void:
+	var i: int = Skins.ORDER.find(Settings.skin)
+	Settings.skin = Skins.ORDER[int(posmod(i + dir, Skins.ORDER.size()))]
+	Settings.save_settings()
+	if lobby != null:
+		lobby.set_skin(Settings.skin)
+	Audio.play2d("ui_click", -6.0)
+	_refresh_skin()
+
+
+func _refresh_skin() -> void:
+	if skin_name_label == null:
+		return
+	var d: Dictionary = Skins.LIST[Settings.skin]
+	skin_name_label.text = d.name.to_upper()
+	skin_desc_label.text = d.desc
+	skin_count_label.text = "%d / %d" % [Skins.ORDER.find(Settings.skin) + 1, Skins.ORDER.size()]
 
 
 func _on_starter_sprite() -> void:

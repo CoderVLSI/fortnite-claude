@@ -25,6 +25,7 @@ enum Mode { GROUND, BUS, FREEFALL, GLIDE, SWIM, MANTLE, VEHICLE }
 const MODEL_PATH := "res://assets/models/player.glb"
 const Grenade = preload("res://scripts/Grenade.gd")
 const Rift = preload("res://scripts/Rift.gd")
+const Skins = preload("res://scripts/Skins.gd")
 const JunkRift = preload("res://scripts/JunkRift.gd")
 const Gadgets = preload("res://scripts/Gadgets.gd")
 const Sprites = preload("res://scripts/Sprites.gd")
@@ -50,6 +51,7 @@ export var jump_speed := 8.0
 
 var display_name := "Fighter"
 var vest_color := Color(0.30, 0.42, 0.22)
+var skin_id := "ranger"
 var health := 100.0
 var shield := 0.0
 var kills := 0
@@ -177,13 +179,7 @@ func _build_model() -> void:
 	air_pivot.add_child(model)
 	animator = Animator.new()
 	animator.setup(model)
-	var vest := SpatialMaterial.new()
-	vest.albedo_color = vest_color
-	vest.roughness = 0.9
-	for n in ["TorsoMesh", "UpperArmL", "UpperArmR"]:
-		var node := model.find_node(n, true, false)
-		if node != null and node is MeshInstance:
-			node.set_surface_material(0, vest)   # surface 0 is the vest colour
+	Skins.apply(model, skin_id, vest_color)       # the default Ranger wears the fighter's vest colour
 
 	var gl = load(GLIDER_PATH)
 	if gl != null:
@@ -1210,6 +1206,12 @@ func _die(killer) -> void:
 		tween.interpolate_property(model, "rotation:x", 0.0, -PI / 2.0, 0.6, Tween.TRANS_QUAD, Tween.EASE_OUT)
 		tween.start()
 	emit_signal("died", self, killer)
+
+
+func set_skin(id: String) -> void:
+	skin_id = id if Skins.LIST.has(id) else "ranger"
+	if model != null:
+		Skins.apply(model, skin_id, vest_color)
 
 
 # ------------------------------------------------------------------ sprites

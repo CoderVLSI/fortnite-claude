@@ -75,6 +75,19 @@ class Part:
         bmesh.ops.transform(self.bm, matrix=m, verts=verts)
         self._tag(verts, mat)
 
+    def wedge(self, x0, x1, y_low, y_high, z_low, z_high, mat):
+        """A solid ramp: flat bottom at z_low, the top rises from z_low at y_low to z_high at y_high (walkable stairs)."""
+        o = self.origin
+        pts = [(x0, y_low, z_low), (x1, y_low, z_low), (x0, y_high, z_low), (x1, y_high, z_low), (x0, y_high, z_high), (x1, y_high, z_high)]
+        vs = [self.bm.verts.new(Vector(pt) - o) for pt in pts]
+        for idx in ((0, 1, 3, 2), (2, 3, 5, 4), (0, 2, 4), (1, 5, 3), (0, 4, 5, 1)):
+            try:
+                self.bm.faces.new([vs[i] for i in idx])
+            except ValueError:
+                pass
+        bmesh.ops.recalc_face_normals(self.bm, faces=list(self.bm.faces))
+        self._tag(vs, mat)
+
     def box_span(self, x0, x1, y0, y1, z0, z1, mat):
         """Axis-aligned box from min/max coordinates (skips empty spans)."""
         if x1 - x0 < 1e-4 or y1 - y0 < 1e-4 or z1 - z0 < 1e-4:
@@ -936,7 +949,11 @@ def make_highrise(name, floors, width, depth, wall_color, trim_color, band_color
         else:
             walls(b, wall, hw, hd, height, 0.3, 0.0, windows, 1.8, 2.3, (0.9, 2.4), 1.4, base_z=z0)
         # horizontal band at each floor line
-        b.box((0, 0, (k + 1) * FH - 0.1), (width + 0.4, depth + 0.4, 0.2), band)
+        zb = (k + 1) * FH - 0.2
+        b.box_span(-hw - 0.2, hw + 0.2, -hd - 0.2, -hd + 0.05, zb, zb + 0.2, band)
+        b.box_span(-hw - 0.2, hw + 0.2, hd - 0.05, hd + 0.2, zb, zb + 0.2, band)
+        b.box_span(-hw - 0.2, -hw + 0.05, -hd, hd, zb, zb + 0.2, band)
+        b.box_span(hw - 0.05, hw + 0.2, -hd, hd, zb, zb + 0.2, band)
         for sx in (-1, 1):
             for sy in (-1, 1):
                 b.box((sx * hw, sy * hd, k * FH + FH / 2), (0.5, 0.5, FH), trim)
@@ -954,10 +971,7 @@ def make_highrise(name, floors, width, depth, wall_color, trim_color, band_color
         b.box_span(xa, xb, yb, hd, top - SL, top, floor)
         # the stairs from level k-1 up to level k
         base = (k - 1) * FH + (0.16 if k == 1 else 0.0)
-        for i in range(steps):
-            y_mid = yb - (i + 0.5) * run
-            top_z = base + (i + 1) * rise
-            b.box_span(xa, xb, y_mid - run / 2, y_mid + run / 2, base, min(top_z, top - 0.01), floor)
+        b.wedge(xa, xb, yb, ya, base, top - 0.02, floor)
     # roof parapet and a little rooftop plant room
     rt = floors * FH
     for sx in (-1, 1):
