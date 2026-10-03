@@ -16,6 +16,7 @@ const InventoryScreen = preload("res://scripts/ui/InventoryScreen.gd")
 const BuildEditor = preload("res://scripts/ui/BuildEditor.gd")
 const TouchControls = preload("res://scripts/ui/TouchControls.gd")
 const EmoteWheel = preload("res://scripts/ui/EmoteWheel.gd")
+const SoundViz = preload("res://scripts/ui/SoundViz.gd")
 const WarnLayer = preload("res://scripts/ui/WarnLayer.gd")
 const PingLayer = preload("res://scripts/ui/PingLayer.gd")
 const NameTags = preload("res://scripts/ui/NameTags.gd")
@@ -87,6 +88,7 @@ var _t := 0.0
 var emote_wheel
 var name_tags
 var warn_layer
+var sound_viz
 var ping_layer
 var _big_font: DynamicFont
 
@@ -227,6 +229,8 @@ func _build() -> void:
 	name_tags = tags
 	warn_layer = WarnLayer.new()
 	root.add_child(warn_layer)
+	sound_viz = SoundViz.new()
+	root.add_child(sound_viz)
 	ping_layer = PingLayer.new()
 	ping_layer.font = tags.font
 	root.add_child(ping_layer)
@@ -417,6 +421,7 @@ func bind(world_node) -> void:
 	emote_wheel.player = player
 	name_tags.player = player
 	warn_layer.player = player
+	sound_viz.player = player
 	ping_layer.world = world
 	root.move_child(emote_wheel, root.get_child_count() - 1)
 	inventory.player = player

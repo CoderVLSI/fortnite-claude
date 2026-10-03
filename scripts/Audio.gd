@@ -13,6 +13,7 @@ const POOL_3D := 24
 const POOL_2D := 10
 const SILENT_DB := -60.0
 
+var events := []                  # recent gunfire for the 'visualize sound effects' ring: [{kind, pos}]
 var stats := {}                   # sound name -> times played (tests assert on this)
 var muted := false
 
@@ -69,6 +70,12 @@ func _exit_tree() -> void:
 	for k in ["emote_streams", "anim_clips"]:         # cached resources held outside the tree: release them before shutdown
 		if Engine.has_meta(k):
 			Engine.remove_meta(k)
+
+
+func note(kind: String, pos: Vector3) -> void:
+	events.append({"kind": kind, "pos": pos})
+	if events.size() > 24:
+		events.pop_front()
 
 
 func apply_volumes() -> void:

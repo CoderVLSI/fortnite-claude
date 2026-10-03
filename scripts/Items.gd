@@ -32,6 +32,12 @@ const WEAPONS := {
 	# Hold fire to charge (about 1.8 s): up to 50% more damage per pellet and a tighter spread. Release to shoot.
 	"charge_shotgun": {"name": "Charge Shotgun", "damage": 10.0, "interval": 1.05, "mag": 3, "reload": 3.2, "spread": 4.2,
 		"pellets": 9, "auto": false, "ammo": "shells", "range": 46.0, "head": 1.5, "charge": 1.8, "model": "shotgun"},
+	# Burst Assault Rifle: one pull of the trigger fires three rounds in quick succession.
+	"burst_assault": {"name": "Burst Assault Rifle", "damage": 24.0, "interval": 0.46, "mag": 30, "reload": 2.1, "spread": 0.8,
+		"pellets": 1, "auto": false, "ammo": "medium", "range": 170.0, "head": 1.9, "burst": 3, "burst_gap": 0.075, "model": "rifle"},
+	# Rocket Launcher: a slow rocket that blows up where it lands: damages everyone nearby and takes buildings down piece by piece.
+	"rocket_launcher": {"name": "Rocket Launcher", "damage": 105.0, "interval": 1.3, "mag": 1, "reload": 3.4, "spread": 0.0,
+		"pellets": 1, "auto": false, "ammo": "heavy", "range": 240.0, "head": 1.0, "projectile": "rocket", "sound": "sniper"},
 	"sniper": {"name": "Bolt Sniper", "damage": 85.0, "interval": 1.50, "mag": 1, "reload": 2.6, "spread": 0.0,
 		"pellets": 1, "auto": false, "ammo": "heavy", "range": 260.0, "head": 2.5},
 }
@@ -43,6 +49,8 @@ const SCOPES := {
 	"smg": {"kind": "reddot", "fov": 56.0, "spread": 0.55, "move": 0.80, "sens": 0.70, "dist": 1.9, "hip": "cross_wide"},
 	"assault": {"kind": "holo", "fov": 50.0, "spread": 0.35, "move": 0.75, "sens": 0.62, "dist": 1.9, "hip": "cross"},
 	"shotgun": {"kind": "bead", "fov": 58.0, "spread": 0.70, "move": 0.80, "sens": 0.75, "dist": 1.9, "hip": "ring"},
+	"burst_assault": {"kind": "holo", "fov": 52.0, "spread": 0.35, "move": 0.75, "sens": 0.62, "dist": 1.9, "hip": "cross"},
+	"rocket_launcher": {"kind": "irons", "fov": 62.0, "spread": 1.0, "move": 0.7, "sens": 0.8, "dist": 1.9, "hip": "dot"},
 	"charge_shotgun": {"kind": "bead", "fov": 58.0, "spread": 0.60, "move": 0.80, "sens": 0.75, "dist": 1.9, "hip": "ring"},
 	"sniper": {"kind": "scope", "fov": 14.0, "spread": 0.0, "move": 0.50, "sens": 0.22, "dist": 0.2, "hip": "cross_far",
 		"hip_spread": 2.2},
@@ -90,6 +98,9 @@ const CONSUMABLES := {
 	# Skateboard: equip it and press fire to hop on or off; much faster on the ground, with a lazy carve.
 	"skateboard": {"name": "Skateboard", "heal": 0.0, "heal_cap": 0.0, "shield": 0.0, "shield_cap": 0.0,
 		"time": 0.0, "stack": 1, "rarity": 2, "gadget": "skateboard", "color": Color(0.25, 0.8, 1.0)},
+	# Bouncer: press fire to drop a spring pad a couple of metres ahead; whoever steps on it is flung into the air.
+	"bouncer": {"name": "Bouncer", "heal": 0.0, "heal_cap": 0.0, "shield": 0.0, "shield_cap": 0.0,
+		"time": 0.0, "stack": 3, "rarity": 2, "throw": true, "place": true, "model": "grenade", "color": Color(0.2, 0.6, 1.0)},
 	# Rift-to-Go: a portable rift. Using it flings you into the sky; the rift stays open for a few seconds for friends.
 	"rift_to_go": {"name": "Rift-to-Go", "heal": 0.0, "heal_cap": 0.0, "shield": 0.0, "shield_cap": 0.0,
 		"time": 0.0, "stack": 2, "rarity": 3, "throw": true, "rift": true, "color": Color(0.7, 0.35, 1.0)},
@@ -236,12 +247,16 @@ static func roll_rarity(rng: RandomNumberGenerator, bonus: int = 0) -> int:
 
 
 static func random_weapon(rng: RandomNumberGenerator, bonus: int = 0) -> Dictionary:
-	var table := ["assault", "assault", "assault", "smg", "smg", "shotgun", "shotgun", "charge_shotgun", "pistol", "pistol", "sniper"]
-	return make_weapon(table[rng.randi() % table.size()], roll_rarity(rng, bonus))
+	var table := ["assault", "assault", "burst_assault", "burst_assault", "smg", "smg", "shotgun", "shotgun", "charge_shotgun", "pistol", "pistol", "sniper", "rocket_launcher"]
+	var id: String = table[rng.randi() % table.size()]
+	var rarity := roll_rarity(rng, bonus)
+	if id == "rocket_launcher":
+		rarity = int(max(rarity, 3))                 # rockets are epic or better
+	return make_weapon(id, rarity)
 
 
 static func random_consumable(rng: RandomNumberGenerator) -> Dictionary:
-	var table := ["bandage", "bandage", "bandage", "mini_shield", "mini_shield", "medkit", "shield_potion", "slurp_juice", "grenade", "grenade", "rift_to_go", "shockwave_grenade", "junk_rift", "jetpack", "skateboard"]
+	var table := ["bandage", "bandage", "bandage", "mini_shield", "mini_shield", "medkit", "shield_potion", "slurp_juice", "grenade", "grenade", "rift_to_go", "shockwave_grenade", "junk_rift", "jetpack", "skateboard", "bouncer"]
 	var id: String = table[rng.randi() % table.size()]
 	var count := 1
 	if id == "bandage":
@@ -250,6 +265,8 @@ static func random_consumable(rng: RandomNumberGenerator) -> Dictionary:
 		count = 1 + rng.randi() % 2
 	elif id == "grenade":
 		count = 2 + rng.randi() % 3
+	elif id == "bouncer":
+		count = 1 + rng.randi() % 2
 	return make_consumable(id, count)
 
 

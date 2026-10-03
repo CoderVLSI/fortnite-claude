@@ -1821,6 +1821,13 @@ func net_damage(_from: int, target_key, amount: float, source_key, _headshot: bo
 func net_spawn_throw(data: Array) -> void:
 	var thrower = fighter_by_key(data[0])
 	match data[1]:
+		"rocket":
+			var rk := preload("res://scripts/Rocket.gd").new()
+			rk.thrower = thrower
+			rk.visual_only = true
+			rk.velocity = data[3]
+			add_child(rk)
+			rk.global_transform.origin = data[2]
 		"junk":
 			var jr := JunkRiftScript.new()
 			jr.thrower = thrower
@@ -1909,6 +1916,10 @@ func net_event(from: int, kind: String, data) -> void:
 			break_pieces_near(data[0], data[1], false)
 		"ping":
 			add_ping(data[0], data[1], data[2], int(data[3]), false)
+		"pad":
+			var bp := preload("res://scripts/BouncePad.gd").new()
+			add_child(bp)
+			bp.global_transform.origin = data
 		"veh_claim":
 			var vc = net_nodes.get(data)
 			if vc != null and is_instance_valid(vc):

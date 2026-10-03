@@ -563,12 +563,14 @@ func _build_settings() -> Control:
 		["vsync", "Vertical sync (smoother, caps at your screen's rate)", "check"],
 		["minimap_rotate", "Minimap turns with you", "check"],
 		["show_hints", "Show the control hints at the bottom", "check"],
+		["visual_sound", "Visualize sound effects (footsteps, gunfire, chests, cars)", "check"],
 		["warn_health", "Low health warning (red edges)", "check"],
 		["warn_ammo", "Low ammo warning (RELOAD / NO AMMO)", "check"],
 	])
 	_build_pref_page(holder, "comfort", [
 		["toggle_sprint", "Toggle sprint (tap to start, stops when you stop)", "check"],
 		["toggle_crouch", "Toggle crouch (tap to stay down)", "check"],
+		["turbo_build", "Turbo building (hold fire to keep placing)", "check"],
 		["ads_sens", "Sensitivity while aiming down sights", "slider", 0.3, 1.5],
 		["master_volume", "Master volume", "slider", 0.0, 1.0],
 		["vibration", "Controller vibration", "check"],

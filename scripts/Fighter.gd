@@ -22,6 +22,8 @@ signal landed
 
 enum Mode { GROUND, BUS, FREEFALL, GLIDE, SWIM, MANTLE, VEHICLE }
 
+const Rocket = preload("res://scripts/Rocket.gd")
+const BouncePad = preload("res://scripts/BouncePad.gd")
 const Emotes = preload("res://scripts/Emotes.gd")
 const MODEL_PATH := "res://assets/models/player.glb"
 const Grenade = preload("res://scripts/Grenade.gd")
@@ -130,6 +132,9 @@ var forward_speed := 0.0
 var sprinting := false
 var crouching := false            # hold crouch: slower, lower, steadier aim
 var sliding := false              # sprint then crouch: a short momentum slide
+var _burst_left := 0               # rounds still to come from a burst weapon
+var _burst_t := 0.0
+var _burst_aim := []
 var prev_slot := 0                # the slot held before this one (Previous Item key)
 var team := -1                    # -1: everyone for themselves; 0, 1, ...: duos / trios / squads (World._assign_teams)
 var emote_id := "boogie"        # which emote is playing (Emotes.gd)
@@ -583,10 +588,30 @@ func throw_grenade(aim_from: Vector3, aim_dir: Vector3, slot: int = -1, damage_m
 	var item: Dictionary = slots[slot]
 	if item.kind != "consumable" or not Items.CONSUMABLES[item.id].get("throw", false):
 		return false
+	var def: Dictionary = Items.CONSUMABLES[item.id]
+	if def.get("place", false):                     # Bouncer: a spring pad on the ground a couple of metres ahead
+		var pos := _bouncer_spot(aim_dir)
+		if pos == Vector3.INF:
+			emit_signal("picked_up", "No room to place a Bouncer here")
+			return false
+		_place_bouncer(pos)
+		if net_owner == 0 and Net.active and Net.in_match:
+			Net.send_event("pad", pos)
+		_fire_cd = 0.6
+		item.count -= 1
+		if item.count <= 0:
+			slots[slot] = null
+			if selected == slot:
+				selected = 0
+				_apply_selected()
+			else:
+				emit_signal("slot_changed")
+		else:
+			emit_signal("slot_changed")
+		return true
 	_fire_cd = 0.9
 	_swing = 0.3
 	Audio.play3d("swing", global_transform.origin + Vector3(0, 1.3, 0), -4.0, 0.7)
-	var def: Dictionary = Items.CONSUMABLES[item.id]
 	var hand: Vector3 = global_transform.origin + Vector3(0, 1.55, 0) + aim_dir * 0.9
 	if def.get("rift", false):                      # Rift-to-Go: open a rift at our feet and jump through it
 		for w in get_tree().get_nodes_in_group("world"):
@@ -622,6 +647,35 @@ func throw_grenade(aim_from: Vector3, aim_dir: Vector3, slot: int = -1, damage_m
 	else:
 		emit_signal("slot_changed")
 	return true
+
+
+func _bouncer_spot(aim_dir: Vector3) -> Vector3:
+	var flat := Vector3(aim_dir.x, 0, aim_dir.z)
+	flat = flat.normalized() if flat.length() > 0.1 else -global_transform.basis.z
+	var from: Vector3 = global_transform.origin + flat * 2.4 + Vector3(0, 2.0, 0)
+	var hit := get_world().direct_space_state.intersect_ray(from, from + Vector3(0, -5.0, 0), [self], 1)
+	if not hit or hit.normal.y < 0.7:
+		return Vector3.INF
+	return hit.position
+
+
+func _place_bouncer(pos: Vector3) -> void:
+	var pad := BouncePad.new()
+	pad.owner_fighter = self
+	get_parent().add_child(pad)
+	pad.global_transform.origin = pos
+	Audio.play3d("build_place", pos, -2.0, 1.4)
+
+
+# Flung by a Bouncer.
+func bounce_launch(power: float, up: Vector3) -> void:
+	if is_dead or mode == Mode.BUS or mode == Mode.MANTLE:
+		return
+	if mode == Mode.SWIM:
+		mode = Mode.GROUND
+	velocity = Vector3(velocity.x * 0.6, power, velocity.z * 0.6)
+	grounded = false
+	_knock_t = 0.0
 
 
 func cancel_use() -> void:
@@ -980,6 +1034,19 @@ func deploy_glider() -> void:
 		tween.start()
 
 
+# Glider redeploy: falling from a height (a cliff, a launch pad) you can open the glider again.
+func redeploy_glider() -> bool:
+	if is_dead or mode != Mode.GROUND or grounded or velocity.y > -10.0 or ground_distance() < 9.0:
+		return false
+	mode = Mode.FREEFALL
+	collision_layer = 2
+	collision_mask = BODY_MASK
+	if air_pivot:
+		air_pivot.visible = true
+	deploy_glider()
+	return true
+
+
 # Rift: hurled high above the island, skydiving (jump opens the glider; it opens by itself near the ground).
 func rift_launch() -> void:
 	if is_dead or (mode != Mode.GROUND and mode != Mode.SWIM):
@@ -1210,6 +1277,16 @@ func tick_gadgets(delta: float) -> void:
 
 
 func tick_weapon(delta: float) -> void:
+	if _burst_left > 0:
+		_burst_t -= delta
+		if _burst_t <= 0.0:
+			var bi = selected_item()
+			if bi != null and bi.kind == "weapon" and bi.mag > 0 and not is_dead and _reload_left <= 0.0 and Items.WEAPONS[bi.id].has("burst"):
+				_discharge(_burst_aim[0], _burst_aim[1], bi)
+				_burst_left -= 1
+				_burst_t = float(Items.WEAPONS[bi.id].get("burst_gap", 0.07))
+			else:
+				_burst_left = 0
 	tick_sprite(delta)
 	tick_gadgets(delta)
 	_mantle_cd = max(0.0, _mantle_cd - delta)
@@ -1264,24 +1341,60 @@ func try_fire(aim_from: Vector3, aim_dir: Vector3) -> bool:
 		start_reload()
 		return false
 	_fire_cd = fire_interval
+	_discharge(aim_from, aim_dir, item)
+	var def: Dictionary = Items.WEAPONS[item.id]
+	if def.has("burst") and item.mag > 0:                  # the rest of the burst follows from tick_weapon()
+		_burst_left = int(def.burst) - 1
+		_burst_t = float(def.get("burst_gap", 0.07))
+		_burst_aim = [aim_from, aim_dir]
+	return true
+
+
+# One round leaves the gun: ammo, sound, hitscan rays (or a rocket), recoil, reload when empty.
+func _discharge(aim_from: Vector3, aim_dir: Vector3, item) -> void:
 	if unlimited_t <= 0.0:
 		item.mag -= 1
+	var def: Dictionary = Items.WEAPONS[item.id]
 	var snd := "shot_" + ("rifle" if item.id == "assault" else item.id)
-	if not ResourceLoader.exists("res://assets/audio/%s.wav" % snd):
-		snd = "shot_" + str(Items.WEAPONS[item.id].get("model", item.id))      # e.g. the Charge Shotgun borrows the pump shotgun's report
+	if def.has("sound"):
+		snd = "shot_" + str(def.sound)
+	elif not ResourceLoader.exists("res://assets/audio/%s.wav" % snd):
+		snd = "shot_" + str(def.get("model", item.id))      # e.g. the Charge Shotgun borrows the pump shotgun's report
 	if item.rarity == Items.MYTHIC:     # each mythic has its own report; the sniper keeps the original mythic shot
 		snd = "shot_mythic" if item.id == "sniper" else "shot_mythic_" + item.id
 	Audio.play3d(snd, muzzle_position(), -2.0 if is_in_group("player") else -6.0, rand_range(0.96, 1.04))
+	if not is_in_group("player"):
+		Audio.note("gun", muzzle_position())
 	_net_tracers = []
-	for i in range(pellets):
-		_fire_ray(aim_from, aim_dir, i < 3)
-	if net_owner == 0 and Net.active and Net.in_match:
-		Net.send_event("shot", [net_key_v, snd, muzzle_position(), _net_tracers])
+	if def.has("projectile"):
+		_fire_projectile(aim_from, aim_dir)
+	else:
+		for i in range(pellets):
+			_fire_ray(aim_from, aim_dir, i < 3)
+		if net_owner == 0 and Net.active and Net.in_match:
+			Net.send_event("shot", [net_key_v, snd, muzzle_position(), _net_tracers])
 	if animator != null:
 		animator.kick(1.0 if pellets == 1 else 1.4)
 	if item.mag == 0:
 		start_reload()
-	return true
+
+
+# A rocket flies from the muzzle towards whatever the crosshair is on.
+func _fire_projectile(aim_from: Vector3, aim_dir: Vector3) -> void:
+	var muzzle := muzzle_position()
+	var target: Vector3 = aim_from + aim_dir * 90.0
+	var hit := get_world().direct_space_state.intersect_ray(aim_from, aim_from + aim_dir * weapon_range, [self], 3)
+	if hit:
+		target = hit.position
+	var dir: Vector3 = (target - muzzle).normalized() if target.distance_to(muzzle) > 1.0 else aim_dir
+	var r := Rocket.new()
+	r.thrower = self
+	r.velocity = dir * Rocket.SPEED
+	r.damage_mult = gun_damage / 115.0
+	get_parent().add_child(r)
+	r.global_transform.origin = muzzle
+	if net_owner == 0 and Net.active and Net.in_match:
+		Net.send_event("throw", [net_key_v, "rocket", muzzle, r.velocity])
 
 
 func _fire_ray(aim_from: Vector3, aim_dir: Vector3, show_tracer: bool) -> void:

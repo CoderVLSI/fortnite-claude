@@ -15,6 +15,8 @@ var _sprint_latch := false         # Settings: toggle sprint
 var _crouch_latch := false         # Settings: toggle crouch
 var _sprint_was_down := false
 var _crouch_was_down := false
+var _jump_was_down := false
+var _turbo_t := 0.0                # turbo building repeat timer
 var _quick_slot := -1              # Quick Heal: the healing slot being used
 var _sight_t := 0.0
 var _sight_enemy := false
@@ -215,6 +217,11 @@ func _ground_process(delta: float) -> void:
 	if not input_enabled:
 		sprinting = false
 		aiming = false
+	var jump_down := Input.is_action_pressed("jump")
+	var jump_edge: bool = jump_down and not _jump_was_down
+	_jump_was_down = jump_down
+	if input_enabled and jump_edge and not grounded and redeploy_glider():
+		return
 	if input_enabled and Input.is_action_just_pressed("jump") and try_vault(-b.z * -move.y + b.x * move.x if move.length() > 0.3 else -b.z):
 		return
 	if input_enabled and want_jump and move.y < -0.3 and try_mantle(-b.z * -move.y + b.x * move.x):
@@ -337,8 +344,13 @@ func _fire_input(delta: float) -> void:
 		cancel_use()
 		return
 	if builder.active:
+		_turbo_t -= delta
 		if Input.is_action_just_pressed("fire") and _can_aim():
 			builder.place()
+			_turbo_t = 0.28
+		elif Settings.pref("turbo_build") and Input.is_action_pressed("fire") and _can_aim() and _turbo_t <= 0.0:
+			builder.place()                           # Turbo building: hold fire to keep placing
+			_turbo_t = 0.14
 		cancel_use()
 		return
 	var item = selected_item()

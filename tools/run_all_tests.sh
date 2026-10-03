@@ -40,6 +40,7 @@ run farm_test --no-bus --skip-menu
 run vault_test --no-bus --skip-menu
 run team_test --no-bus --skip-menu
 run qol_test --no-bus --skip-menu
+run arsenal_test --no-bus --skip-menu
 run emote_test --no-bus --skip-menu
 run menu_test
 run social_test

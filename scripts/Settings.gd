@@ -44,6 +44,8 @@ const PREF_DEFAULTS := {
 	"master_volume": 1.0,
 	"warn_health": true,          # red pulse at the screen edges when health is low
 	"warn_ammo": true,            # RELOAD / NO AMMO warning
+	"visual_sound": false,        # accessibility: icons on a ring round the reticle for footsteps, gunfire, chests, cars
+	"turbo_build": true,          # hold fire in build mode to keep placing pieces
 	"touch_auto_fire": false,     # phones: shoot automatically while an enemy is in the crosshair
 }
 const CROSSHAIR_COLORS := [Color(1, 1, 1), Color(0.35, 1.0, 0.45), Color(1.0, 0.3, 0.3), Color(0.35, 0.9, 1.0), Color(1.0, 0.9, 0.3)]
