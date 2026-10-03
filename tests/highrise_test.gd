@@ -76,6 +76,9 @@ func _run() -> void:
 	print("DBG start ", start, " end ", p.global_transform.origin, " inst ", inst.global_transform.origin, " yaw ", inst.rotation.y, " mode ", p.mode)
 	var hit = p.get_world().direct_space_state.intersect_ray(start + Vector3(0, 3, 0), start + Vector3(0, -3, 0), [p], 1)
 	print("DBG floor below start: ", hit.position if hit else "none")
+	print("DBG start ", start, " end ", p.global_transform.origin, " inst ", inst.global_transform.origin, " yaw ", inst.rotation.y, " mode ", p.mode)
+	var hit = p.get_world().direct_space_state.intersect_ray(start + Vector3(0, 3, 0), start + Vector3(0, -3, 0), [p], 1)
+	print("DBG floor below start: ", hit.position if hit else "none")
 	var rose: float = p.global_transform.origin.y - y0
 	check(rose > 2.8, "the stairs climb to the first upper floor (+%.1f m)" % rose)
 

@@ -990,7 +990,7 @@ func tick_gadgets(delta: float) -> void:
 		_gadget_snd_t -= delta
 		if _gadget_snd_t <= 0.0:
 			_gadget_snd_t = 0.45
-			Audio.play3d("board_roll", global_transform.origin, -10.0, rand_range(0.95, 1.05))
+			Audio.play3d("board_roll", global_transform.origin, -4.0, rand_range(0.95, 1.05))
 	var jet_sel := gadget_selected("jetpack") and not is_dead
 	if jet_sel and _jet_node == null:
 		_jet_node = Gadgets.jetpack()

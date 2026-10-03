@@ -31,13 +31,17 @@ static func draw_ghost(ci: CanvasItem, c: Vector2, col: Color, r: float) -> void
 
 
 # Draws the card into `r`. Returns nothing; text uses the given font.
-static func draw_card(ci: CanvasItem, r: Rect2, sprite: Dictionary, font: Font, show_desc: bool = true) -> void:
+static func draw_card(ci: CanvasItem, r: Rect2, sprite: Dictionary, font: Font, show_desc: bool = true, tex = null) -> void:
 	var id: String = sprite.id
 	var variant: String = sprite.get("variant", "")
 	var rc: Color = Sprites.rarity_color(id)
 	ci.draw_rect(r, Color(0.04, 0.06, 0.14, 0.82))
 	ci.draw_rect(r, rc, false, 2.5)
-	draw_ghost(ci, r.position + Vector2(34, r.size.y / 2.0 - 4.0), Sprites.color(id, variant), 17.0)
+	if tex != null:
+		var tint: Color = Color.white.linear_interpolate(Sprites.VARIANTS[variant].tint, 0.5) if Sprites.VARIANTS.has(variant) else Color.white
+		ci.draw_texture_rect(tex, Rect2(r.position + Vector2(6, r.size.y / 2.0 - 27.0), Vector2(54, 54)), false, tint)
+	else:
+		draw_ghost(ci, r.position + Vector2(34, r.size.y / 2.0 - 4.0), Sprites.color(id, variant), 17.0)
 	var tx := r.position.x + 66.0
 	var lvl: int = int(sprite.get("level", 1))
 	ci.draw_string(font, Vector2(tx, r.position.y + 22.0), Sprites.title(id, variant).to_upper(), rc, r.size.x - 130.0)
@@ -55,7 +59,17 @@ static func draw_card(ci: CanvasItem, r: Rect2, sprite: Dictionary, font: Font, 
 			ci.draw_string(font, Vector2(tx, r.position.y + 74.0), Sprites.VARIANTS[variant].desc, Sprites.VARIANTS[variant].tint, r.size.x - 74.0)
 
 
+var _icons := {}
+
+
+func icon(id: String):
+	if not _icons.has(id):
+		var path := "res://assets/icons/sprite_%s.png" % id
+		_icons[id] = load(path) if ResourceLoader.exists(path) else null
+	return _icons[id]
+
+
 func _draw() -> void:
 	if player == null or player.sprite.empty():
 		return
-	draw_card(self, Rect2(Vector2.ZERO, rect_size), player.sprite, get_font("font", "Label"), rect_size.y > 60.0)
+	draw_card(self, Rect2(Vector2.ZERO, rect_size), player.sprite, get_font("font", "Label"), rect_size.y > 60.0, icon(player.sprite.id))

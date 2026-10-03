@@ -311,7 +311,7 @@ func _charge_input(delta: float, item) -> void:
 		var before := charge
 		charge = min(1.0, charge + delta / float(def.charge))
 		if before == 0.0:
-			Audio.play2d("charge_start", -8.0)
+			Audio.play2d("charge_start", -1.0)
 		if before < 1.0 and charge >= 1.0:
 			Audio.play2d("charge_full", -5.0)
 	elif charge > 0.0:

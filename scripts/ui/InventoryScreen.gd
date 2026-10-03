@@ -176,7 +176,7 @@ func _draw() -> void:
 	if player.sprite.empty():
 		draw_string(font, sp_rect.position + Vector2(16, 66), "No sprite equipped - catch a wild one", Color(0.7, 0.75, 0.9))
 	else:
-		SpriteBadge.draw_card(self, Rect2(sp_rect.position + Vector2(8, 38), Vector2(rw - 16, 62)), player.sprite, font, false)
+		SpriteBadge.draw_card(self, Rect2(sp_rect.position + Vector2(8, 38), Vector2(rw - 16, 62)), player.sprite, font, false, icon("sprite_" + player.sprite.id))
 	_panel(Rect2(Vector2(x0, L.eq_y), Vector2(rw, 168)), "EQUIPMENT", font)
 	for i in range(L.slots.size()):
 		var r: Rect2 = L.slots[i]
