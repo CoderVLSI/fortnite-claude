@@ -19,6 +19,7 @@ const SWIM := 4
 const MANTLE := 5
 const VEHICLE := 6
 
+const AnimClips = preload("res://scripts/AnimClips.gd")
 const JOINTS := ["Hips", "Spine", "Head", "ShoulderL", "ElbowL", "HandL", "ShoulderR", "ElbowR", "HandR",
 	"HipL", "KneeL", "HipR", "KneeR"]
 
@@ -40,6 +41,8 @@ var land_squash := 0.0
 var was_grounded := true
 var last_fall_speed := 0.0
 var rate := 16.0
+var _slide_clock := 0.0
+var _was_sliding := false
 
 
 func setup(model: Spatial) -> void:
@@ -100,6 +103,8 @@ func update(f, delta: float) -> void:
 				_pose_vehicle(f)
 			_:
 				_pose_ground(f, delta)
+
+	_clip_layer(f, delta)
 
 	if f.held != null:       # items are only visible when the character is on foot (and not mid-dance)
 		f.held.visible = (f.is_dead or f.mode == GROUND or f.mode == MANTLE) and not f.emoting
@@ -193,6 +198,42 @@ func _pose_ground(f, delta: float) -> void:
 		_to("HipR", Vector3(1.0 - s * 0.15 * w, 0, 0))
 		_to("KneeL", Vector3(-1.85, 0, 0))
 		_to("KneeR", Vector3(-1.85, 0, 0))
+
+
+# The Blender clips: the window vault, the ledge climb, the slide and (over the walk cycle) the pickaxe swing.
+func _clip_layer(f, delta: float) -> void:
+	if f.is_dead:
+		return
+	if f.mode == MANTLE:
+		if f._vault and AnimClips.has_clip("vault"):
+			_apply_clip("vault", clamp(f._mantle_t, 0.0, 1.0) * AnimClips.length_of("vault"), true)
+		elif AnimClips.has_clip("mantle"):
+			_apply_clip("mantle", clamp(f._mantle_t, 0.0, 1.0) * AnimClips.length_of("mantle"), true)
+		return
+	if f.mode != GROUND or not f.grounded:
+		return
+	if f.sliding and AnimClips.has_clip("slide"):
+		if not _was_sliding:
+			_slide_clock = 0.0
+		_slide_clock += delta
+		_was_sliding = true
+		_apply_clip("slide", _slide_clock, true)
+		return
+	_was_sliding = false
+	var item = f.selected_item()
+	if item != null and item.kind == "pickaxe" and f.swing_fraction() > 0.0 and not f.emoting and AnimClips.has_clip("harvest"):
+		_apply_clip("harvest", (1.0 - f.swing_fraction()) * AnimClips.length_of("harvest"), false)
+
+
+# Lay a Blender-keyed clip over the pose: its joints replace the procedural ones, the rest keep the walk cycle.
+func _apply_clip(name: String, time: float, full_body: bool) -> void:
+	var smp: Dictionary = AnimClips.sample(name, time, hips_rest.y)
+	for j in smp:
+		if j == "_hips_y":
+			if full_body:
+				hips_target_y = smp[j]
+		elif tgt.has(j):
+			tgt[j] = smp[j]
 
 
 # The emote on the wheel that is playing (f.emote_id): each is a looping or one-shot pose driven by the clock `t`.

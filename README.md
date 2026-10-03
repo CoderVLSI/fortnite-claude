@@ -33,6 +33,8 @@ storm closes in. Last one standing wins.
 | **Rifts** | Single-use sky portals around the island, and the **Rift-to-Go** item |
 | **Gear** | Charge Shotgun (hold to charge), Jetpack (carry it, hold Space), Skateboard, Shockwave Grenade, Junk Rift |
 | **Locker** | A LOCKER tab in the lobby: eight **skins**, six **pickaxes** (Star Wand, Candy Cane, Battle Axe, Crystal Scythe, Energy Sword...), seven **back blings** (wings, dragon wings, cape, teddy, rocket, shell), six **contrails** and six **gliders** (umbrella, hang glider, magic carpet, flying saucer, Dragon); the lobby character and glider preview each pick. Sprites ride on your back and take the back bling's place |
+| **Farming** | Trees, rocks and buildings give materials; buildings are cut into 3 m pieces on the first hit and break piece by piece (explosions take down whole rooms). A glowing weak point appears on what you chop: hit it for double materials and double progress |
+| **Moves** | Slide (Ctrl while sprinting, or just before landing), vault through low windows, mantle ledges; those animations are keyed in Blender (`tools/blender/generate_animations.py` -> `assets/models/anims.glb`, played via `scripts/AnimClips.gd`) |
 | **Editing** | Fortnite style: press G once on a piece, aim at tiles and click / drag, press G again to confirm (or turn on hold-to-edit in Settings), Reset Edit (bindable, wheel too) restores the piece |
 | **Accounts** | Create an account (email + password) or play as a guest; stats (matches, wins, K/D, damage, play time...), level and your Locker are saved per account on the device. PROFILE tab in the lobby. See `docs/ACCOUNTS.md` for adding a cloud backend |
 | **Platforms** | Keyboard + mouse, gamepad, and full touch controls; mobile quality profile |

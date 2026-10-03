@@ -332,12 +332,25 @@ func _add_trimesh_collision(node: Node, harvest_kind: String, root: Node = null,
 				c.set_meta("structure", root)
 		_add_trimesh_collision(c, harvest_kind, root, res)
 	if root != null and node == root:
+		_register_windows(root)
 		root.set_meta("net_id", "b%d" % _struct_seq)
 		net_nodes["b%d" % _struct_seq] = root
 		_struct_seq += 1
 		root.set_meta("harvest_kind", harvest_kind)
 		root.set_meta("res", res)
 		root.set_meta("sink", STRUCTURE_SINK.get(res, 6.0))
+
+
+# The Blender models carry an empty (Win_*) at the sill of every low window: those are the places you can vault through.
+func _register_windows(root: Node) -> void:
+	for c in root.get_children():
+		if str(c.name).begins_with("Win_") and c is Spatial:
+			var lp: Vector3 = root.to_local(c.global_transform.origin) if root is Spatial else c.translation
+			var d := Vector3(sign(lp.x), 0, 0) if abs(lp.x) > abs(lp.z) else Vector3(0, 0, sign(lp.z))
+			c.set_meta("dir", d)
+			c.add_to_group("windows")
+		else:
+			_register_windows(c)
 
 
 func _add_door(inst: Spatial, res: String) -> void:

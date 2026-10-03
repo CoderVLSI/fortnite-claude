@@ -133,6 +133,8 @@ var sliding := false              # sprint then crouch: a short momentum slide
 var emote_id := "boogie"        # which emote is playing (Emotes.gd)
 var _emote_music := ""
 var _emote_player: AudioStreamPlayer3D
+var _vault := false               # the current MANTLE-mode move is a window vault
+var _vault_mid := Vector3.ZERO
 var emoting := false              # dancing: cancelled by moving, firing or jumping
 var emote_t := 0.0
 var _slide_t := 0.0
@@ -850,14 +852,66 @@ func try_mantle(dir: Vector3) -> bool:
 	return true
 
 
+# Vault through a low window: jump at it from either side and you hop over the sill and drop down on the other side.
+# dir is the way you are heading (flat). Returns true when a vault started.
+func try_vault(dir: Vector3) -> bool:
+	if is_dead or mode != Mode.GROUND or _mantle_cd > 0.0:
+		return false
+	dir.y = 0.0
+	if dir.length() < 0.1:
+		return false
+	dir = dir.normalized()
+	var o := global_transform.origin
+	for w in get_tree().get_nodes_in_group("windows"):
+		if not is_instance_valid(w) or not w.is_inside_tree():
+			continue
+		var wp: Vector3 = w.global_transform.origin
+		if abs(wp.x - o.x) > 2.0 or abs(wp.z - o.z) > 2.0 or o.y > wp.y + 0.35 or o.y < wp.y - 1.45:
+			continue
+		var nrm: Vector3 = w.global_transform.basis.xform(w.get_meta("dir")).normalized()
+		var rel: Vector3 = o - wp
+		rel.y = 0.0
+		var s: float = 1.0 if rel.dot(nrm) > 0.0 else -1.0                 # which side of the wall we are on
+		var across: float = abs(rel.dot(nrm))
+		var tangent: Vector3 = nrm.cross(Vector3.UP).normalized()
+		if across > 1.6 or abs(rel.dot(tangent)) > 0.85 or dir.dot(-nrm * s) < 0.55:
+			continue
+		var to: Vector3 = Vector3(wp.x, o.y, wp.z) - nrm * s * 1.0
+		to.y = o.y
+		var mid: Vector3 = wp + Vector3(0, 0.22, 0)
+		mode = Mode.MANTLE
+		_vault = true
+		_vault_mid = mid
+		_mantle_from = o
+		_mantle_to = to
+		_mantle_dir = -nrm * s
+		_mantle_dur = 0.8
+		_mantle_t = 0.0
+		velocity = Vector3.ZERO
+		collision_mask = 0
+		Audio.play3d("mantle", o + Vector3(0, 1.0, 0), -2.0, 1.2)
+		return true
+	return false
+
+
 func mantle_physics(delta: float) -> void:
 	_mantle_t += delta / _mantle_dur
 	var t: float = clamp(_mantle_t, 0.0, 1.0)
-	var rise: float = smoothstep(0.0, 0.75, t)
-	var fwd: float = smoothstep(0.35, 1.0, t)
-	var p := Vector3(lerp(_mantle_from.x, _mantle_to.x, fwd), lerp(_mantle_from.y, _mantle_to.y, rise), lerp(_mantle_from.z, _mantle_to.z, fwd))
+	var p: Vector3
+	if _vault:                                   # over the sill: up to the window, then down on the far side
+		if t < 0.5:
+			var k: float = smoothstep(0.0, 1.0, t / 0.5)
+			p = _mantle_from.linear_interpolate(_vault_mid, k)
+		else:
+			var k2: float = smoothstep(0.0, 1.0, (t - 0.5) / 0.5)
+			p = _vault_mid.linear_interpolate(_mantle_to, k2)
+	else:
+		var rise: float = smoothstep(0.0, 0.75, t)
+		var fwd: float = smoothstep(0.35, 1.0, t)
+		p = Vector3(lerp(_mantle_from.x, _mantle_to.x, fwd), lerp(_mantle_from.y, _mantle_to.y, rise), lerp(_mantle_from.z, _mantle_to.z, fwd))
 	global_transform.origin = p
 	if _mantle_t >= 1.0:
+		_vault = false
 		mode = Mode.GROUND
 		collision_mask = BODY_MASK
 		velocity = _mantle_dir * 2.0

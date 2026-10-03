@@ -22,11 +22,13 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 OUT = os.path.join(ROOT, "assets", "models")
 
 _materials = {}
+MARKERS = []          # empties exported with the next model (window markers: the game lets you vault through them)
 
 
 def reset_scene():
     bpy.ops.wm.read_factory_settings(use_empty=True)
     _materials.clear()
+    MARKERS.clear()
 
 
 def material(name, color, rough=0.85, emit=None, emit_strength=1.5):
@@ -144,6 +146,8 @@ def empty(name, location):
 def export(name, objects):
     os.makedirs(OUT, exist_ok=True)
     bpy.ops.object.select_all(action="DESELECT")
+    objects = list(objects) + list(MARKERS)
+    MARKERS.clear()
     for o in objects:
         o.select_set(True)
     path = os.path.join(OUT, name + ".glb")
@@ -223,6 +227,11 @@ def walls(part, mat, hw, hd, height, thick, door_x, windows, door_w=1.3, door_h=
     wall_x(hd, holes_back)
     wall_y(-hw, holes_side)
     wall_y(hw, holes_side)
+    if win_z[0] <= 1.3 and windows:          # low sills only: those windows can be vaulted through
+        for wx in windows:
+            MARKERS.append(empty("Win_b%.1f" % wx, (wx, hd, base_z + win_z[0])))
+        MARKERS.append(empty("Win_l", (-hw, 0.0, base_z + win_z[0])))
+        MARKERS.append(empty("Win_r", (hw, 0.0, base_z + win_z[0])))
 
 
 def make_house(name, width, depth, height, wall_color, roof_color, trim_color, roof_h, windows, door_w=1.3, door_h=2.25, extra=None, win_z=(1.0, 2.2), win_w=1.4, roof_overhang=0.7):
@@ -1322,6 +1331,16 @@ def make_boat():
 
 
 def main():
+    if os.environ.get("ONLY") == "windows":       # houses, POI buildings and towers again, with their window markers
+        reset_scene()
+        make_house("house_a", 8.0, 7.0, 3.2, (0.93, 0.90, 0.82), (0.68, 0.22, 0.17), (0.42, 0.30, 0.20), 1.9, [-2.2, 2.2])
+        reset_scene()
+        make_house("house_b", 10.0, 8.0, 3.4, (0.55, 0.65, 0.78), (0.22, 0.26, 0.34), (0.90, 0.90, 0.92), 1.6, [-3.0, 0.0, 3.0])
+        reset_scene()
+        make_highrises()
+        reset_scene()
+        make_poi_buildings()
+        return
     if os.environ.get("ONLY") == "highrise":      # ONLY=highrise blender -b -P tools/blender/generate_assets.py
         reset_scene()
         make_highrises()

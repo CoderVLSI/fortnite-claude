@@ -175,6 +175,8 @@ func _ground_process(delta: float) -> void:
 	if not input_enabled:
 		sprinting = false
 		aiming = false
+	if input_enabled and Input.is_action_just_pressed("jump") and try_vault(-b.z * -move.y + b.x * move.x if move.length() > 0.3 else -b.z):
+		return
 	if input_enabled and want_jump and move.y < -0.3 and try_mantle(-b.z * -move.y + b.x * move.x):
 		return
 	if input_enabled and not grounded and move.y < -0.3 and try_mantle(-b.z):
