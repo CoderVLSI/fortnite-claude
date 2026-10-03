@@ -40,6 +40,10 @@ SFX = {
     "splash": ("person jumping into a lake, big water splash", 1.5),
     "storm_warn": ("ominous air raid style warning horn, two rising tones", 2.0),
     "hurt": ("short male pain grunt, game character hit", 0.6),
+    "step_grass": ("single footstep of a person walking on grass, soft rustle, one step only", 0.5),
+    "step_sand": ("single footstep on dry sand, soft crunchy scuff, one step only", 0.5),
+    "step_wood": ("single footstep on a wooden floor, hollow thud, one step only", 0.5),
+    "step_water": ("single footstep splashing in shallow water, one step only", 0.6),
     "car_horn": ("short double car horn honk", 0.8),
 }
 LOOPS = {   # looped ambience / engines: ElevenLabs supports a "loop" flag on newer models
