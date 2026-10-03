@@ -103,15 +103,7 @@ var _lod_acc := 0.0
 var _lod_n := 0
 
 
-func _physics_process(delta_in: float) -> void:
-	var delta := delta_in
-	if not visible and net_owner == 0 and not is_dead:          # far from the camera (Perf.gd): think and move a third as often
-		_lod_acc += delta_in
-		_lod_n += 1
-		if _lod_n % 3 != 0:
-			return
-		delta = _lod_acc
-		_lod_acc = 0.0
+func _physics_process(delta: float) -> void:
 	tick_weapon(delta)
 	if net_owner != 0:                     # on a client the host runs this bot; we only show it
 		net_smooth(delta)
@@ -131,6 +123,13 @@ func _physics_process(delta_in: float) -> void:
 	if mode != Mode.GROUND:
 		_air_logic(delta)
 		return
+	if not visible and state == State.WANDER and target == null and health >= max_health * 0.7:
+		_lod_acc += delta                      # far from the camera (Perf.gd) and just wandering: move a third as often
+		_lod_n += 1
+		if _lod_n % 3 != 0:
+			return
+		delta = _lod_acc
+		_lod_acc = 0.0
 	_think -= delta
 	if _think <= 0.0:
 		_think = rand_range(0.25, 0.5)
