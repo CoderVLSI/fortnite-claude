@@ -33,10 +33,12 @@ const MODEL_DIR := "res://assets/models/"
 const HOUSES := ["house_a", "house_b"]
 # front door of each building model: [half depth, door width, door height]; they get a door that opens by itself
 const DOORS := {"house_a": [3.5, 1.3, 2.25], "house_b": [4.0, 1.3, 2.25], "lodge": [5.0, 1.8, 2.5], "cabin": [2.75, 1.3, 2.25],
-	"barn": [7.0, 3.4, 3.4], "warehouse": [5.5, 4.0, 4.2], "bunker": [4.0, 1.8, 2.4], "keeper_house": [2.5, 1.3, 2.25]}
+	"barn": [7.0, 3.4, 3.4], "warehouse": [5.5, 4.0, 4.2], "bunker": [4.0, 1.8, 2.4], "keeper_house": [2.5, 1.3, 2.25],
+	"highrise_a": [5.5, 2.4, 2.8], "highrise_b": [6.0, 2.4, 2.8], "highrise_c": [6.5, 2.4, 2.8]}
 # how many pickaxe hits a building takes before it comes down
+const STRUCTURE_SINK := {"highrise_a": 24.0, "highrise_b": 32.0, "highrise_c": 44.0}
 const STRUCTURE_HITS := {"house_a": 16, "house_b": 22, "lodge": 30, "cabin": 12, "barn": 34, "warehouse": 40, "bunker": 60, "keeper_house": 14,
-	"tower": 50, "silo": 26, "watchtower": 18, "windmill": 30, "lighthouse": 45, "container": 14, "tank": 22, "crane": 28, "chimney": 16, "radar": 18}
+	"tower": 50, "silo": 26, "watchtower": 18, "windmill": 30, "lighthouse": 45, "highrise_a": 70, "highrise_b": 95, "highrise_c": 130, "container": 14, "tank": 22, "crane": 28, "chimney": 16, "radar": 18}
 const BUS_ALTITUDE := 260.0
 const BUS_LENGTH := 720.0
 const BOT_NAMES := ["Rook", "Nova", "Echo", "Blitz", "Sable", "Juno", "Kestrel", "Moxie", "Vesper", "Dash",
@@ -285,6 +287,7 @@ func _add_trimesh_collision(node: Node, harvest_kind: String, root: Node = null,
 		_add_trimesh_collision(c, harvest_kind, root, res)
 	if root != null and node == root:
 		root.set_meta("hits_max", STRUCTURE_HITS.get(res, 20))
+		root.set_meta("sink", STRUCTURE_SINK.get(res, 6.0))
 		root.set_meta("hits", 0)
 
 
@@ -316,10 +319,10 @@ func _collapse(root: Spatial) -> void:
 	get_tree().create_timer(3.0).connect("timeout", dust, "queue_free")
 	var tween := Tween.new()
 	add_child(tween)
-	tween.interpolate_property(root, "translation:y", root.translation.y, root.translation.y - 6.0, 1.6, Tween.TRANS_QUAD, Tween.EASE_IN)
+	tween.interpolate_property(root, "translation:y", root.translation.y, root.translation.y - float(root.get_meta("sink") if root.has_meta("sink") else 6.0), 1.6 if not root.has_meta("sink") or root.get_meta("sink") < 10.0 else 3.0, Tween.TRANS_QUAD, Tween.EASE_IN)
 	tween.interpolate_property(root, "rotation:z", root.rotation.z, root.rotation.z + rand_range(-0.12, 0.12), 1.6, Tween.TRANS_QUAD, Tween.EASE_IN)
 	tween.start()
-	get_tree().create_timer(1.8).connect("timeout", root, "queue_free")
+	get_tree().create_timer(1.8 if not root.has_meta("sink") or root.get_meta("sink") < 10.0 else 3.2).connect("timeout", root, "queue_free")
 
 
 func _strip_colliders(node: Node) -> void:
@@ -541,7 +544,7 @@ func _prop_point(poi: Dictionary, entry: Dictionary) -> Array:
 		var n: Dictionary = poi.nodes[entry["in"]]
 		var big: bool = n.res == "house_b"
 		var l := Basis(Vector3.UP, n.yaw).xform(Vector3(entry.at.x, 0.0, entry.at.y))
-		return [Vector3(n.pos.x + l.x, n.pos.y + 0.15, n.pos.z + l.z), n.yaw + deg2rad(entry.get("yaw", 0.0))]
+		return [Vector3(n.pos.x + l.x, n.pos.y + 0.15 + entry.get("y", 0.0), n.pos.z + l.z), n.yaw + deg2rad(entry.get("yaw", 0.0))]
 	var p := _poi_point(poi, entry.at)
 	return [p, poi.frame_yaw + deg2rad(entry.get("yaw", 0.0))]
 

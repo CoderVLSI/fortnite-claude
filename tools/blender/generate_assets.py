@@ -180,31 +180,31 @@ def make_crate():
     export("crate", [crate.build()])
 
 
-def walls(part, mat, hw, hd, height, thick, door_x, windows, door_w=1.3, door_h=2.25, win_z=(1.0, 2.2), win_w=1.4):
+def walls(part, mat, hw, hd, height, thick, door_x, windows, door_w=1.3, door_h=2.25, win_z=(1.0, 2.2), win_w=1.4, base_z=0.0):
     """Four walls of a rectangular building; door on the -Y (front) wall."""
-    holes_front = [(door_x - door_w / 2, door_x + door_w / 2, 0.0, door_h)]
-    holes_back = [(wx - win_w / 2, wx + win_w / 2, win_z[0], win_z[1]) for wx in windows]
-    holes_side = [(-win_w / 2, win_w / 2, win_z[0], win_z[1])] if windows else []
+    holes_front = [(door_x - door_w / 2, door_x + door_w / 2, base_z, base_z + door_h)]
+    holes_back = [(wx - win_w / 2, wx + win_w / 2, base_z + win_z[0], base_z + win_z[1]) for wx in windows]
+    holes_side = [(-win_w / 2, win_w / 2, base_z + win_z[0], base_z + win_z[1])] if windows else []
 
     def wall_x(y, holes):
         cuts = sorted(holes)
         cursor = -hw
         for x0, x1, z0, z1 in cuts:
-            part.box_span(cursor, x0, y - thick / 2, y + thick / 2, 0, height, mat)
-            part.box_span(x0, x1, y - thick / 2, y + thick / 2, 0, z0, mat)
+            part.box_span(cursor, x0, y - thick / 2, y + thick / 2, base_z, base_z + height, mat)
+            part.box_span(x0, x1, y - thick / 2, y + thick / 2, base_z, z0, mat)
             part.box_span(x0, x1, y - thick / 2, y + thick / 2, z1, height, mat)
             cursor = x1
-        part.box_span(cursor, hw, y - thick / 2, y + thick / 2, 0, height, mat)
+        part.box_span(cursor, hw, y - thick / 2, y + thick / 2, base_z, base_z + height, mat)
 
     def wall_y(x, holes):
         cuts = sorted(holes)
         cursor = -hd
         for y0, y1, z0, z1 in cuts:
-            part.box_span(x - thick / 2, x + thick / 2, cursor, y0, 0, height, mat)
-            part.box_span(x - thick / 2, x + thick / 2, y0, y1, 0, z0, mat)
+            part.box_span(x - thick / 2, x + thick / 2, cursor, y0, base_z, base_z + height, mat)
+            part.box_span(x - thick / 2, x + thick / 2, y0, y1, base_z, z0, mat)
             part.box_span(x - thick / 2, x + thick / 2, y0, y1, z1, height, mat)
             cursor = y1
-        part.box_span(x - thick / 2, x + thick / 2, cursor, hd, 0, height, mat)
+        part.box_span(x - thick / 2, x + thick / 2, cursor, hd, base_z, base_z + height, mat)
 
     wall_x(-hd, holes_front)
     wall_x(hd, holes_back)
@@ -911,6 +911,73 @@ def make_glider():
 
 # ------------------------------------------------------------- POI buildings & props
 
+def make_highrise(name, floors, width, depth, wall_color, trim_color, band_color):
+    """A walkable tower block: a lobby with a door, floors joined by straight stairs along alternating sides, windows on
+    every level, a flat roof with a parapet. Front (door) wall is -Y (game +Z), stairs climb towards the front."""
+    FH = 3.4          # floor to floor
+    SL = 0.25         # slab thickness
+    wall = material(name + "_wall", wall_color)
+    trim = material(name + "_trim", trim_color)
+    band = material(name + "_band", band_color)
+    floor = material(name + "_floor", (0.50, 0.50, 0.53))
+    hw, hd = width / 2, depth / 2
+    b = Part(name)
+    b.box((0, 0, 0.08), (width + 0.5, depth + 0.5, 0.16), trim)
+    windows = [-width / 2 + 2.2 + i * 2.6 for i in range(int((width - 3.0) // 2.6) + 1)]
+    steps = 17
+    rise = FH / steps
+    run = 0.3
+    stair_w = 1.9
+    for k in range(floors):
+        z0 = k * FH + 0.16 if k == 0 else k * FH
+        height = FH - (SL if k > 0 else 0.0) - (0.16 if k == 0 else 0.0)
+        if k == 0:
+            walls(b, wall, hw, hd, height, 0.3, 0.0, windows, 2.4, 2.8, (1.0, 2.4), 1.4, base_z=0.16)
+        else:
+            walls(b, wall, hw, hd, height, 0.3, 0.0, windows, 1.8, 2.3, (0.9, 2.4), 1.4, base_z=z0)
+        # horizontal band at each floor line
+        b.box((0, 0, (k + 1) * FH - 0.1), (width + 0.4, depth + 0.4, 0.2), band)
+        for sx in (-1, 1):
+            for sy in (-1, 1):
+                b.box((sx * hw, sy * hd, k * FH + FH / 2), (0.5, 0.5, FH), trim)
+    # slabs (with a stairwell cut-out) for every upper level and the roof
+    for k in range(1, floors + 1):
+        top = k * FH
+        side = -1 if k % 2 == 1 else 1
+        xs = side * (hw - 0.35 - stair_w / 2)        # stair centre x
+        xa, xb = xs - stair_w / 2, xs + stair_w / 2
+        yb = hd - 0.3                                # the stairs start at the back wall ...
+        ya = yb - steps * run                        # ... and climb towards the front
+        b.box_span(-hw, xa, -hd, hd, top - SL, top, floor)
+        b.box_span(xb, hw, -hd, hd, top - SL, top, floor)
+        b.box_span(xa, xb, -hd, ya, top - SL, top, floor)
+        b.box_span(xa, xb, yb, hd, top - SL, top, floor)
+        # the stairs from level k-1 up to level k
+        base = (k - 1) * FH + (0.16 if k == 1 else 0.0)
+        for i in range(steps):
+            y_mid = yb - (i + 0.5) * run
+            top_z = base + (i + 1) * rise
+            b.box_span(xa, xb, y_mid - run / 2, y_mid + run / 2, base, min(top_z, top - 0.01), floor)
+    # roof parapet and a little rooftop plant room
+    rt = floors * FH
+    for sx in (-1, 1):
+        b.box_span(sx * hw - 0.15, sx * hw + 0.15, -hd, hd, rt, rt + 1.1, trim)
+    for sy in (-1, 1):
+        b.box_span(-hw, hw, sy * hd - 0.15, sy * hd + 0.15, rt, rt + 1.1, trim)
+    b.box((hw * 0.45, hd * 0.2, rt + 1.2), (3.0, 3.0, 2.4), wall)
+    b.box((hw * 0.45, hd * 0.2, rt + 2.5), (3.4, 3.4, 0.2), trim)
+    b.box((-hw * 0.4, -hd * 0.3, rt + 3.0), (0.15, 0.15, 6.0), trim)           # antenna
+    export(name, [b.build()])
+
+
+def make_highrises():
+    make_highrise("highrise_a", 6, 12.0, 11.0, (0.80, 0.78, 0.72), (0.35, 0.36, 0.40), (0.20, 0.45, 0.65))
+    reset_scene()
+    make_highrise("highrise_b", 9, 12.0, 12.0, (0.55, 0.62, 0.72), (0.22, 0.25, 0.32), (0.85, 0.65, 0.20))
+    reset_scene()
+    make_highrise("highrise_c", 12, 13.0, 13.0, (0.72, 0.52, 0.45), (0.28, 0.22, 0.20), (0.75, 0.25, 0.20))
+
+
 def make_poi_buildings():
     # lakeside lodge: big timber hall with a porch and a stone chimney
     def lodge_extra(h):
@@ -1241,6 +1308,10 @@ def make_boat():
 
 
 def main():
+    if os.environ.get("ONLY") == "highrise":      # ONLY=highrise blender -b -P tools/blender/generate_assets.py
+        reset_scene()
+        make_highrises()
+        return
     reset_scene()
     make_player()
     reset_scene()
@@ -1262,6 +1333,8 @@ def main():
                make_ammo_pickup, make_chest, make_ammo_box, make_supply, make_bus, make_glider):
         reset_scene()
         fn()
+    reset_scene()
+    make_highrises()
     for fn in (make_poi_buildings, make_container, make_silo, make_windmill, make_lighthouse, make_watchtower, make_crane,
                make_chimney, make_tank, make_haystack, make_fence, make_sandbags, make_radar, make_vault):
         reset_scene()
