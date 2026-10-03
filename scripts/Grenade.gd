@@ -11,6 +11,7 @@ const MAX_DAMAGE := 115.0
 const PIECE_DAMAGE := 300.0
 
 var thrower = null
+var visual_only := false            # a copy of somebody else's grenade: same look and sound, no damage here
 var shock := false                   # Shockwave Grenade: no damage, flings everyone nearby
 var damage_mult := 1.0               # bots throw weaker grenades than the player's
 var fuse := 2.4
@@ -85,7 +86,7 @@ func _shockwave() -> void:
 	Audio.play3d("shockwave_boom", pos + Vector3(0, 0.5, 0), 0.0)
 	Audio.play3d("explosion", pos + Vector3(0, 0.5, 0), -6.0, 1.8)
 	for f in get_tree().get_nodes_in_group("fighters"):
-		if f.is_dead:
+		if f.is_dead or f.net_owner != 0:          # a puppet is flung by its own machine (it runs its own copy)
 			continue
 		var chest: Vector3 = f.global_transform.origin + Vector3(0, 1.0, 0)
 		var d: float = chest.distance_to(pos)
@@ -130,7 +131,7 @@ func _explode() -> void:
 	Audio.play3d("explosion", pos + Vector3(0, 0.5, 0), 3.0)
 	var space := get_world().direct_space_state
 	for f in get_tree().get_nodes_in_group("fighters"):
-		if f.is_dead:
+		if f.is_dead or visual_only:
 			continue
 		var chest: Vector3 = f.global_transform.origin + Vector3(0, 1.0, 0)
 		var d: float = chest.distance_to(pos)
@@ -146,7 +147,7 @@ func _explode() -> void:
 			thrower.emit_signal("hit_landed", f, was_alive and f.is_dead, false)
 			thrower.emit_signal("damage_dealt", chest, dmg, false, was_alive and f.is_dead)
 	for piece in get_tree().get_nodes_in_group("build_pieces"):
-		if not is_instance_valid(piece) or piece.is_dead:
+		if visual_only or not is_instance_valid(piece) or piece.is_dead:
 			continue
 		var pd: float = piece.global_transform.origin.distance_to(pos)
 		if pd < RADIUS:

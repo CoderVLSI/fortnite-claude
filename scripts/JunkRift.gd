@@ -12,6 +12,7 @@ const FALL_HEIGHT := 48.0
 const OPEN_TIME := 0.7
 
 var thrower = null
+var visual_only := false
 var _age := 0.0
 var _struck := false
 
@@ -75,6 +76,7 @@ func _open_rift() -> void:
 	parent.get_tree().create_timer(2.0).connect("timeout", holder, "queue_free")
 	var obj := JunkObject.new()
 	obj.thrower = thrower
+	obj.visual_only = visual_only
 	obj.delay = OPEN_TIME
 	parent.add_child(obj)
 	obj.global_transform.origin = pos + Vector3(0, FALL_HEIGHT, 0)
@@ -84,6 +86,7 @@ func _open_rift() -> void:
 # The heavy thing itself.
 class JunkObject extends Spatial:
 	var thrower = null
+	var visual_only := false
 	var delay := 0.7
 	var _vy := 0.0
 	var _landed := false
@@ -145,7 +148,7 @@ class JunkObject extends Spatial:
 		Audio.play3d("junk_impact", pos, 4.0)
 		Audio.play3d("explosion", pos, 2.0, 0.5)
 		for f in tree.get_nodes_in_group("fighters"):
-			if f.is_dead:
+			if f.is_dead or visual_only:
 				continue
 			var fo: Vector3 = f.global_transform.origin
 			var flat := Vector2(fo.x - pos.x, fo.z - pos.z).length()
@@ -161,12 +164,12 @@ class JunkObject extends Spatial:
 					thrower.emit_signal("hit_landed", f, was_alive and f.is_dead, false)
 					thrower.emit_signal("damage_dealt", fo + Vector3(0, 1.0, 0), dmg, false, was_alive and f.is_dead)
 		for piece in tree.get_nodes_in_group("build_pieces"):
-			if is_instance_valid(piece) and not piece.is_dead and piece.global_transform.origin.distance_to(pos) < 5.0:
+			if not visual_only and is_instance_valid(piece) and not piece.is_dead and piece.global_transform.origin.distance_to(pos) < 5.0:
 				piece.take_damage(5000.0, thrower)
 		for w in tree.get_nodes_in_group("world"):
 			for c in w.get_children():
-				if c is Spatial and c.has_meta("hits_max") and not c.has_meta("fallen") and Vector2(c.global_transform.origin.x - pos.x, c.global_transform.origin.z - pos.z).length() < 8.0:
-					w._collapse(c)
+				if not visual_only and c is Spatial and c.has_meta("hits_max") and not c.has_meta("fallen") and Vector2(c.global_transform.origin.x - pos.x, c.global_transform.origin.z - pos.z).length() < 8.0:
+					w.collapse_and_sync(c)
 		var dust: CPUParticles = preload("res://scripts/SpriteCreature.gd").particles(Color(0.7, 0.66, 0.6, 0.85), 80, 1.6, 8.0, 80.0, 4.0, 2.5)
 		dust.one_shot = true
 		dust.explosiveness = 0.9

@@ -157,6 +157,58 @@ func _run() -> void:
 		var hostbot: Vector2 = Vector2(hf.bot[0], hf.bot[1])
 		check(b.net_owner == 1 and bx.distance_to(hostbot) < 30.0, "the client's bots follow the host's (%.1f m apart)" % bx.distance_to(hostbot))
 
+	if role == "host":                      # keep the bots quiet from here on (they still sync); they would shoot the test players
+		for f in get_nodes_in_group("fighters"):
+			if typeof(f.net_key_v) == TYPE_STRING and f.net_owner == 0:
+				f.set_physics_process(false)
+	# ---- the shared world: chests, loot, building, harvesting, shots, throws
+	var chest0 = world.net_nodes.get("c0")
+	var loot5 = world.net_nodes.get("f5")
+	var struct0 = world.net_nodes.get("b0")
+	check(chest0 != null and loot5 != null and struct0 != null, "chests, loot and buildings have shared ids")
+	if role == "host":
+		put("host_ids_checked", true)
+	else:
+		yield(fetch("host_ids_checked"), "completed")
+	if role == "client":
+		chest0.open(p)
+		loot5.interact(p)
+		var Net_ = net
+		net.send_event("build", ["wall", "wood", "mp:wall:1", spot + Vector3(0, 1.5, -6), 0.0])
+		world.spawn_build("wall", "wood", "mp:wall:1", spot + Vector3(0, 1.5, -6), 0.0)
+	else:
+		var opened: bool = yield(wait_for(self, "chest0_open", 30.0), "completed")
+		check(opened, "a chest the other player opened is open here too")
+		var taken: bool = yield(wait_for(self, "loot5_gone", 30.0), "completed")
+		check(taken, "loot the other player picked up is gone here")
+		var built: bool = yield(wait_for(self, "wall_built", 30.0), "completed")
+		check(built, "a wall the other player built appears here")
+		var body = null
+		for k in struct0.get_children():
+			if k is StaticBody and k.has_meta("structure"):
+				body = k
+				break
+			for kk in k.get_children():
+				if kk is StaticBody and kk.has_meta("structure"):
+					body = kk
+		if body != null:
+			world.harvest_hit(body, 0, "wood", p, struct0.global_transform.origin)
+		p.give_weapon("assault", 2, 60)
+		p._fire_cd = 0.0
+		p.try_fire(p.global_transform.origin + Vector3(0, 1.5, 0), Vector3(0, 0, -1))
+		net.send_event("throw", [1, "frag", spot + Vector3(0, 1.5, 0), Vector3(3, 6, 0)])
+	if role == "client":
+		var hit: bool = yield(wait_for(self, "struct0_hit", 30.0), "completed")
+		check(hit, "a building the other player hit shows the damage here (hits %s)" % str(struct0.get_meta("hits")))
+		var rp2 = get_nodes_in_group("remote_players")[0]
+		var heard: bool = yield(wait_for(self, "shots_seen", 30.0), "completed")
+		check(heard, "the other player's shots are heard here (%d)" % rp2.net_shots_seen)
+		var nade: bool = yield(wait_for(self, "nade_seen", 30.0), "completed")
+		check(nade, "a grenade the other player threw appears here")
+		yield(create_timer(4.0), "timeout")
+		check(p.health >= 99.0, "and that copy does no damage here (health %.0f)" % p.health)
+	yield(create_timer(2.0), "timeout")
+
 	# ---- damage goes to the owner
 	if role == "client":
 		var hp_puppet = get_nodes_in_group("remote_players")[0]
@@ -195,6 +247,39 @@ func wait_for_stage() -> bool:
 			return true
 		yield(create_timer(0.25), "timeout")
 		t += 0.25
+	return false
+
+
+func chest0_open() -> bool:
+	var c = world.net_nodes.get("c0")
+	return c != null and is_instance_valid(c) and c.opened
+
+
+func loot5_gone() -> bool:
+	var l = world.net_nodes.get("f5")
+	return l == null or not is_instance_valid(l) or l.is_queued_for_deletion()
+
+
+func wall_built() -> bool:
+	return world.build_slots.has("mp:wall:1")
+
+
+func struct0_hit() -> bool:
+	var s = world.net_nodes.get("b0")
+	return s != null and int(s.get_meta("hits")) >= 1
+
+
+func shots_seen() -> bool:
+	for r in get_nodes_in_group("remote_players"):
+		if r.net_shots_seen > 0:
+			return true
+	return false
+
+
+func nade_seen() -> bool:
+	for c in world.get_children():
+		if "visual_only" in c and c.visual_only:
+			return true
 	return false
 
 

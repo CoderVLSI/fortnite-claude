@@ -186,6 +186,8 @@ func place() -> bool:
 			player.emit_signal("picked_up", "Already built there")
 		return false
 	var node: StaticBody = world.spawn_build(_target.kind, material, _target.key, _target.pos, _target.yaw)
+	if world.net_live:
+		Net.send_event("build", [_target.kind, material, _target.key, _target.pos, _target.yaw])
 	player.materials[material] -= COST
 	player.stat_add("builds")
 	auto_route()

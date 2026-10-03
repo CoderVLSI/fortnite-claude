@@ -17,13 +17,18 @@ var opened := false
 var falling := false
 var ground_y := 0.0
 var rng := RandomNumberGenerator.new()
+var net_id := ""
+var seed_value := 0              # the loot is rolled from this, so every machine gets the same contents
 var _lid: Spatial
 var _balloon: Spatial
 var _beam: MeshInstance
 
 
 func _ready() -> void:
-	rng.randomize()
+	if seed_value != 0:
+		rng.seed = seed_value
+	else:
+		rng.randomize()
 	add_to_group("interactable")
 	if kind == "supply":
 		add_to_group("supply")
@@ -120,7 +125,7 @@ func _chime(tier: int) -> void:
 	Audio.play3d("rarity_%d" % (tier + 1), global_transform.origin + Vector3(0, 1.0, 0), -3.0)
 
 
-func open(by = null) -> void:
+func open(by = null, from_net: bool = false) -> void:
 	if opened:
 		return
 	opened = true
@@ -134,10 +139,15 @@ func open(by = null) -> void:
 		tween.start()
 	Audio.play3d("ammo_box_open" if kind == "ammo_box" else "chest_open", global_transform.origin + Vector3(0, 0.5, 0), 0.0)
 	var loot := Items.chest_loot(kind, rng)
-	if by != null and by.has_method("stat_add"):
-		by.stat_add("chests")
-	if by != null and by.has_method("sprite_on_chest"):
-		by.sprite_on_chest(loot, rng)
+	var extras := []                       # sprite bonuses belong to the opener only: they are sent on as separate drops
+	if by != null:
+		if by.has_method("stat_add"):
+			by.stat_add("chests")
+		if by.has_method("sprite_on_chest"):
+			by._srng.randomize()
+			by.sprite_on_chest(extras, by._srng)
+	if not from_net and by != null and by.net_owner == 0 and Net.active and Net.in_match:
+		Net.send_event("chest", net_id)
 	var best := 0
 	for it in loot:
 		best = int(max(best, Items.rarity_of(it) if it.kind == "weapon" else 0))
@@ -148,4 +158,8 @@ func open(by = null) -> void:
 		var a := PI * (0.2 + 0.6 * float(i) / max(n - 1, 1))      # fan out on the open (front, +Z) side
 		var dir := Vector3(cos(a), 0.0, sin(a)).rotated(Vector3.UP, rotation.y)
 		for w in get_tree().get_nodes_in_group("world"):
-			w.spawn_item(loot[i], global_transform.origin + dir * (1.5 + 0.2 * (i % 2)) + Vector3(0, 0.1, 0))
+			w.spawn_item(loot[i], global_transform.origin + dir * (1.5 + 0.2 * (i % 2)) + Vector3(0, 0.1, 0), "%s:%d" % [net_id, i] if net_id != "" else "")
+	for k in range(extras.size()):
+		var ea := PI * (0.1 + 0.8 * float(k) / max(extras.size() - 1, 1))
+		for w in get_tree().get_nodes_in_group("world"):
+			w.spawn_item(extras[k], global_transform.origin + Vector3(cos(ea), 0.0, sin(ea)).rotated(Vector3.UP, rotation.y) * 2.4 + Vector3(0, 0.1, 0))

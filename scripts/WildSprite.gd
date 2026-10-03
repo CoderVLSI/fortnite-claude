@@ -7,6 +7,7 @@ const Sprites = preload("res://scripts/Sprites.gd")
 
 var data := {"id": "earth", "variant": "", "level": 1, "xp": 0.0}
 var terrain = null
+var net_id := ""
 var home := Vector2.ZERO
 var _target := Vector2.ZERO
 var _t := rand_range(0.0, 6.0)
@@ -71,4 +72,6 @@ func interact(by) -> void:
 		for w in get_tree().get_nodes_in_group("world"):
 			w.add_wild_sprite(old, global_transform.origin + Vector3(1.4, 0, 0))
 	remove_from_group("interactable")
+	for w in get_tree().get_nodes_in_group("world"):
+		w.net_item_taken(self)
 	queue_free()

@@ -24,6 +24,8 @@ const Rift = preload("res://scripts/Rift.gd")
 const AutoDoor = preload("res://scripts/AutoDoor.gd")
 const WildSprite = preload("res://scripts/WildSprite.gd")
 const RemotePlayer = preload("res://scripts/RemotePlayer.gd")
+const GrenadeScript = preload("res://scripts/Grenade.gd")
+const JunkRiftScript = preload("res://scripts/JunkRift.gd")
 const FighterScript = preload("res://scripts/Fighter.gd")
 const SpriteCreature = preload("res://scripts/SpriteCreature.gd")
 const Sprites = preload("res://scripts/Sprites.gd")
@@ -79,6 +81,12 @@ var net_match := false           # a network match: the island is built from the
 var _net_pose_t := 0.0
 var _net_bots_t := 0.0
 var _net_storm_t := 0.0
+var net_nodes := {}               # network id -> node (loot, chests, wild sprites, rifts, buildings)
+var _loot_seq := 0
+var _chest_seq := 0
+var _struct_seq := 0
+var _wild_seq := 0
+var _rift_seq := 0
 var net_live := false            # true once the match has started on this machine
 var _amb_t := 0.0
 var _bird_t := 6.0
@@ -315,6 +323,9 @@ func _add_trimesh_collision(node: Node, harvest_kind: String, root: Node = null,
 				c.set_meta("structure", root)
 		_add_trimesh_collision(c, harvest_kind, root, res)
 	if root != null and node == root:
+		root.set_meta("net_id", "b%d" % _struct_seq)
+		net_nodes["b%d" % _struct_seq] = root
+		_struct_seq += 1
 		root.set_meta("hits_max", STRUCTURE_HITS.get(res, 20))
 		root.set_meta("sink", STRUCTURE_SINK.get(res, 6.0))
 		root.set_meta("hits", 0)
@@ -332,6 +343,12 @@ func _add_door(inst: Spatial, res: String) -> void:
 
 
 # A structure that has taken enough pickaxe hits: its colliders vanish and it sinks into a cloud of dust.
+func collapse_and_sync(root: Spatial) -> void:
+	if net_live and root.has_meta("net_id"):
+		Net.send_event("collapse", root.get_meta("net_id"))
+	_collapse(root)
+
+
 func _collapse(root: Spatial) -> void:
 	if root.has_meta("fallen"):
 		return
@@ -645,22 +662,46 @@ func _spawn_rifts_and_sprites() -> void:
 				if Vector2(r.translation.x, r.translation.z).distance_to(p) < 60.0:
 					ok = false
 			if ok:
-				var rift := Rift.new()
-				rift.translation = Vector3(p.x, h, p.y)
-				add_child(rift)
+				add_rift(Vector3(p.x, h, p.y), 0.0)
 				rifts += 1
 		elif sprites < want_sprites:
 			add_wild_sprite(Sprites.random_wild(rr), Vector3(p.x, h + 0.9, p.y))
 			sprites += 1
 
 
-func add_wild_sprite(data: Dictionary, pos: Vector3) -> Node:
+func add_wild_sprite(data: Dictionary, pos: Vector3, nid: String = "") -> Node:
 	var ws := WildSprite.new()
 	ws.data = data.duplicate()
 	ws.terrain = terrain
 	ws.translation = pos
+	if nid == "":
+		if net_live:
+			nid = Net.new_id("w")
+			Net.send_event("wild", [nid, data, pos])
+		else:
+			nid = "w%d" % _wild_seq
+			_wild_seq += 1
+	ws.net_id = nid
+	net_nodes[nid] = ws
 	add_child(ws)
 	return ws
+
+
+func add_rift(pos: Vector3, lifetime: float, nid: String = "") -> Node:
+	var rift := Rift.new()
+	rift.lifetime = lifetime
+	rift.translation = pos
+	if nid == "":
+		if net_live:
+			nid = Net.new_id("r")
+			Net.send_event("rift", [nid, pos, lifetime])
+		else:
+			nid = "r%d" % _rift_seq
+			_rift_seq += 1
+	rift.net_id = nid
+	net_nodes[nid] = rift
+	add_child(rift)
+	return rift
 
 
 # A free spot around a POI: on land, away from its buildings and props.
@@ -826,23 +867,38 @@ const HARVEST_LABELS := {"wood": "TREE", "stone": "ROCK", "metal": "METAL"}
 func harvest_hit(body, shape_idx: int, kind: String, by, at: Vector3 = Vector3.ZERO) -> void:
 	var yield_mult: float = 1.0 + 0.25 * by.sprite_level() if by.has_sprite("king") else 1.0
 	by.add_material(kind, int((8 + rng.randi() % 5) * yield_mult))
+	var local_hit: bool = by.net_owner == 0 and net_live
 	if body.has_meta("structure"):
 		var root = body.get_meta("structure")
-		if is_instance_valid(root) and root.has_meta("hits_max") and not root.has_meta("fallen"):
-			var sh: int = int(root.get_meta("hits")) + 1
-			root.set_meta("hits", sh)
-			var smax: int = int(root.get_meta("hits_max"))
-			by.emit_signal("harvested", at, clamp(1.0 - float(sh) / smax, 0.0, 1.0), kind, "BUILDING", "struct:%d" % root.get_instance_id())
-			if sh >= smax:
-				_collapse(root)
+		_structure_hit(root, kind, by, at)
+		if local_hit and is_instance_valid(root) and root.has_meta("net_id"):
+			Net.send_event("harvest", ["S", root.get_meta("net_id"), kind])
 		return
 	if not _props.has(body.name):
 		return
-	var data: Dictionary = _props[body.name]
+	_prop_hit(body.name, shape_idx, kind, by, at)
+	if local_hit:
+		Net.send_event("harvest", ["P", body.name, shape_idx, kind])
+
+
+func _structure_hit(root, kind: String, by, at: Vector3) -> void:
+	if is_instance_valid(root) and root.has_meta("hits_max") and not root.has_meta("fallen"):
+		var sh: int = int(root.get_meta("hits")) + 1
+		root.set_meta("hits", sh)
+		var smax: int = int(root.get_meta("hits_max"))
+		if by != null:
+			by.emit_signal("harvested", at, clamp(1.0 - float(sh) / smax, 0.0, 1.0), kind, "BUILDING", "struct:%d" % root.get_instance_id())
+		if sh >= smax:
+			_collapse(root)
+
+
+func _prop_hit(body_name: String, shape_idx: int, kind: String, by, at: Vector3) -> void:
+	var data: Dictionary = _props[body_name]
 	var hits: int = data.hits.get(shape_idx, 0) + 1
 	data.hits[shape_idx] = hits
 	var left: float = clamp(1.0 - float(hits) / HARVEST_HITS, 0.0, 1.0)
-	by.emit_signal("harvested", at, left, kind, HARVEST_LABELS.get(kind, kind.to_upper()), "%s:%d" % [body.name, shape_idx])
+	if by != null:
+		by.emit_signal("harvested", at, left, kind, HARVEST_LABELS.get(kind, kind.to_upper()), "%s:%d" % [body_name, shape_idx])
 	if hits >= HARVEST_HITS and shape_idx < data.body.get_child_count():
 		var gone := Transform(Basis().scaled(Vector3(0.0001, 0.0001, 0.0001)), data.transforms[shape_idx].origin)
 		data.mm.set_instance_transform(shape_idx, gone)
@@ -892,21 +948,47 @@ func _spawn_containers_and_loot(plan: Array) -> void:
 		placed += 1
 
 
-func _add_chest(kind: String, pos: Vector3, yaw: float) -> Node:
+func _add_chest(kind: String, pos: Vector3, yaw: float, forced_id: String = "", forced_seed: int = 0) -> Node:
 	var c := Chest.new()
 	c.kind = kind
 	c.translation = pos
 	c.rotation.y = yaw
+	if forced_id != "":
+		c.net_id = forced_id
+		c.seed_value = forced_seed
+	else:
+		c.net_id = "c%d" % _chest_seq
+		_chest_seq += 1
+		c.seed_value = rng.randi() + 1           # the same loot on every machine
+	net_nodes[c.net_id] = c
 	add_child(c)
 	return c
 
 
-func spawn_item(item: Dictionary, pos: Vector3) -> Node:
+# nid: given by a network event or a chest (deterministic); empty = created here, so the other machines are told.
+func spawn_item(item: Dictionary, pos: Vector3, nid: String = "") -> Node:
 	var li := LootItem.new()
 	li.setup(item)
 	li.translation = pos
+	if nid == "":
+		if net_live:
+			nid = Net.new_id("d")
+			Net.send_event("spawn", [nid, item, pos])
+		else:
+			nid = "f%d" % _loot_seq
+			_loot_seq += 1
+	li.net_id = nid
+	net_nodes[nid] = li
 	add_child(li)
 	return li
+
+
+# This machine removed something (picked it up...): the others remove their copy.
+func net_item_taken(node) -> void:
+	if node.net_id != "":
+		net_nodes.erase(node.net_id)
+		if net_live:
+			Net.send_event("gone", node.net_id)
 
 
 func _drop_inventory(victim) -> void:
@@ -1158,13 +1240,21 @@ func _process(delta: float) -> void:
 		return
 	if storm.waiting and storm.phase != _supply_phase:
 		_supply_phase = storm.phase
-		if storm.phase % 2 == 0:
+		if storm.phase % 2 == 0 and (not net_match or Net.is_host):      # in a network match the host decides
 			_spawn_supply()
 
 
 func _spawn_supply() -> void:
 	var p := random_point_in_safe_zone()
-	var c := _add_chest("supply", p, rng.randf() * TAU)
+	var yaw := rng.randf() * TAU
+	var c: Node
+	if net_live:
+		var sid := Net.new_id("s")
+		var sseed: int = rng.randi() + 1
+		c = _add_chest("supply", p, yaw, sid, sseed)
+		Net.send_event("supply", [p, yaw, sid, sseed])
+	else:
+		c = _add_chest("supply", p, yaw)
 	c.start_fall(150.0, p.y)
 	if hud:
 		hud.add_feed("A supply drop is on its way!", Color(1.0, 0.45, 0.35))
@@ -1301,6 +1391,28 @@ func net_damage(_from: int, target_key, amount: float, source_key, _headshot: bo
 	t.take_damage(amount, fighter_by_key(source_key))
 
 
+# A grenade / shockwave / junk rift thrown by somebody else: a look-alike without the damage (the thrower's machine does that).
+func net_spawn_throw(data: Array) -> void:
+	var thrower = fighter_by_key(data[0])
+	match data[1]:
+		"junk":
+			var jr := JunkRiftScript.new()
+			jr.thrower = thrower
+			jr.visual_only = true
+			add_child(jr)
+			jr.global_transform.origin = data[2]
+			jr.linear_velocity = data[3]
+		_:
+			var g := GrenadeScript.new()
+			g.thrower = thrower
+			g.shock = (data[1] == "shock")
+			g.visual_only = true
+			add_child(g)
+			g.global_transform.origin = data[2]
+			g.linear_velocity = data[3]
+			g.angular_velocity = Vector3(rand_range(-6, 6), rand_range(-6, 6), rand_range(-6, 6))
+
+
 func net_peer_left(id: int, player_name: String) -> void:
 	var f = fighter_by_key(id)
 	if f != null and not f.is_dead:
@@ -1327,6 +1439,60 @@ func net_event(from: int, kind: String, data) -> void:
 		"storm":
 			if not Net.is_host:
 				storm.net_apply(data)
+		"spawn":                         # loot dropped by another machine
+			spawn_item(data[1], data[2], data[0])
+		"gone":
+			var n = net_nodes.get(data)
+			net_nodes.erase(data)
+			if n != null and is_instance_valid(n):
+				if n.is_in_group("interactable"):
+					n.remove_from_group("interactable")
+				n.queue_free()
+		"chest":
+			var c = net_nodes.get(data)
+			if c != null and is_instance_valid(c) and not c.opened:
+				c.open(null, true)
+		"supply":
+			var sc := _add_chest("supply", data[0], data[1], data[2], data[3])
+			sc.start_fall(150.0, data[0].y)
+			if hud:
+				hud.add_feed("A supply drop is on its way!", Color(1.0, 0.45, 0.35))
+		"wild":
+			add_wild_sprite(data[1], data[2], data[0])
+		"rift":
+			add_rift(data[1], data[2], data[0])
+		"build":
+			if not build_slots.has(data[2]):
+				spawn_build(data[0], data[1], data[2], data[3], data[4])
+		"bdmg":
+			var bp = build_slots.get(data[0])
+			if bp != null and is_instance_valid(bp):
+				bp.take_damage(data[1], null)
+		"bmask":
+			var bm = build_slots.get(data[0])
+			if bm != null and is_instance_valid(bm):
+				bm.apply_mask(data[1])
+		"harvest":
+			if data[0] == "S":
+				var root = net_nodes.get(data[1])
+				if root != null:
+					_structure_hit(root, data[2], null, Vector3.ZERO)
+			elif _props.has(data[1]):
+				_prop_hit(data[1], int(data[2]), data[3], null, Vector3.ZERO)
+		"collapse":
+			var cr = net_nodes.get(data)
+			if cr != null and is_instance_valid(cr):
+				_collapse(cr)
+		"shot":                          # [shooter key, sound, muzzle position, tracer ends]
+			var sh = fighter_by_key(data[0])
+			if sh != null and sh.net_owner != 0:
+				sh.net_play_shot(data[1], data[2], data[3])
+		"swing":
+			var sw = fighter_by_key(data)
+			if sw != null and sw.net_owner != 0:
+				sw.net_play_swing()
+		"throw":                         # [shooter key, kind, from, velocity]
+			net_spawn_throw(data)
 
 
 # ------------------------------------------------------------------ spectating

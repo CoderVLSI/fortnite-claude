@@ -5,6 +5,7 @@ extends Spatial
 const Items = preload("res://scripts/Items.gd")
 
 var item: Dictionary = {}
+var net_id := ""
 var _model: Spatial
 var _t := rand_range(0.0, 6.0)
 var _rest_y := 0.0
@@ -147,4 +148,6 @@ func interact(by) -> void:
 		for w in get_tree().get_nodes_in_group("world"):
 			w.spawn_item(res.dropped2, global_transform.origin + Vector3(-0.9, 0.0, 0.0))
 	remove_from_group("interactable")
+	for w in get_tree().get_nodes_in_group("world"):
+		w.net_item_taken(self)
 	queue_free()

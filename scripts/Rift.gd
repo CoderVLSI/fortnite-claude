@@ -4,6 +4,7 @@ extends Spatial
 
 var lifetime := 0.0
 var used := false
+var net_id := ""
 var _t := 0.0
 var _ring: Spatial
 var _fade := 1.0
@@ -109,4 +110,6 @@ func _physics_process(_delta: float) -> void:
 			Audio.play3d("glider_open", c, -5.0, 0.7)
 			if lifetime <= 0.0:
 				used = true
+				for w in get_tree().get_nodes_in_group("world"):
+					w.net_item_taken(self)           # a world rift closes for everybody
 			return

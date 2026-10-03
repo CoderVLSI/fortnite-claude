@@ -3,7 +3,7 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 GODOT="${GODOT:-godot3}"
-pkill -f "[n]et_test.gd" 2>/dev/null; sleep 1
+pkill -f "[g]odot3 .*net_test" 2>/dev/null; sleep 1
 mkdir -p /tmp/claude-0/net
 rm -f /tmp/claude-0/net/*.json
 args=(--path . --resolution 480x270 --audio-driver Dummy -s res://tests/net_test.gd)

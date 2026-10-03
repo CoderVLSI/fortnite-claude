@@ -148,6 +148,8 @@ func take_damage(amount: float, _source = null) -> void:
 	if is_dead:
 		return
 	health -= amount
+	if _source != null and "net_owner" in _source and _source.net_owner == 0 and Net.active and Net.in_match:
+		Net.send_event("bdmg", [key, amount])          # damage we dealt: the other machines apply it too
 	if _source != null and _source.has_signal("harvested"):      # shows the health bar over the piece being hit
 		_source.emit_signal("harvested", global_transform.origin + Vector3(0, 0.6, 0), clamp(health / MAT_HP[mat_name], 0.0, 1.0),
 			mat_name, "%s %s" % [mat_name.to_upper(), kind.to_upper()], "piece:%d" % get_instance_id())

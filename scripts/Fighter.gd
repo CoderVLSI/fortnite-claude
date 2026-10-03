@@ -59,6 +59,8 @@ var _net_pos := Vector3.ZERO
 var _net_yaw := 0.0
 var _net_has := false
 var _net_item_sig := ""
+var _net_tracers := []
+var net_shots_seen := 0
 var match_stats := {}             # this match: damage, headshots, chests, builds (read by the account at the end)
 var loadout := Cosmetics.DEFAULT_LOADOUT.duplicate()
 var _backbling_node: Spatial
@@ -571,10 +573,8 @@ func throw_grenade(aim_from: Vector3, aim_dir: Vector3, slot: int = -1, damage_m
 	var def: Dictionary = Items.CONSUMABLES[item.id]
 	var hand: Vector3 = global_transform.origin + Vector3(0, 1.55, 0) + aim_dir * 0.9
 	if def.get("rift", false):                      # Rift-to-Go: open a rift at our feet and jump through it
-		var rift := Rift.new()
-		rift.lifetime = 10.0
-		get_parent().add_child(rift)
-		rift.global_transform.origin = global_transform.origin
+		for w in get_tree().get_nodes_in_group("world"):
+			w.add_rift(global_transform.origin, 10.0)
 		rift_launch()
 	elif def.get("junk", false):
 		var jr := JunkRift.new()
@@ -582,6 +582,8 @@ func throw_grenade(aim_from: Vector3, aim_dir: Vector3, slot: int = -1, damage_m
 		get_parent().add_child(jr)
 		jr.global_transform.origin = hand
 		jr.linear_velocity = aim_dir * 17.0 + Vector3(0, 4.0, 0) + Vector3(velocity.x, 0, velocity.z) * 0.6
+		if net_owner == 0 and Net.active and Net.in_match:
+			Net.send_event("throw", [net_key_v, "junk", hand, jr.linear_velocity])
 	else:
 		var g := Grenade.new()
 		g.thrower = self
@@ -591,6 +593,8 @@ func throw_grenade(aim_from: Vector3, aim_dir: Vector3, slot: int = -1, damage_m
 		g.global_transform.origin = hand
 		g.linear_velocity = aim_dir * 17.0 + Vector3(0, 4.0, 0) + Vector3(velocity.x, 0, velocity.z) * 0.6
 		g.angular_velocity = Vector3(rand_range(-6, 6), rand_range(-6, 6), rand_range(-6, 6))
+		if net_owner == 0 and Net.active and Net.in_match:
+			Net.send_event("throw", [net_key_v, "shock" if g.shock else "frag", hand, g.linear_velocity])
 	item.count -= 1
 	if item.count <= 0:
 		slots[slot] = null
@@ -1164,8 +1168,11 @@ func try_fire(aim_from: Vector3, aim_dir: Vector3) -> bool:
 	if item.rarity == Items.MYTHIC:     # each mythic has its own report; the sniper keeps the original mythic shot
 		snd = "shot_mythic" if item.id == "sniper" else "shot_mythic_" + item.id
 	Audio.play3d(snd, muzzle_position(), -2.0 if is_in_group("player") else -6.0, rand_range(0.96, 1.04))
+	_net_tracers = []
 	for i in range(pellets):
 		_fire_ray(aim_from, aim_dir, i < 3)
+	if net_owner == 0 and Net.active and Net.in_match:
+		Net.send_event("shot", [net_key_v, snd, muzzle_position(), _net_tracers])
 	if animator != null:
 		animator.kick(1.0 if pellets == 1 else 1.4)
 	if item.mag == 0:
@@ -1191,11 +1198,14 @@ func _fire_ray(aim_from: Vector3, aim_dir: Vector3, show_tracer: bool) -> void:
 			emit_signal("damage_dealt", hit.position, dealt, head, was_alive and target.is_dead)
 	if show_tracer:
 		_spawn_tracer(muzzle_position(), end)
+		_net_tracers.append(end)
 
 
 func _swing_pickaxe(aim_from: Vector3, aim_dir: Vector3) -> bool:
 	_fire_cd = fire_interval
 	_swing = 0.3
+	if net_owner == 0 and Net.active and Net.in_match:
+		Net.send_event("swing", net_key_v)
 	Audio.play3d("swing", global_transform.origin + Vector3(0, 1.3, 0), -4.0, rand_range(0.9, 1.1))
 	var hit := get_world().direct_space_state.intersect_ray(aim_from, aim_from + aim_dir * weapon_range, [self], 11)
 	if not hit:
@@ -1405,6 +1415,21 @@ func _net_set_mode(m: int) -> void:
 	if air_pivot != null:
 		air_pivot.visible = (m != Mode.BUS)
 	collision_layer = 0 if (m == Mode.BUS or is_dead) else 2
+
+
+# Somebody else's shot, seen here: the report and the tracers.
+func net_play_shot(snd: String, muzzle_pos: Vector3, ends: Array) -> void:
+	net_shots_seen += 1
+	Audio.play3d(snd, muzzle_pos, -4.0, rand_range(0.96, 1.04))
+	for e in ends:
+		_spawn_tracer(muzzle_pos, e)
+	if animator != null:
+		animator.kick(1.0)
+
+
+func net_play_swing() -> void:
+	_swing = 0.3
+	Audio.play3d("swing", global_transform.origin + Vector3(0, 1.3, 0), -4.0, rand_range(0.9, 1.1))
 
 
 func net_smooth(delta: float) -> void:

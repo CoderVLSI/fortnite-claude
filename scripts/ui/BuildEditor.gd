@@ -136,6 +136,8 @@ func confirm() -> void:
 	if piece != null and is_instance_valid(piece):
 		if piece.apply_mask(mask):
 			Audio.play2d("build_place", -4.0)
+			if Net.active and Net.in_match:
+				Net.send_event("bmask", [piece.key, mask])
 		else:
 			Audio.play2d("ui_error", -6.0)
 	visible = false
