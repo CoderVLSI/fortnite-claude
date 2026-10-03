@@ -16,6 +16,7 @@ var matches := 0                  # career stats shown on the lobby card
 var wins := 0
 var elims := 0
 var aim_toggle := false           # tap to aim instead of hold
+var starter_sprite := "earth"    # the sprite you bring to a match (none / earth / fire / water)
 var damage_numbers := true
 var keybinds := {}                # action -> [[type, code], ...]; only the actions the player changed
 var autostart := false            # runtime only: skip the title screen after "Play again"
@@ -37,6 +38,7 @@ func load_settings() -> void:
 	quality = int(cfg.get_value("graphics", "quality", quality))
 	show_fps = bool(cfg.get_value("graphics", "show_fps", show_fps))
 	aim_toggle = bool(cfg.get_value("gameplay", "aim_toggle", aim_toggle))
+	starter_sprite = str(cfg.get_value("gameplay", "starter_sprite", starter_sprite))
 	damage_numbers = bool(cfg.get_value("gameplay", "damage_numbers", damage_numbers))
 	if cfg.has_section("keybinds"):
 		for action in cfg.get_section_keys("keybinds"):
@@ -56,6 +58,7 @@ func save_settings() -> void:
 	cfg.set_value("graphics", "quality", quality)
 	cfg.set_value("graphics", "show_fps", show_fps)
 	cfg.set_value("gameplay", "aim_toggle", aim_toggle)
+	cfg.set_value("gameplay", "starter_sprite", starter_sprite)
 	cfg.set_value("gameplay", "damage_numbers", damage_numbers)
 	for action in keybinds:
 		cfg.set_value("keybinds", action, keybinds[action])

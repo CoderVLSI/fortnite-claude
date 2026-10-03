@@ -74,6 +74,9 @@ const CONSUMABLES := {
 		"time": 10.0, "stack": 1, "rarity": 4},
 	"grenade": {"name": "Grenade", "heal": 0.0, "heal_cap": 0.0, "shield": 0.0, "shield_cap": 0.0,
 		"time": 0.0, "stack": 6, "rarity": 1, "throw": true},
+	# Rift-to-Go: a portable rift. Using it flings you into the sky; the rift stays open for a few seconds for friends.
+	"rift_to_go": {"name": "Rift-to-Go", "heal": 0.0, "heal_cap": 0.0, "shield": 0.0, "shield_cap": 0.0,
+		"time": 0.0, "stack": 2, "rarity": 3, "throw": true, "rift": true, "color": Color(0.7, 0.35, 1.0)},
 }
 
 const MODEL_DIR := "res://assets/models/"
@@ -135,6 +138,8 @@ static func color_of(item: Dictionary) -> Color:
 		return GOLD_COLOR
 	if item.kind == "pickaxe":
 		return RARITIES[0].color
+	if item.kind == "consumable" and CONSUMABLES[item.id].has("color"):
+		return CONSUMABLES[item.id].color
 	return RARITIES[rarity_of(item)].color
 
 
@@ -220,7 +225,7 @@ static func random_weapon(rng: RandomNumberGenerator, bonus: int = 0) -> Diction
 
 
 static func random_consumable(rng: RandomNumberGenerator) -> Dictionary:
-	var table := ["bandage", "bandage", "bandage", "mini_shield", "mini_shield", "medkit", "shield_potion", "slurp_juice", "grenade", "grenade"]
+	var table := ["bandage", "bandage", "bandage", "mini_shield", "mini_shield", "medkit", "shield_potion", "slurp_juice", "grenade", "grenade", "rift_to_go"]
 	var id: String = table[rng.randi() % table.size()]
 	var count := 1
 	if id == "bandage":

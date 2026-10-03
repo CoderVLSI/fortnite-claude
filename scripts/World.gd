@@ -20,6 +20,10 @@ const Pois = preload("res://scripts/Pois.gd")
 const BuildPiece = preload("res://scripts/BuildPiece.gd")
 const Vehicle = preload("res://scripts/Vehicle.gd")
 const Boat = preload("res://scripts/Boat.gd")
+const Rift = preload("res://scripts/Rift.gd")
+const WildSprite = preload("res://scripts/WildSprite.gd")
+const SpriteCreature = preload("res://scripts/SpriteCreature.gd")
+const Sprites = preload("res://scripts/Sprites.gd")
 
 const MAP_HALF := 240.0                  # a 480 m island (it was 320 m)
 const MAP_SCALE := MAP_HALF / 160.0      # POI radii and spacing are authored for the old 160 m island
@@ -96,6 +100,7 @@ func _ready() -> void:
 	_spawn_boss()
 	_spawn_vehicles()
 	_spawn_vending()
+	_spawn_rifts_and_sprites()
 	if profile.use_bus:
 		_start_bus()
 
@@ -123,6 +128,8 @@ func _ready() -> void:
 # Called by the menu when the player presses Play (or immediately with --skip-menu).
 func on_game_started() -> void:
 	hud.root.visible = true
+	if Settings.starter_sprite != "none" and not ("--skip-menu" in OS.get_cmdline_args()):
+		player.equip_sprite(Settings.starter_sprite)
 	Audio.music("music_bus" if profile.use_bus else "music_game", 0.5)
 	if boss != null and is_instance_valid(boss):
 		for poi in pois:
@@ -520,6 +527,46 @@ func _spawn_vending() -> void:
 			n += 1
 
 
+# Rifts (single-use portals to the sky) and wild Sprites. Own random stream, so the rest of the island is unchanged.
+func _spawn_rifts_and_sprites() -> void:
+	var rr := RandomNumberGenerator.new()
+	rr.seed = SEED + 4242
+	var rifts := 0
+	var sprites := 0
+	var tries := 0
+	var want_sprites: int = 8 if profile.cell > 3.0 else 18
+	while (rifts < 7 or sprites < want_sprites) and tries < 900:
+		tries += 1
+		var p := Vector2(rr.randf_range(-1.0, 1.0), rr.randf_range(-1.0, 1.0)) * MAP_HALF * 0.8
+		if p.length() < 40.0 or p.length() > MAP_HALF * 0.7:
+			continue
+		var h: float = terrain.height_at(p.x, p.y)
+		if h < 3.0 or not terrain.is_free(p.x, p.y, 4.0) or _near_building(p, 8.0) or _near_tree(p, 3.0):
+			continue
+		if rifts < 7 and (sprites >= want_sprites or rr.randf() < 0.4):
+			var ok := true
+			for r in get_tree().get_nodes_in_group("rifts"):
+				if Vector2(r.translation.x, r.translation.z).distance_to(p) < 60.0:
+					ok = false
+			if ok:
+				var rift := Rift.new()
+				rift.translation = Vector3(p.x, h, p.y)
+				add_child(rift)
+				rifts += 1
+		elif sprites < want_sprites:
+			add_wild_sprite(Sprites.random_wild(rr), Vector3(p.x, h + 0.9, p.y))
+			sprites += 1
+
+
+func add_wild_sprite(data: Dictionary, pos: Vector3) -> Node:
+	var ws := WildSprite.new()
+	ws.data = data.duplicate()
+	ws.terrain = terrain
+	ws.translation = pos
+	add_child(ws)
+	return ws
+
+
 # A free spot around a POI: on land, away from its buildings and props.
 func _vending_spot(poi: Dictionary) -> Vector2:
 	for c in VENDING_SPOTS:
@@ -681,7 +728,8 @@ const HARVEST_LABELS := {"wood": "TREE", "stone": "ROCK", "metal": "METAL"}
 
 
 func harvest_hit(body, shape_idx: int, kind: String, by, at: Vector3 = Vector3.ZERO) -> void:
-	by.add_material(kind, 8 + rng.randi() % 5)
+	var yield_mult: float = 1.0 + 0.25 * by.sprite_level() if by.has_sprite("king") else 1.0
+	by.add_material(kind, int((8 + rng.randi() % 5) * yield_mult))
 	if not _props.has(body.name):
 		return
 	var data: Dictionary = _props[body.name]

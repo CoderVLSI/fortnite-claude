@@ -112,15 +112,15 @@ func prompt_color() -> Color:
 	return Items.chest_color(kind)
 
 
-func interact(_by) -> void:
-	open()
+func interact(by) -> void:
+	open(by)
 
 
 func _chime(tier: int) -> void:
 	Audio.play3d("rarity_%d" % (tier + 1), global_transform.origin + Vector3(0, 1.0, 0), -3.0)
 
 
-func open() -> void:
+func open(by = null) -> void:
 	if opened:
 		return
 	opened = true
@@ -134,6 +134,8 @@ func open() -> void:
 		tween.start()
 	Audio.play3d("ammo_box_open" if kind == "ammo_box" else "chest_open", global_transform.origin + Vector3(0, 0.5, 0), 0.0)
 	var loot := Items.chest_loot(kind, rng)
+	if by != null and by.has_method("sprite_on_chest"):
+		by.sprite_on_chest(loot, rng)
 	var best := 0
 	for it in loot:
 		best = int(max(best, Items.rarity_of(it) if it.kind == "weapon" else 0))

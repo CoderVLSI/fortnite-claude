@@ -254,6 +254,9 @@ func _draw_consumable(id: String, c: Vector2) -> void:
 			draw_rect(Rect2(c + Vector2(-4, -12), Vector2(8, 7)), Color(0.6, 0.62, 0.66))
 			draw_line(c + Vector2(2, -12), c + Vector2(14, -8), Color(0.7, 0.72, 0.76), 3.0)
 			draw_circle(c + Vector2(-8, -10), 4.0, Color(0.9, 0.75, 0.2))
+		"rift_to_go":
+			draw_arc(c, 13.0, 0.0, TAU, 24, Color(0.75, 0.4, 1.0), 4.0)
+			draw_circle(c, 9.0, Color(0.4, 0.12, 0.8, 0.7))
 		_:                                   # slurp juice, chug jug and anything new: a potion in its rarity colour
 			var col: Color = Items.RARITIES[Items.CONSUMABLES[id].rarity].color
 			draw_circle(c + Vector2(0, 5), 14.0, col)

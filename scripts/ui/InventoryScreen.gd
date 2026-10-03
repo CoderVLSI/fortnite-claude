@@ -4,6 +4,7 @@ extends Control
 # Tab / Back close it. The game keeps running behind it, but the player stops responding to input while it is open.
 
 const Items = preload("res://scripts/Items.gd")
+const SpriteBadge = preload("res://scripts/ui/SpriteBadge.gd")
 const FONT_PATH := "res://assets/fonts/DejaVuSans-Bold.ttf"
 const KINDS := ["wood", "stone", "metal"]
 const AMMOS := ["light", "medium", "shells", "heavy"]
@@ -170,6 +171,12 @@ func _draw() -> void:
 	for i in range(AMMOS.size()):
 		var r := Rect2(Vector2(x0 + 14.0 + i * (L.tile + L.gap), L.ammo_y + 46.0), Vector2(L.tile, L.tile))
 		_tile(r, icon("ammo_" + AMMOS[i]), str(player.reserves[AMMOS[i]]), Items.AMMO[AMMOS[i]].color, font)
+	var sp_rect := Rect2(Vector2(x0, L.eq_y + 178.0), Vector2(rw, 104))
+	_panel(sp_rect, "BACKPACK - SPRITE", font)
+	if player.sprite.empty():
+		draw_string(font, sp_rect.position + Vector2(16, 66), "No sprite equipped - catch a wild one", Color(0.7, 0.75, 0.9))
+	else:
+		SpriteBadge.draw_card(self, Rect2(sp_rect.position + Vector2(8, 38), Vector2(rw - 16, 62)), player.sprite, font, false)
 	_panel(Rect2(Vector2(x0, L.eq_y), Vector2(rw, 168)), "EQUIPMENT", font)
 	for i in range(L.slots.size()):
 		var r: Rect2 = L.slots[i]

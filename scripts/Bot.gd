@@ -76,7 +76,7 @@ func _weapon_slot() -> int:
 
 func _grenade_slot() -> int:
 	for i in range(1, slots.size()):
-		if slots[i] != null and slots[i].kind == "consumable" and Items.CONSUMABLES[slots[i].id].get("throw", false):
+		if slots[i] != null and slots[i].kind == "consumable" and slots[i].id == "grenade":
 			return i
 	return -1
 
@@ -288,6 +288,8 @@ func _find_target(origin: Vector3):
 		if f == self or f.is_dead:
 			continue
 		var d := origin.distance_to(f.global_transform.origin)
+		if f.cloak_t > 0.0 and d > 7.0:          # a Ghost Sprite's cloak hides you from afar
+			continue
 		if d < best_d and _line_of_sight(f):
 			best_d = d
 			best = f

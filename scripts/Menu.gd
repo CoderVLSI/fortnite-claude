@@ -4,6 +4,7 @@ extends CanvasLayer
 # autoload keep running). The title screen is a Fortnite-style lobby: Lobby.gd's stage with the
 # character, a player card, the mode card with the big PLAY button and a tab bar.
 
+const Sprites = preload("res://scripts/Sprites.gd")
 const SplashScreen = preload("res://scripts/ui/SplashScreen.gd")
 const FONT_PATH := "res://assets/fonts/DejaVuSans-Bold.ttf"
 const HELP_PC := "Move: WASD        Look: mouse        Fire: left click        Aim / scope: right click\nJump / handbrake: Space        Sprint: Shift        Reload / horn: R\nPick up / swap / open / enter vehicle: E        Inventory: Tab  (X drops)        Build: Q toggles, Z X C V = wall / floor / ramp / roof, wheel = material\nItems: 1-4 or wheel, F = pickaxe        Map: M        Emote: B        Crouch / slide: Ctrl        Pause: Esc  (all keys can be changed in Settings > Controls)"
@@ -22,6 +23,7 @@ const TIPS := [
 var world
 var lobby
 var root: Control
+var sprite_button: Button
 var splash: Control
 var title_panel: Control
 var settings_panel: Control
@@ -445,6 +447,12 @@ func _build_settings() -> Control:
 	dn.connect("toggled", self, "_on_damage_numbers")
 	gp.add_child(dn)
 
+	sprite_button = Button.new()
+	sprite_button.rect_min_size = Vector2(520, 44)
+	sprite_button.connect("pressed", self, "_on_starter_sprite")
+	gp.add_child(sprite_button)
+	_refresh_starter_sprite()
+
 	col.add_child(_button("BACK", "settings_back", 240))
 	root.add_child(p)
 	_show_settings_page("audio")
@@ -499,6 +507,18 @@ func _on_name_changed(text: String) -> void:
 	Settings.save_settings()
 	if name_label != null:
 		name_label.text = Settings.player_name
+
+
+func _on_starter_sprite() -> void:
+	var i: int = Sprites.STARTERS.find(Settings.starter_sprite)
+	Settings.starter_sprite = Sprites.STARTERS[(i + 1) % Sprites.STARTERS.size()]
+	Settings.save_settings()
+	_refresh_starter_sprite()
+
+
+func _refresh_starter_sprite() -> void:
+	var id: String = Settings.starter_sprite
+	sprite_button.text = "Starting Sprite: %s  (click to change)" % ("None" if id == "none" else Sprites.LIST[id].name + " - " + Sprites.LIST[id].desc)
 
 
 func _on_aim_toggle(on: bool) -> void:

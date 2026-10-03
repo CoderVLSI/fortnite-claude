@@ -17,12 +17,16 @@ signal picked_up(text)
 signal damage_dealt(pos, amount, headshot, killed)    # for the HUD's floating damage numbers
 signal harvested(pos, fraction, kind, label, id)   # a pickaxe hit on a tree / rock / build piece: what is left (0 = gone)
 signal slot_changed
+signal sprite_changed
 signal landed
 
 enum Mode { GROUND, BUS, FREEFALL, GLIDE, SWIM, MANTLE, VEHICLE }
 
 const MODEL_PATH := "res://assets/models/player.glb"
 const Grenade = preload("res://scripts/Grenade.gd")
+const Rift = preload("res://scripts/Rift.gd")
+const Sprites = preload("res://scripts/Sprites.gd")
+const SpriteCreature = preload("res://scripts/SpriteCreature.gd")
 const FALL_SAFE_SPEED := 19.0          # landing faster than this hurts (about a 7 m drop)
 const FALL_DAMAGE_PER_MS := 3.5
 const GLIDER_PATH := "res://assets/models/glider.glb"
@@ -60,6 +64,14 @@ var last_item_slot := 1           # the last non-pickaxe slot held: where a swap
 var reserves := {"light": 0, "medium": 0, "shells": 0, "heavy": 0}
 var materials := {"wood": 0, "stone": 0, "metal": 0}
 var gold := 0                     # gold bars: spent at vending machines
+var sprite := {}                  # the equipped Sprite: {id, variant, level, xp} (empty = none)
+var cloak_t := 0.0                # Ghost Sprite: seconds of cloak left (bots lose you beyond arm's length)
+var unlimited_t := 0.0            # Punk Sprite: seconds of unlimited ammo left
+var bubble_t := 0.0               # Aegis Sprite: seconds of protective bubble left
+var _sprite_model: Spatial
+var _burst_acc := 0.0
+var _in_burst := false
+var _srng := RandomNumberGenerator.new()
 
 # stats of the selected item (filled by _apply_selected)
 var gun_damage := 20.0
@@ -328,6 +340,8 @@ func get_reserve() -> int:
 
 
 func add_ammo(amount: int, type: String = "medium") -> void:
+	if sprite.get("variant", "") == "galaxy":
+		amount = int(ceil(amount * 1.3))
 	reserves[type] = int(min(reserves[type] + amount, 999))
 
 
@@ -448,6 +462,9 @@ func use_selected(delta: float) -> void:
 			health = min(c.heal_cap, health + c.heal)
 		if c.shield > 0.0:
 			shield = min(c.shield_cap, shield + c.shield)
+		if has_sprite("aegis") and (c.heal > 0.0 or c.shield > 0.0):
+			bubble_t = 3.0 + sprite_level()
+			emit_signal("picked_up", "Aegis bubble up!")
 		item.count -= 1
 		Audio.play3d("shield_up" if c.shield > 0.0 else "heal_up", global_transform.origin + Vector3(0, 1.2, 0), -3.0)
 		emit_signal("picked_up", "Used " + c.name)
@@ -476,13 +493,22 @@ func throw_grenade(aim_from: Vector3, aim_dir: Vector3, slot: int = -1, damage_m
 	_fire_cd = 0.9
 	_swing = 0.3
 	Audio.play3d("swing", global_transform.origin + Vector3(0, 1.3, 0), -4.0, 0.7)
-	var g := Grenade.new()
-	g.thrower = self
-	g.damage_mult = damage_mult
-	get_parent().add_child(g)
-	g.global_transform.origin = global_transform.origin + Vector3(0, 1.55, 0) + aim_dir * 0.9
-	g.linear_velocity = aim_dir * 17.0 + Vector3(0, 4.0, 0) + Vector3(velocity.x, 0, velocity.z) * 0.6
-	g.angular_velocity = Vector3(rand_range(-6, 6), rand_range(-6, 6), rand_range(-6, 6))
+	var def: Dictionary = Items.CONSUMABLES[item.id]
+	var hand: Vector3 = global_transform.origin + Vector3(0, 1.55, 0) + aim_dir * 0.9
+	if def.get("rift", false):                      # Rift-to-Go: open a rift at our feet and jump through it
+		var rift := Rift.new()
+		rift.lifetime = 10.0
+		get_parent().add_child(rift)
+		rift.global_transform.origin = global_transform.origin
+		rift_launch()
+	else:
+		var g := Grenade.new()
+		g.thrower = self
+		g.damage_mult = damage_mult
+		get_parent().add_child(g)
+		g.global_transform.origin = hand
+		g.linear_velocity = aim_dir * 17.0 + Vector3(0, 4.0, 0) + Vector3(velocity.x, 0, velocity.z) * 0.6
+		g.angular_velocity = Vector3(rand_range(-6, 6), rand_range(-6, 6), rand_range(-6, 6))
 	item.count -= 1
 	if item.count <= 0:
 		slots[slot] = null
@@ -758,6 +784,36 @@ func deploy_glider() -> void:
 		tween.start()
 
 
+# Rift: hurled high above the island, skydiving (jump opens the glider; it opens by itself near the ground).
+func rift_launch() -> void:
+	if is_dead or (mode != Mode.GROUND and mode != Mode.SWIM):
+		return
+	var o := global_transform.origin
+	global_transform.origin = Vector3(o.x, o.y + 150.0, o.z)
+	mode = Mode.FREEFALL
+	collision_layer = 2
+	collision_mask = BODY_MASK
+	if air_pivot:
+		air_pivot.visible = true
+	var fwd := -global_transform.basis.z
+	fwd.y = 0.0
+	velocity = fwd.normalized() * 10.0 + Vector3(0, 4.0, 0)
+
+
+# Air Sprite updraft: pop off the ground (or keep climbing) with the glider already open.
+func updraft_launch() -> void:
+	if mode == Mode.GROUND or mode == Mode.SWIM:
+		mode = Mode.FREEFALL
+		if air_pivot:
+			air_pivot.visible = true
+		velocity.y = 20.0
+		deploy_glider()
+	elif mode == Mode.FREEFALL or mode == Mode.GLIDE:
+		if mode == Mode.FREEFALL:
+			deploy_glider()
+		velocity.y = max(velocity.y, 13.0)
+
+
 func _land() -> void:
 	mode = Mode.GROUND
 	if glider:
@@ -862,6 +918,7 @@ func footstep(speed: float) -> void:
 
 
 func tick_weapon(delta: float) -> void:
+	tick_sprite(delta)
 	_mantle_cd = max(0.0, _mantle_cd - delta)
 	_hurt_cd = max(0.0, _hurt_cd - delta)
 	_fire_cd = max(0.0, _fire_cd - delta)
@@ -886,6 +943,8 @@ func start_reload() -> void:
 	if item.mag >= mag_size or reserves[ammo_type] <= 0:
 		return
 	_reload_left = reload_time
+	if has_sprite("ghost"):
+		cloak_t = 2.0 + sprite_level()
 	var snd := "pump" if item.id == "shotgun" else ("bolt" if item.id == "sniper" else "reload")
 	Audio.play3d(snd, global_transform.origin + Vector3(0, 1.2, 0), -4.0)
 
@@ -912,7 +971,8 @@ func try_fire(aim_from: Vector3, aim_dir: Vector3) -> bool:
 		start_reload()
 		return false
 	_fire_cd = fire_interval
-	item.mag -= 1
+	if unlimited_t <= 0.0:
+		item.mag -= 1
 	var snd := "shot_" + ("rifle" if item.id == "assault" else item.id)
 	if item.rarity == Items.MYTHIC:     # each mythic has its own report; the sniper keeps the original mythic shot
 		snd = "shot_mythic" if item.id == "sniper" else "shot_mythic_" + item.id
@@ -957,7 +1017,7 @@ func _swing_pickaxe(aim_from: Vector3, aim_dir: Vector3) -> bool:
 	if target != null and target.has_method("take_damage"):
 		Audio.play3d("hit_flesh", hit.position, -2.0)
 		var was_alive: bool = not target.is_dead
-		target.take_damage(gun_damage, self)
+		target.take_damage(gun_damage * (1.0 + 0.35 * sprite_level() if has_sprite("king") else 1.0), self)
 		emit_signal("hit_landed", target, was_alive and target.is_dead, false)
 	elif target != null and target.has_meta("harvest"):
 		var kind: String = target.get_meta("harvest")
@@ -1007,6 +1067,8 @@ func take_damage(amount: float, source = null) -> void:
 	if is_dead or mode == Mode.BUS:
 		return
 	cancel_use()
+	if bubble_t > 0.0:
+		amount *= 0.35
 	if _hurt_cd <= 0.0 and amount >= 1.0:
 		_hurt_cd = 0.3
 		if is_in_group("player"):
@@ -1020,6 +1082,8 @@ func take_damage(amount: float, source = null) -> void:
 		remaining -= absorbed
 	health -= remaining
 	emit_signal("damaged", amount, source)
+	if source != null and source != self and is_instance_valid(source) and source.has_method("sprite_on_hit"):
+		source.sprite_on_hit(self, amount)
 	if health <= 0.0:
 		_die(source)
 
@@ -1034,12 +1098,157 @@ func _die(killer) -> void:
 	Audio.play3d("death", global_transform.origin + Vector3(0, 1.0, 0), -2.0, rand_range(0.85, 1.1))
 	if killer != null and "kills" in killer and killer != self:
 		killer.kills += 1
+		if killer.has_method("sprite_on_kill"):
+			killer.sprite_on_kill(self)
+	if _sprite_model != null:
+		_sprite_model.visible = false
 	if model:
 		var tween := Tween.new()
 		add_child(tween)
 		tween.interpolate_property(model, "rotation:x", 0.0, -PI / 2.0, 0.6, Tween.TRANS_QUAD, Tween.EASE_OUT)
 		tween.start()
 	emit_signal("died", self, killer)
+
+
+# ------------------------------------------------------------------ sprites
+
+func has_sprite(id: String) -> bool:
+	return sprite.get("id", "") == id
+
+
+func sprite_level() -> int:
+	return int(sprite.get("level", 1))
+
+
+# Equip a sprite (it floats over your shoulder). Returns the one it replaces ({} if none).
+func equip_sprite(id: String, variant: String = "", level: int = 1, xp: float = 0.0) -> Dictionary:
+	var old := sprite.duplicate()
+	sprite = {"id": id, "variant": variant, "level": level, "xp": xp}
+	if _sprite_model != null:
+		_sprite_model.queue_free()
+		_sprite_model = null
+	_sprite_model = SpriteCreature.build_for(id, variant, 0.55)
+	_sprite_model.translation = Vector3(0.6, 1.85, 0.4)
+	_sprite_model.visible = not is_dead
+	add_child(_sprite_model)
+	emit_signal("sprite_changed")
+	return old
+
+
+func clear_sprite() -> void:
+	sprite = {}
+	if _sprite_model != null:
+		_sprite_model.queue_free()
+		_sprite_model = null
+	emit_signal("sprite_changed")
+
+
+func tick_sprite(delta: float) -> void:
+	cloak_t = max(0.0, cloak_t - delta)
+	unlimited_t = max(0.0, unlimited_t - delta)
+	bubble_t = max(0.0, bubble_t - delta)
+	if _sprite_model != null:
+		_sprite_model.translation.y = 1.85 + sin(OS.get_ticks_msec() * 0.003) * 0.08
+		_sprite_model.visible = not is_dead and mode != Mode.BUS and mode != Mode.VEHICLE
+	if sprite.empty() or is_dead:
+		return
+	if has_sprite("water") and mode == Mode.SWIM:
+		add_shield((3.0 + sprite_level()) * delta)
+	elif has_sprite("duck") and emoting:
+		add_shield((4.0 + 2.0 * sprite_level()) * delta)
+
+
+func sprite_gain_xp(amount: float) -> void:
+	if sprite.empty() or sprite_level() >= Sprites.MAX_LEVEL:
+		return
+	sprite.xp += amount
+	while sprite.level < Sprites.MAX_LEVEL and sprite.xp >= Sprites.xp_to_next(sprite.level):
+		sprite.level += 1
+		emit_signal("picked_up", "%s reached level %d!" % [Sprites.LIST[sprite.id].name, sprite.level])
+		Audio.play2d("rarity_3", -8.0)
+		if sprite.id == "dream":
+			_dream_reward()
+	emit_signal("sprite_changed")
+
+
+func _spawn_near(item: Dictionary, spread: float) -> void:
+	var a := _srng.randf() * TAU
+	for w in get_tree().get_nodes_in_group("world"):
+		w.spawn_item(item, global_transform.origin + Vector3(cos(a), 0.4, sin(a)) * spread)
+
+
+func _dream_reward() -> void:
+	_srng.randomize()
+	if sprite.level >= Sprites.MAX_LEVEL:                       # max level: a burst of legendary loot
+		var id: String = ["assault", "sniper", "shotgun", "smg"][_srng.randi() % 4]
+		var w := Items.make_weapon(id, 4)
+		_spawn_near(w, 1.6)
+		_spawn_near(Items.make_ammo(Items.WEAPONS[id].ammo, 60), 1.8)
+		_spawn_near(Items.make_consumable("shield_potion", 2), 1.7)
+		_spawn_near(Items.make_consumable("medkit", 1), 1.7)
+		_spawn_near(Items.make_gold(100), 1.6)
+		emit_signal("picked_up", "The Dream Sprite bursts with loot!")
+	else:
+		_spawn_near(Items.random_consumable(_srng), 1.4)
+
+
+# Called by whoever hurt someone while we were the source.
+func sprite_on_hit(target, amount: float) -> void:
+	if sprite.empty():
+		return
+	sprite_gain_xp(amount * 0.015)
+	if has_sprite("fire") and not _in_burst:
+		_burst_acc += amount
+		if _burst_acc >= 60.0 - 6.0 * sprite_level():
+			_burst_acc = 0.0
+			_in_burst = true
+			var at: Vector3 = target.global_transform.origin + Vector3(0, 1.0, 0)
+			for f in get_tree().get_nodes_in_group("fighters"):
+				if f != self and not f.is_dead and f.global_transform.origin.distance_to(at) < 3.5:
+					f.take_damage(10.0 + 5.0 * sprite_level(), self)
+			_in_burst = false
+			var p := SpriteCreature.particles(Color(1.0, 0.5, 0.1, 0.9), 40, 0.7, 5.0, 180.0, 2.0, 0.4)
+			get_parent().add_child(p)
+			p.global_transform.origin = at
+			p.one_shot = true
+			get_tree().create_timer(1.2).connect("timeout", p, "queue_free")
+			Audio.play3d("explosion", at, -12.0, 1.5)
+
+
+func sprite_on_kill(victim) -> void:
+	if sprite.empty():
+		return
+	sprite_gain_xp(1.0)
+	var lvl := sprite_level()
+	_srng.randomize()
+	match sprite.id:
+		"demon":
+			heal(15.0 + 5.0 * lvl)
+			add_shield(10.0 + 5.0 * lvl)
+		"punk":
+			if _srng.randf() < 0.35 + 0.1 * lvl:
+				unlimited_t = 6.0 + 2.0 * lvl
+				emit_signal("picked_up", "Unlimited ammo!")
+		"lucky":
+			if _srng.randf() < 0.15 + 0.07 * lvl:
+				for w in get_tree().get_nodes_in_group("world"):
+					w.spawn_item(Items.random_floor_item(_srng), victim.global_transform.origin + Vector3(0, 0.6, 0))
+				emit_signal("picked_up", "Lucky drop!")
+	if sprite.get("variant", "") == "gold":
+		gold += 10 * lvl
+		emit_signal("picked_up", "+%d Gold" % (10 * lvl))
+
+
+# Earth Sprite: a chest may hold an extra rare weapon. Every opened chest also feeds the sprite.
+func sprite_on_chest(loot: Array, rng: RandomNumberGenerator) -> void:
+	if sprite.empty():
+		return
+	sprite_gain_xp(1.0)
+	if has_sprite("earth") and rng.randf() < 0.2 + 0.08 * sprite_level():
+		var w := Items.random_weapon(rng, 2)
+		loot.append(w)
+		loot.append(Items.ammo_for(w, rng, 1.0))
+		emit_signal("picked_up", "Earth Sprite found an extra weapon!")
 
 
 func heal(amount: float) -> void:

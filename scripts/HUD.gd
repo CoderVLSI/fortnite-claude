@@ -5,6 +5,7 @@ extends CanvasLayer
 const Items = preload("res://scripts/Items.gd")
 const Bar = preload("res://scripts/ui/Bar.gd")
 const Hotbar = preload("res://scripts/ui/Hotbar.gd")
+const SpriteBadge = preload("res://scripts/ui/SpriteBadge.gd")
 const Compass = preload("res://scripts/ui/Compass.gd")
 const MapScreen = preload("res://scripts/ui/MapScreen.gd")
 const Crosshair = preload("res://scripts/ui/Crosshair.gd")
@@ -29,6 +30,7 @@ var crosshair: Control
 var scope_overlay: Control
 var minimap: Control
 var hotbar: Control
+var sprite_badge: Control
 var materials: Control
 var inventory: Control
 var editor: Control
@@ -207,6 +209,9 @@ func _build() -> void:
 
 	hotbar = Hotbar.new()
 	root.add_child(hotbar)
+	sprite_badge = SpriteBadge.new()
+	sprite_badge.visible = false
+	root.add_child(sprite_badge)
 	hotbar.connect("slot_pressed", self, "_on_slot_pressed")
 
 	prompt_label = _label("", Label.ALIGN_CENTER)
@@ -392,6 +397,7 @@ func bind(world_node) -> void:
 	player.connect("hit_landed", self, "_on_hit_landed")
 	player.connect("picked_up", self, "show_toast")
 	hotbar.set_player(player)
+	sprite_badge.set_player(player)
 	materials.set_player(player)
 	touch.builder = player.builder
 	map_screen.world = world
@@ -419,6 +425,7 @@ func _layout() -> void:
 		ammo_label.align = Label.ALIGN_LEFT
 		ammo_label.clip_text = true
 		_place(toast_label, 0.5, 1.0, Vector2(-200, -196), Vector2(400, 30))
+		_place(sprite_badge, 0.0, 0.0, Vector2(20 + map_px + 14, 118), Vector2(300, 46))
 	else:
 		_place(minimap, 1.0, 0.0, Vector2(-MAP_SIZE - 16, 16), Vector2(MAP_SIZE, MAP_SIZE))
 		_place(shield_bar, 0.5, 1.0, Vector2(-190, -92), Vector2(380, 26))
@@ -432,6 +439,7 @@ func _layout() -> void:
 		_place(ammo_label, 0.5, 1.0, Vector2(-190, -140), Vector2(380, 40))
 		ammo_label.align = Label.ALIGN_CENTER
 		_place(toast_label, 0.5, 1.0, Vector2(-200, -184), Vector2(400, 30))
+		_place(sprite_badge, 0.0, 1.0, Vector2(16, -112), Vector2(430, 96))
 	hotbar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	pause_btn.mouse_filter = Control.MOUSE_FILTER_STOP
 	pause_btn.visible = Controls.touch_mode

@@ -20,6 +20,8 @@ func _ready() -> void:
 	var color := Items.color_of(item)
 	if item.kind == "material":
 		_model = _material_sprite()
+	elif item.kind == "consumable" and Items.CONSUMABLES[item.id].get("rift", false):
+		_model = preload("res://scripts/Rift.gd").build_visual(0.5)
 	else:
 		var scene = load(Items.model_of(item))
 		_model = scene.instance() if scene != null else Spatial.new()
