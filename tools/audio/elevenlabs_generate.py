@@ -11,12 +11,17 @@ Each result is converted with ffmpeg to 22.05 kHz mono WAV and written over asse
 (the synthesised version stays reproducible with generate_audio.py). Afterwards run
 tools/import_assets.sh. UNTESTED against the live API: the sandbox this was written in cannot reach it.
 Needs outbound access to api.elevenlabs.io and ffmpeg.
+
+Loops are cross-faded into a seamless join (loopify). music_menu / music_bus use the /v1/music endpoint, which
+needs a PAID ElevenLabs plan (free plans get HTTP 402); without it the synthesised music stays in place.
+`--loopify NAME...` re-applies the seam fix to an existing 16-bit mono WAV, spending no credits.
 """
 import json
 import os
 import subprocess
 import sys
 import tempfile
+import urllib.error
 import urllib.request
 
 OUT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "assets", "audio"))
@@ -44,29 +49,106 @@ SFX = {
     "step_sand": ("single footstep on dry sand, soft crunchy scuff, one step only", 0.5),
     "step_wood": ("single footstep on a wooden floor, hollow thud, one step only", 0.5),
     "step_water": ("single footstep splashing in shallow water, one step only", 0.6),
+    "glider_open": ("paraglider canopy snapping open, fabric whoomph and rush of air", 1.0),
+    "jump": ("quick jump effort, short breath and shoe push-off, game character", 0.5),
+    "land": ("person landing on the ground after a jump, soft thud with cloth rustle", 0.5),
+    "death": ("game character defeated, short dramatic grunt then a body falling", 1.2),
+    "hit_flesh": ("bullet impact on a body, dull meaty thud", 0.5),
+    "hit_wood": ("bullet or pickaxe hitting wood, sharp thock", 0.5),
+    "hit_stone": ("pickaxe hitting stone, sharp clink with rock chips", 0.5),
+    "hit_metal": ("bullet hitting metal, ping and short ricochet", 0.6),
+    "swing": ("pickaxe swing whoosh through the air", 0.5),
+    "dry_fire": ("empty gun trigger click, dry fire", 0.5),
+    "storm_hit": ("electric energy zap burning a player, magical storm damage", 0.8),
+    "skid": ("car tyres skidding on dirt, short screech", 1.0),
+    "swim_stroke": ("swimmer arm stroke through water, short splash", 0.6),
+    "consume_bandage": ("applying a bandage, fabric rip and wrap", 1.2),
+    "shield_up": ("magical energy shield charging up, rising shimmer", 1.0),
     "car_horn": ("short double car horn honk", 0.8),
 }
 LOOPS = {   # looped ambience / engines: ElevenLabs supports a "loop" flag on newer models
     "engine_car_loop": ("steady idling dune buggy engine, seamless loop", 4.0),
     "storm_loop": ("low rumbling magical storm wall with crackling energy, seamless loop", 8.0),
+    "bus_loop": ("flying battle bus engine from outside, steady propeller drone with wind, seamless loop", 8.0),
+    "glider_loop": ("paraglider gliding, steady soft rush of air over fabric canopy, seamless loop", 6.0),
+    "wind_loop": ("strong wind rushing past during skydiving freefall, seamless loop", 6.0),
+    "waves_loop": ("gentle ocean waves lapping on a shore, seamless loop", 8.0),
+    "engine_quad_loop": ("steady idling quad bike engine, small and buzzy, seamless loop", 4.0),
+    "engine_boat_loop": ("outboard motor boat engine idling on water, seamless loop", 4.0),
     "ambient_loop": ("gentle outdoor wind over grass and distant birds, seamless loop", 10.0),
+}
+
+MUSIC = {   # /v1/music, instrumental; looped by Audio.gd, so each track is cross-faded into a seamless loop
+    "music_menu": ("calm upbeat video game lobby music, instrumental, warm synths and light percussion, "
+                   "friendly adventurous mood, loopable", 30),
+    "music_bus": ("energetic instrumental for an airborne drop, driving drums, rising synth arpeggios, "
+                  "anticipation and excitement, loopable", 30),
 }
 
 
 def request(path, payload, key):
     req = urllib.request.Request(API + path, data=json.dumps(payload).encode(), method="POST",
                                  headers={"xi-api-key": key, "Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=120) as r:
-        return r.read()
+    try:
+        with urllib.request.urlopen(req, timeout=120) as r:
+            return r.read()
+    except urllib.error.HTTPError as e:
+        hint = " (the music endpoint needs a paid ElevenLabs plan)" if e.code == 402 and path == "/v1/music" else ""
+        sys.exit("ElevenLabs HTTP %d on %s%s: %s" % (e.code, path, hint, e.read().decode("utf-8", "replace")[:300]))
 
 
-def to_wav(mp3_bytes, name):
+def duration(path):
+    out = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", path],
+                         check=True, capture_output=True, text=True).stdout
+    return float(out.strip())
+
+
+def loopify(path, xf=1.0):
+    """Cross-fade the last `xf` seconds into the first `xf` (equal power), so the file loops without a click.
+
+    out = a[n:-n] + crossfade(a[-n:], a[:n]); the file is `xf` seconds shorter than the source.
+    """
+    import array
+    import math
+    import wave
+    with wave.open(path, "rb") as w:
+        rate, width, ch = w.getframerate(), w.getsampwidth(), w.getnchannels()
+        a = array.array("h")
+        a.frombytes(w.readframes(w.getnframes()))
+    if width != 2 or ch != 1:
+        sys.exit("loopify expects 16-bit mono WAV: " + path)
+    if sys.byteorder == "big":
+        a.byteswap()
+    n = int(rate * xf)
+    if len(a) < 4 * n:
+        return
+    out = a[n:-n]
+    for i in range(n):
+        t = (math.pi / 2) * i / (n - 1)
+        v = a[len(a) - n + i] * math.cos(t) + a[i] * math.sin(t)
+        out.append(max(-32768, min(32767, int(v))))
+    if sys.byteorder == "big":
+        out.byteswap()
+    with wave.open(path, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(rate)
+        w.writeframes(out.tobytes())
+
+
+RATES = {}
+
+
+def to_wav(audio_bytes, name, rate=22050, loop=False, xf=1.0):
     with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
-        f.write(mp3_bytes)
+        f.write(audio_bytes)
         tmp = f.name
     dest = os.path.join(OUT, name + ".wav")
-    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", tmp, "-ar", "22050", "-ac", "1", "-sample_fmt", "s16", dest], check=True)
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", tmp, "-ar", str(rate), "-ac", "1", "-sample_fmt", "s16", dest], check=True)
     os.unlink(tmp)
+    if loop:
+        RATES[dest] = rate
+        loopify(dest, xf)
     print("  wrote", dest)
 
 
@@ -74,9 +156,16 @@ def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     table = dict(SFX)
     table.update(LOOPS)
+    table.update(MUSIC)
     if "--list" in sys.argv:
         for n, (p, s) in table.items():
             print("%-18s %.1fs  %s" % (n, s, p))
+        return
+    if "--loopify" in sys.argv:   # seam-fix existing loop files without spending credits
+        for n in args:
+            RATES[os.path.join(OUT, n + ".wav")] = 22050
+            loopify(os.path.join(OUT, n + ".wav"))
+            print("looped", n)
         return
     names = args or list(table)
     key = os.environ.get("ELEVENLABS_API_KEY", "")
@@ -87,10 +176,14 @@ def main():
         print(n, "->", prompt)
         if "--dry-run" in sys.argv:
             continue
+        if n in MUSIC:
+            payload = {"prompt": prompt, "music_length_ms": int(secs * 1000), "force_instrumental": True}
+            to_wav(request("/v1/music", payload, key), n, rate=32000, loop=True, xf=2.0)
+            continue
         payload = {"text": prompt, "duration_seconds": secs, "prompt_influence": 0.5}
         if n in LOOPS:
             payload["loop"] = True
-        to_wav(request("/v1/sound-generation", payload, key), n)
+        to_wav(request("/v1/sound-generation", payload, key), n, loop=n in LOOPS)
 
 
 if __name__ == "__main__":
