@@ -74,13 +74,13 @@ func _build_island() -> void:
 	ring.bottom_radius = 3.5
 	ring.height = 0.12
 	ring.radial_segments = 36
-	_mesh(ring, _mat(Color(0.80, 0.62, 0.15), 0.6), Vector3(0, -0.06, 0))
+	_mesh(ring, _mat(Color(0.80, 0.62, 0.15), 0.6), Vector3(0, -0.12, 0))     # top at y = -0.06: below the grass, no z-fighting
 	var under := CylinderMesh.new()
 	under.top_radius = 3.4
 	under.bottom_radius = 0.5
-	under.height = 3.6
+	under.height = 3.5
 	under.radial_segments = 20
-	_mesh(under, _mat(Color(0.42, 0.30, 0.22)), Vector3(0, -2.3, 0))
+	_mesh(under, _mat(Color(0.42, 0.30, 0.22)), Vector3(0, -2.25, 0))    # starts inside the grass slab (no coplanar faces)
 	_scene("res://assets/models/tree.glb", Vector3(-2.4, 0, -1.8), 0.42)
 	_scene("res://assets/models/tree.glb", Vector3(2.6, 0, -2.2), 0.34)
 	_scene("res://assets/models/rock.glb", Vector3(2.5, 0, 0.2), 0.45)
@@ -141,7 +141,7 @@ func _build_sky() -> void:
 			var p := Vector3(rng.randf_range(-12.0, 12.0), rng.randf_range(0.5, 6.0), rng.randf_range(-14.0, -6.0))
 			rock.translation = p
 			_floaters.append([rock, p, rng.randf() * TAU])
-	var bus = _scene("res://assets/models/battle_bus.glb", Vector3(34, 5, -42), 2.2)
+	var bus = _scene("res://assets/models/battle_bus.glb", Vector3(34, 5, -60), 1.8)
 	if bus != null:
 		bus.rotation_degrees = Vector3(0, 90, 0)
 		_bus = bus
