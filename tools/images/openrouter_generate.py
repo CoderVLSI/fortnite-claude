@@ -32,7 +32,7 @@ KEY_COLOUR = "0xFF00FF"
 
 # Inventory-slot tile each keyed icon is composited onto: (top colour, bottom colour, border colour).
 TILES = {"weapons": ("0x4a6a9c", "0x1c2b4a", "0x9bb8e8"), "ammo": ("0x9c6a2e", "0x4a2e12", "0xf0c070"),
-         "items": ("0x3f8a52", "0x16361f", "0x9be0a8")}
+         "items": ("0x3f8a52", "0x16361f", "0x9be0a8"), "mythic": ("0xf2c14e", "0x7a4f0a", "0xffe9a0")}
 
 # name -> dict(prompt, size, group, key=True removes the magenta background, dest=override path)
 ASSETS = {}
@@ -52,6 +52,18 @@ for _n, _d in [
     ("pickaxe", "a heavy steel harvesting pickaxe with a wooden handle"),
 ]:
     add("weapon_" + _n, "weapons", "%sside view of %s, barrel pointing right, %s" % (STYLE, _d, KEYED))
+
+# Mythic weapons (Items.MYTHIC_NAMES): one-of-a-kind designs, not recolours. Kept dark/red/purple so they
+# stand out on the gold tile.
+for _n, _d in [
+    ("pistol", "the Hand Cannon, an oversized heavy chrome hand cannon with engraved gold trim and a glowing red core"),
+    ("smg", "the Hornet SMG, a sleek compact submachine gun with a black and yellow hornet-stripe body and a stinger-shaped muzzle"),
+    ("assault", "the Stormcaller AR, a futuristic assault rifle with crackling purple lightning coils along the barrel"),
+    ("shotgun", "the Dragonbreath Shotgun, a dark red dragon-scale shotgun with a dragon-head muzzle and glowing orange flame vents"),
+    ("sniper", "the Eclipse Rifle, a black sniper rifle with a glowing ring-shaped eclipse scope and cyan energy lines"),
+]:
+    add("weapon_%s_mythic" % _n, "mythic", "%sside view of %s, barrel pointing right, legendary detailed look, %s"
+        % (STYLE, _d, KEYED))
 
 for _n, _d in [
     ("light", "a small box of yellow pistol bullets"),
