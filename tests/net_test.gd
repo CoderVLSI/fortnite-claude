@@ -111,11 +111,20 @@ func _run() -> void:
 	if not live:
 		finish()
 		return
+	for f in get_nodes_in_group("fighters"):
+		if "is_boss" in f and f.is_boss:
+			f.set_physics_process(false)          # the Warden has no net key and would shoot the test's characters first
 	yield(create_timer(1.0), "timeout")
 	world = current_scene
 	var p = world.player
 	p.max_health = 100.0
 	p.health = 100.0
+
+	var topup := Timer.new()                  # stray bot fire must not kill the test characters before the scripted kill
+	topup.wait_time = 0.2
+	topup.connect("timeout", self, "_topup")
+	root.add_child(topup)
+	topup.start()
 
 	# ---- same world on both machines
 	var fp := {"seed": net.match_seed, "chests": get_nodes_in_group("interactable").size(), "pois": world.pois.size(),
@@ -293,6 +302,12 @@ func nade_seen() -> bool:
 		if "visual_only" in c and c.visual_only:
 			return true
 	return false
+
+
+func _topup() -> void:
+	var pl = world.player if world != null else null
+	if pl != null and not pl.is_dead and pl.health < 60.0:
+		pl.health = 100.0
 
 
 func host_hurt() -> bool:
