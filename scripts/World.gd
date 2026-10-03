@@ -14,6 +14,7 @@ const Chest = preload("res://scripts/Chest.gd")
 const Bus = preload("res://scripts/Bus.gd")
 const HUD = preload("res://scripts/HUD.gd")
 const Menu = preload("res://scripts/Menu.gd")
+const Lobby = preload("res://scripts/Lobby.gd")
 const Pois = preload("res://scripts/Pois.gd")
 const BuildPiece = preload("res://scripts/BuildPiece.gd")
 const Vehicle = preload("res://scripts/Vehicle.gd")
@@ -97,8 +98,12 @@ func _ready() -> void:
 	add_child(hud)
 	hud.bind(self)
 	player.connect("damaged", self, "_on_player_damaged")
+	var lobby := Lobby.new()
+	lobby.name = "Lobby"
+	add_child(lobby)
 	menu = Menu.new()
 	menu.name = "Menu"
+	menu.lobby = lobby
 	add_child(menu)
 	menu.bind(self)
 	hud.root.visible = false
@@ -893,9 +898,11 @@ func _on_fighter_died(victim, killer) -> void:
 		return
 	if victim == player:
 		match_over = true
+		Settings.record_match(false, player.kills)
 		get_tree().create_timer(1.8).connect("timeout", hud, "show_end", [false, alive + 1, player.kills])
 	elif alive <= 1 and not player.is_dead:
 		match_over = true
+		Settings.record_match(true, player.kills)
 		get_tree().create_timer(1.2).connect("timeout", hud, "show_end", [true, 1, player.kills])
 
 

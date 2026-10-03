@@ -1,14 +1,25 @@
 extends CanvasLayer
-# Title screen, settings, how-to-play and pause menu. Built in code; works with mouse and touch.
+# Lobby (title screen), settings, how-to-play and pause menu. Built in code; works with mouse and touch.
 # While the title or pause menu is open the scene tree is paused (this layer and the Audio
-# autoload keep running). The title screen orbits a camera around the island.
+# autoload keep running). The title screen is a Fortnite-style lobby: Lobby.gd's stage with the
+# character, a player card, the mode card with the big PLAY button and a tab bar.
 
 const FONT_PATH := "res://assets/fonts/DejaVuSans-Bold.ttf"
 const HELP_PC := "Move: WASD        Look: mouse        Fire: left click\nJump / handbrake: Space        Sprint: Shift        Reload / horn: R\nPick up / open / enter vehicle: E        Build mode: Q  (1-4 pieces, wheel = material)\nHotbar: 1-5 or wheel        Map: M        Pause: Esc"
 const HELP_TOUCH := "Left thumb: move    Right side: look    FIRE / JUMP / RELOAD / SPRINT buttons\nPICK UP appears next to loot, chests and vehicles    BUILD toggles building\nTap the hotbar to switch items    Tap the minimap for the island map"
 const HELP_GOAL := "Ride the Sky Ferry, jump, glide down and loot.  Fight bots, stay inside the shrinking storm,\ndrive vehicles, swim, climb ledges, take on the Warden at Iron Bunker for Mythic loot.\nBe the last one standing."
 
+const TIPS := [
+	"Land away from the crowd, then loot up before the first storm circle.",
+	"Pickaxe trees, rocks and buildings to gather wood, stone and metal for building.",
+	"Mythic weapons are rare: the Warden at Iron Bunker carries one.",
+	"Ramps beat walls: build up to the high ground before you shoot.",
+	"Boats and the buggy get you across the island faster than running.",
+	"Shield potions stack on top of your health: pop one before every fight.",
+]
+
 var world
+var lobby
 var root: Control
 var title_panel: Control
 var settings_panel: Control
@@ -20,6 +31,13 @@ var state := "hidden"            # title | paused | hidden
 var _orbit_t := 0.0
 var _font: DynamicFont
 var _settings_return := "title"
+var mode_info: Label
+var stat_labels := {}
+var tip_label: Label
+var _tip_t := 0.0
+var _tip_i := 0
+var _press_pos := Vector2.ZERO
+var _moved := 0.0
 
 
 func _ready() -> void:
@@ -42,8 +60,8 @@ func _ready() -> void:
 	root.add_child(fps_label)
 	_show_none()
 	orbit_cam = Camera.new()
-	orbit_cam.far = 700.0
-	orbit_cam.fov = 55.0
+	orbit_cam.far = 900.0
+	orbit_cam.fov = 42.0
 	add_child(orbit_cam)
 
 
@@ -132,28 +150,158 @@ func _column(parent: Control, pos: Vector2, size: Vector2) -> VBoxContainer:
 	return c
 
 
+func _flat(color: Color, border: Color = Color(0, 0, 0, 0), radius: int = 6, border_w: int = 0) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = color
+	sb.set_corner_radius_all(radius)
+	sb.set_border_width_all(border_w)
+	sb.border_color = border
+	sb.content_margin_left = 22
+	sb.content_margin_right = 22
+	sb.content_margin_top = 8
+	sb.content_margin_bottom = 8
+	return sb
+
+
+func _style_button(b: Button, normal: StyleBox, hover: StyleBox, text_color: Color, size: int = 0) -> void:
+	b.add_stylebox_override("normal", normal)
+	b.add_stylebox_override("hover", hover)
+	b.add_stylebox_override("pressed", hover)
+	b.add_stylebox_override("focus", hover)
+	b.add_color_override("font_color", text_color)
+	b.add_color_override("font_color_hover", text_color)
+	b.add_color_override("font_color_pressed", text_color)
+	if size > 0 and _font != null:
+		var f := DynamicFont.new()
+		f.font_data = _font.font_data
+		f.size = size
+		f.use_filter = true
+		b.add_font_override("font", f)
+
+
+func _place(c: Control, ax: float, ay: float, off: Vector2, size: Vector2) -> void:
+	c.anchor_left = ax
+	c.anchor_right = ax
+	c.anchor_top = ay
+	c.anchor_bottom = ay
+	c.margin_left = off.x
+	c.margin_top = off.y
+	c.margin_right = off.x + size.x
+	c.margin_bottom = off.y + size.y
+
+
 func _build_title() -> Control:
 	var p := Control.new()
 	p.set_anchors_and_margins_preset(Control.PRESET_WIDE)
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var shade := ColorRect.new()
-	shade.color = Color(0.02, 0.04, 0.12, 0.62)
-	shade.anchor_bottom = 1.0
-	shade.margin_right = 660
-	p.add_child(shade)
-	var col := _column(p, Vector2(60, 90), Vector2(420, 560))
-	var title := _label("STORM ISLAND", 60, Color(1.0, 0.88, 0.45))
-	col.add_child(title)
-	col.add_child(_label("Last one standing wins", 24, Color(0.8, 0.88, 1.0)))
-	var spacer := Control.new()
-	spacer.rect_min_size = Vector2(0, 30)
-	col.add_child(spacer)
-	col.add_child(_button("PLAY", "play"))
-	col.add_child(_button("HOW TO PLAY", "help"))
-	col.add_child(_button("SETTINGS", "settings_title"))
-	if not OS.has_feature("mobile") and not OS.has_feature("HTML5"):
-		col.add_child(_button("QUIT", "quit"))
 	root.add_child(p)
+	var gold := Color(1.0, 0.86, 0.15)
+
+	# top tab bar
+	var bar := ColorRect.new()
+	bar.color = Color(0.03, 0.05, 0.13, 0.62)
+	bar.anchor_right = 1.0
+	bar.margin_bottom = 66
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	p.add_child(bar)
+	var logo := _label("STORM ISLAND", 30, gold)
+	logo.rect_position = Vector2(26, 15)
+	p.add_child(logo)
+	var tabs := HBoxContainer.new()
+	tabs.add_constant_override("separation", 6)
+	_place(tabs, 0.5, 0.0, Vector2(-230, 8), Vector2(460, 50))
+	p.add_child(tabs)
+	var clear := _flat(Color(0, 0, 0, 0))
+	var soft := _flat(Color(1, 1, 1, 0.12))
+	for t in [["LOBBY", "lobby"], ["HOW TO PLAY", "help"], ["SETTINGS", "settings_title"]]:
+		var b := Button.new()
+		b.text = t[0]
+		b.rect_min_size = Vector2(130, 50)
+		b.connect("pressed", self, "_on_button", [t[1]])
+		_style_button(b, clear, soft, Color.white if t[1] != "lobby" else gold, 20)
+		tabs.add_child(b)
+	var underline := ColorRect.new()       # marks the active LOBBY tab
+	underline.color = gold
+	_place(underline, 0.5, 0.0, Vector2(-230 + 8, 58), Vector2(114, 4))
+	underline.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	p.add_child(underline)
+	if not OS.has_feature("mobile") and not OS.has_feature("HTML5"):
+		var q := Button.new()
+		q.text = "QUIT"
+		q.rect_min_size = Vector2(100, 46)
+		q.connect("pressed", self, "_on_button", ["quit"])
+		_style_button(q, _flat(Color(0.8, 0.2, 0.2, 0.8)), _flat(Color(0.95, 0.3, 0.3, 0.95)), Color.white, 20)
+		_place(q, 1.0, 0.0, Vector2(-124, 10), Vector2(100, 46))
+		p.add_child(q)
+
+	# player card
+	var card := Panel.new()
+	card.add_stylebox_override("panel", _flat(Color(0.04, 0.07, 0.17, 0.78), Color(1, 1, 1, 0.18), 10, 2))
+	_place(card, 0.0, 0.0, Vector2(26, 92), Vector2(330, 150))
+	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	p.add_child(card)
+	var avatar := ColorRect.new()
+	avatar.color = Color(0.20, 0.45, 0.95)
+	avatar.rect_position = Vector2(16, 16)
+	avatar.rect_size = Vector2(58, 58)
+	avatar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_child(avatar)
+	var face := ColorRect.new()
+	face.color = Color(0.90, 0.72, 0.58)
+	face.rect_position = Vector2(14, 12)
+	face.rect_size = Vector2(30, 30)
+	face.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	avatar.add_child(face)
+	var name_l := _label(Settings.player_name, 30, Color.white)
+	name_l.rect_position = Vector2(88, 14)
+	card.add_child(name_l)
+	var sub := _label("SOLO  -  BATTLE ROYALE", 15, Color(0.65, 0.78, 1.0))
+	sub.rect_position = Vector2(90, 52)
+	card.add_child(sub)
+	var x := 16.0
+	for k in [["MATCHES", "matches"], ["WINS", "wins"], ["ELIMS", "elims"]]:
+		var cap := _label(k[0], 14, Color(0.65, 0.78, 1.0))
+		cap.rect_position = Vector2(x, 94)
+		card.add_child(cap)
+		var val := _label("0", 30, gold if k[1] == "wins" else Color.white)
+		val.rect_position = Vector2(x, 104)
+		card.add_child(val)
+		stat_labels[k[1]] = val
+		x += 104.0
+
+	# mode card with the PLAY button
+	var mode := Panel.new()
+	mode.add_stylebox_override("panel", _flat(Color(0.04, 0.07, 0.17, 0.80), Color(1, 1, 1, 0.18), 10, 2))
+	_place(mode, 0.0, 1.0, Vector2(26, -236), Vector2(460, 210))
+	mode.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	p.add_child(mode)
+	var kind := _label("BATTLE ROYALE", 16, Color(0.65, 0.78, 1.0))
+	kind.rect_position = Vector2(22, 12)
+	mode.add_child(kind)
+	var solo := _label("SOLO", 38, Color.white)
+	solo.rect_position = Vector2(22, 32)
+	mode.add_child(solo)
+	mode_info = _label("", 16, Color(0.85, 0.9, 1.0))
+	mode_info.rect_position = Vector2(24, 82)
+	mode.add_child(mode_info)
+	var play := Button.new()
+	play.text = "PLAY"
+	play.rect_position = Vector2(20, 116)
+	play.rect_size = Vector2(420, 78)
+	play.connect("pressed", self, "_on_button", ["play"])
+	_style_button(play, _flat(gold, Color(0.10, 0.08, 0.02), 4, 3), _flat(Color(1.0, 0.94, 0.45), Color(0.10, 0.08, 0.02), 4, 3), Color(0.08, 0.07, 0.02), 40)
+	mode.add_child(play)
+
+	# tips + hint
+	tip_label = _label(TIPS[0], 17, Color(1, 1, 1, 0.9))
+	tip_label.align = Label.ALIGN_RIGHT
+	tip_label.autowrap = true
+	_place(tip_label, 1.0, 1.0, Vector2(-560, -78), Vector2(530, 52))
+	p.add_child(tip_label)
+	var hint := _label("Drag to turn your character  -  tap to wave", 16, Color(1, 1, 1, 0.75))
+	hint.align = Label.ALIGN_CENTER
+	_place(hint, 0.5, 1.0, Vector2(-250, -30), Vector2(500, 24))
+	p.add_child(hint)
 	return p
 
 
@@ -267,8 +415,17 @@ func _show_none() -> void:
 	pause_panel.visible = false
 
 
+func _refresh_lobby() -> void:
+	stat_labels["matches"].text = str(Settings.matches)
+	stat_labels["wins"].text = str(Settings.wins)
+	stat_labels["elims"].text = str(Settings.elims)
+	var bots: int = world.profile.get("bots", 24) if world != null else 24
+	mode_info.text = "%d players  -  shrinking storm  -  Mythic boss" % (bots + 1)
+
+
 func show_title() -> void:
 	state = "title"
+	_refresh_lobby()
 	_show_none()
 	title_panel.visible = true
 	get_tree().paused = true
@@ -345,6 +502,8 @@ func _on_button(id: String) -> void:
 	match id:
 		"play":
 			start_game()
+		"lobby":
+			pass
 		"help":
 			_open_sub(help_panel, "title")
 		"settings_title":
@@ -400,11 +559,13 @@ func _process(delta: float) -> void:
 	fps_label.visible = Settings.show_fps
 	if Settings.show_fps:
 		fps_label.text = "%d FPS" % Engine.get_frames_per_second()
-	if state == "title" and world != null:
-		_orbit_t += delta * 0.06
-		var r := 150.0
-		var pos := Vector3(cos(_orbit_t) * r, 70.0, sin(_orbit_t) * r)
-		orbit_cam.look_at_from_position(pos, Vector3(0, 6, 0), Vector3.UP)
+	if state == "title" and lobby != null:
+		orbit_cam.global_transform = lobby.camera_transform()
+		_tip_t += delta
+		if _tip_t > 6.0:
+			_tip_t = 0.0
+			_tip_i = (_tip_i + 1) % TIPS.size()
+			tip_label.text = TIPS[_tip_i]
 
 
 func _input(event: InputEvent) -> void:
@@ -413,6 +574,23 @@ func _input(event: InputEvent) -> void:
 		get_tree().set_input_as_handled()
 	elif event is InputEventKey and event.pressed and event.scancode == KEY_ENTER and state == "title":
 		_on_button("play")
+
+
+# Drag on empty space turns the lobby character; a tap (almost no movement) makes it wave.
+func _unhandled_input(event: InputEvent) -> void:
+	if state != "title" or lobby == null:
+		return
+	if event is InputEventMouseButton and event.button_index == BUTTON_LEFT:
+		lobby.dragging = event.pressed
+		if event.pressed:
+			_press_pos = event.position
+			_moved = 0.0
+		elif _moved < 8.0:
+			lobby.wave()
+			Audio.play2d("ui_click", -8.0)
+	elif event is InputEventMouseMotion and lobby.dragging:
+		_moved += event.relative.length()
+		lobby.yaw = clamp(lobby.yaw + event.relative.x * 0.012, -3.2, 3.2)
 
 
 func _notification(what: int) -> void:

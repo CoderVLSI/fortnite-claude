@@ -52,6 +52,19 @@ func _run() -> void:
 	for i in range(30):
 		yield(self, "idle_frame")
 	yield(_shot("menu_title"), "completed")
+	check(menu.lobby != null and menu.lobby.character != null, "the lobby stage has the player's character")
+	check(menu.orbit_cam.current and menu.orbit_cam.global_transform.origin.distance_to(menu.lobby.translation) < 12.0, "the lobby camera frames the stage")
+	check("players" in menu.mode_info.text, "the mode card shows the player count (%s)" % menu.mode_info.text)
+	var click := InputEventMouseButton.new()
+	click.button_index = BUTTON_LEFT
+	click.pressed = true
+	menu._unhandled_input(click)
+	click.pressed = false
+	menu._unhandled_input(click)
+	check(menu.lobby._wave > 0.0, "tapping the lobby makes the character wave")
+	for i in range(40):
+		yield(self, "idle_frame")
+	yield(_shot("menu_lobby_wave"), "completed")
 
 	menu._on_button("help")
 	yield(self, "idle_frame")

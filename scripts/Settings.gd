@@ -11,6 +11,10 @@ var look_sensitivity := 1.0       # multiplier on the base mouse / touch sensiti
 var invert_y := false
 var quality := 1                  # 0 low, 1 medium, 2 high (picked by platform on first run)
 var show_fps := false
+var player_name := "PLAYER"
+var matches := 0                  # career stats shown on the lobby card
+var wins := 0
+var elims := 0
 var autostart := false            # runtime only: skip the title screen after "Play again"
 
 
@@ -29,6 +33,10 @@ func load_settings() -> void:
 	invert_y = bool(cfg.get_value("controls", "invert_y", invert_y))
 	quality = int(cfg.get_value("graphics", "quality", quality))
 	show_fps = bool(cfg.get_value("graphics", "show_fps", show_fps))
+	player_name = str(cfg.get_value("profile", "name", player_name))
+	matches = int(cfg.get_value("profile", "matches", matches))
+	wins = int(cfg.get_value("profile", "wins", wins))
+	elims = int(cfg.get_value("profile", "elims", elims))
 
 
 func save_settings() -> void:
@@ -39,5 +47,17 @@ func save_settings() -> void:
 	cfg.set_value("controls", "invert_y", invert_y)
 	cfg.set_value("graphics", "quality", quality)
 	cfg.set_value("graphics", "show_fps", show_fps)
+	cfg.set_value("profile", "name", player_name)
+	cfg.set_value("profile", "matches", matches)
+	cfg.set_value("profile", "wins", wins)
+	cfg.set_value("profile", "elims", elims)
 	cfg.save(PATH)
 	emit_signal("changed")
+
+
+func record_match(victory: bool, kills: int) -> void:
+	matches += 1
+	elims += kills
+	if victory:
+		wins += 1
+	save_settings()
