@@ -32,14 +32,16 @@ KEY_COLOUR = "0xFF00FF"
 
 # Inventory-slot tile each keyed icon is composited onto: (top colour, bottom colour, border colour).
 TILES = {"weapons": ("0x4a6a9c", "0x1c2b4a", "0x9bb8e8"), "ammo": ("0x9c6a2e", "0x4a2e12", "0xf0c070"),
-         "items": ("0x3f8a52", "0x16361f", "0x9be0a8"), "mythic": ("0xf2c14e", "0x7a4f0a", "0xffe9a0")}
+         "items": ("0x3f8a52", "0x16361f", "0x9be0a8"), "mythic": ("0xf2c14e", "0x7a4f0a", "0xffe9a0"),
+         "vehicles": ("0x3a8a9c", "0x123844", "0x9be0ee"), "build": ("0x8a6a3f", "0x3a2a14", "0xe0c08a")}
 
 # name -> dict(prompt, size, group, key=True removes the magenta background, dest=override path)
 ASSETS = {}
 
 
-def add(name, group, prompt, size=128, key=True, dest=None):
-    ASSETS[name] = {"group": group, "size": size, "key": key, "dest": dest, "prompt": prompt}
+def add(name, group, prompt, size=128, key=True, dest=None, height=None):
+    """height=None -> square size x size; otherwise a 16:9-style size x height image (backgrounds)."""
+    ASSETS[name] = {"group": group, "size": size, "height": height, "key": key, "dest": dest, "prompt": prompt}
 
 
 # Weapons: Items.WEAPONS keys, shown side-on, barrel pointing right.
@@ -95,6 +97,47 @@ add("launcher_fg_432", "app", "game logo mark, %s, centred and small in the midd
     % (_APP, KEYED), size=432)
 add("launcher_bg_432", "app", "abstract seamless dark purple to blue night-sky gradient with faint stars, "
     "no objects, no text", size=432, key=False)
+
+# Title-screen / lobby backdrop (project window is 1280x720). Menu text and buttons are drawn by code over it,
+# so no text and a calmer centre.
+add("lobby_bg", "bg", "wide cinematic 16:9 game background illustration, a stylized colourful battle-royale island "
+    "seen from the sky at sunset, a glowing purple storm wall closing in on the horizon with lightning, a flying "
+    "battle bus in the distance, bright saturated colours, painterly, calm uncluttered centre, no text, no "
+    "characters, no logo", size=1280, height=720, key=False, dest=os.path.join(ROOT, "assets", "ui", "lobby_bg.jpg"))
+
+# More icons: vehicles (Vehicle/Boat/Bus/glider) and build pieces (Builder.gd), on their own tiles.
+for _n, _d in [
+    ("buggy", "a small open-top off-road dune buggy with a roll cage and chunky tyres"),
+    ("quad", "a four-wheel ATV quad bike with a rider seat and handlebars"),
+    ("boat", "a small red and white speedboat with an outboard motor"),
+    ("glider", "a bright umbrella-style glider canopy with a small harness underneath"),
+    ("bus", "a colourful blue battle bus hanging under a hot-air balloon"),
+]:
+    add("vehicle_" + _n, "vehicles", "%sside view of %s, %s" % (STYLE, _d, KEYED))
+for _n, _d in [
+    ("wall", "a single upright wooden wall panel build piece"),
+    ("floor", "a single flat wooden floor tile build piece"),
+    ("ramp", "a single wooden ramp build piece"),
+    ("roof", "a single pitched wooden roof build piece"),
+]:
+    add("build_" + _n, "build", "%sisometric view of %s, %s" % (STYLE, _d, KEYED))
+
+# Full-screen backdrops (16:9, JPEG) and the logo (transparent). Text and buttons are drawn by code on top.
+_UI = lambda n, ext="jpg": os.path.join(ROOT, "assets", "ui", n + "." + ext)
+_BG = ("wide cinematic 16:9 game background illustration, %s, painterly, saturated colours, no text, no "
+       "characters, no logo")
+add("victory_bg", "bg", _BG % "a triumphant golden sunrise over a stylized battle-royale island, glowing light "
+    "rays and drifting confetti, a golden crown on a hilltop, calm darker lower third", size=1280, height=720,
+    key=False, dest=_UI("victory_bg"))
+add("eliminated_bg", "bg", _BG % "a dark moody stylized island swallowed by a purple storm, red-tinted stormy sky, "
+    "desaturated and gloomy, ruined silhouettes, calm darker centre", size=1280, height=720, key=False,
+    dest=_UI("eliminated_bg"))
+add("loading_bg", "bg", _BG % "a night view of a stylized island far below from a flying battle bus window, stars, "
+    "a faint glowing purple storm on the horizon, calm uncluttered centre", size=1280, height=720, key=False,
+    dest=_UI("loading_bg"))
+add("logo", "logo", "game logo that reads exactly the two words STORM ISLAND in bold chunky golden 3D letters with "
+    "purple lightning crackling around them, battle-royale style, centred, no other text, " + KEYED,
+    size=1024, height=576, key=True, dest=_UI("logo", "png"))
 
 GROUPS = sorted({a["group"] for a in ASSETS.values()})
 
@@ -163,9 +206,12 @@ def pick_cheapest():
     return rows[0][1]
 
 
-def generate_via_images(model, prompt, key):
+def generate_via_images(model, prompt, key, aspect=None):
     """Image-only models (GPT Image, FLUX, ...) use POST /images, not chat/completions."""
-    resp = http("POST", API + "/images", key, {"model": model, "prompt": prompt, "n": 1})
+    payload = {"model": model, "prompt": prompt, "n": 1}
+    if aspect:
+        payload["aspect_ratio"] = aspect
+    resp = http("POST", API + "/images", key, payload)
     try:
         raw = base64.b64decode(resp["data"][0]["b64_json"])
     except (KeyError, IndexError, TypeError):
@@ -173,7 +219,7 @@ def generate_via_images(model, prompt, key):
     return raw, (resp.get("usage") or {}).get("cost")
 
 
-def generate(model, prompt, key):
+def generate(model, prompt, key, aspect=None):
     """Returns (image_bytes, cost_usd_or_None). Tries chat/completions, which Gemini-style models use;
     switches to /images when the API says the model needs it, and retries once with modalities=[image]."""
     payload = {"model": model, "usage": {"include": True},
@@ -182,7 +228,7 @@ def generate(model, prompt, key):
         resp = http("POST", API + "/chat/completions", key, dict(payload, modalities=["image", "text"]))
     except ApiError as e:
         if "/images" in e.body:
-            return generate_via_images(model, prompt, key)
+            return generate_via_images(model, prompt, key, aspect)
         if e.code not in (400, 404, 422):
             sys.exit(str(e))
         print("  first request failed (%s); retrying with modalities=[image]" % e.body[:160].replace("\n", " "))
@@ -208,12 +254,17 @@ def convert(raw, spec, dest):
     with tempfile.NamedTemporaryFile(suffix=".img", delete=False) as f:
         f.write(raw)
         tmp = f.name
-    vf = ["crop='min(iw,ih)':'min(iw,ih)'", "format=rgba"]
+    if spec["height"]:   # wide image: centre-crop to the target aspect
+        vf = ["crop='min(iw,ih*%d/%d)':'min(ih,iw*%d/%d)'" % (spec["size"], spec["height"], spec["height"], spec["size"]),
+              "format=rgba"]
+    else:
+        vf = ["crop='min(iw,ih)':'min(iw,ih)'", "format=rgba"]
     if spec["key"]:
         vf.append("colorkey=%s:0.30:0.08" % KEY_COLOUR)
-    vf.append("scale=%d:%d:flags=lanczos" % (spec["size"], spec["size"]))
+    vf.append("scale=%d:%d:flags=lanczos" % (spec["size"], spec["height"] or spec["size"]))
     os.makedirs(os.path.dirname(dest), exist_ok=True)
-    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", tmp, "-vf", ",".join(vf), "-frames:v", "1", dest],
+    q = ["-q:v", "3"] if dest.endswith(".jpg") else []
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", tmp, "-vf", ",".join(vf), "-frames:v", "1"] + q + [dest],
                    check=True)
     os.unlink(tmp)
 
@@ -329,7 +380,7 @@ def main():
     spent = 0.0
     for i, n in enumerate(todo, 1):
         print("[%d/%d] %s via %s" % (i, len(todo), n, model))
-        raw, cost = generate(model, ASSETS[n]["prompt"], key)
+        raw, cost = generate(model, ASSETS[n]["prompt"], key, "16:9" if ASSETS[n]["height"] else None)
         convert(raw, ASSETS[n], dest_of(n))
         if ASSETS[n]["group"] in TILES:
             add_background(dest_of(n), ASSETS[n]["group"])
