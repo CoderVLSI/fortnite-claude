@@ -59,6 +59,7 @@ var selected := 0
 var last_item_slot := 1           # the last non-pickaxe slot held: where a swap goes when the pickaxe is out
 var reserves := {"light": 0, "medium": 0, "shells": 0, "heavy": 0}
 var materials := {"wood": 0, "stone": 0, "metal": 0}
+var gold := 0                     # gold bars: spent at vending machines
 
 # stats of the selected item (filled by _apply_selected)
 var gun_damage := 20.0
@@ -350,6 +351,9 @@ func pickup(item: Dictionary) -> Dictionary:
 		"ammo":
 			add_ammo(item.count, item.id)
 			return {"ok": true, "text": "+%d %s" % [item.count, Items.AMMO[item.id].name], "dropped": null}
+		"gold":
+			gold += item.count
+			return {"ok": true, "text": "+%d Gold" % item.count, "dropped": null}
 		"material":
 			add_material(item.id, item.count)
 			return {"ok": true, "text": "+%d %s" % [item.count, Items.MATERIAL_NAMES[item.id]], "dropped": null}

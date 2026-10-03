@@ -118,6 +118,17 @@ func _draw_materials(font: Font) -> void:
 			draw_rect(Rect2(Vector2(x, 0), Vector2(78, 28)), Color(1.0, 0.9, 0.3), false, 3.0)
 		draw_string(font, Vector2(x + 28, 21), str(player.materials[k[0]]), Color.white)
 		x += 84.0
+	_draw_gold(Vector2(x, 0), font)
+
+
+# The gold-bar wallet, drawn as a small stack of bars (no art needed).
+func _draw_gold(pos: Vector2, font: Font) -> void:
+	draw_rect(Rect2(pos, Vector2(78, 28)), Color(0, 0, 0, 0.5))
+	var gold := Color(1.0, 0.8, 0.2)
+	draw_rect(Rect2(pos + Vector2(5, 14), Vector2(8, 6)), gold)
+	draw_rect(Rect2(pos + Vector2(14, 14), Vector2(8, 6)), gold)
+	draw_rect(Rect2(pos + Vector2(9, 8), Vector2(9, 6)), Color(1.0, 0.9, 0.4))
+	draw_string(font, pos + Vector2(28, 21), str(player.gold), gold)
 
 
 func _draw_slot(i: int, font: Font) -> void:

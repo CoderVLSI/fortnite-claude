@@ -104,7 +104,7 @@ func _physics_process(_delta: float) -> void:
 		if p.is_dead:
 			continue
 		var d: float = p.global_transform.origin.distance_to(global_transform.origin)
-		if (item.kind == "ammo" or item.kind == "material") and d < 1.9:
+		if (item.kind == "ammo" or item.kind == "material" or item.kind == "gold") and d < 1.9:
 			interact(p)
 			return
 		var r := Items.rarity_of(item)
@@ -131,7 +131,7 @@ func interact(by) -> void:
 	if not res.ok:
 		Audio.play2d("ui_error", -4.0)
 		return
-	Audio.play2d("ammo_pickup" if (item.kind == "ammo" or item.kind == "material") else "loot_pickup", -3.0)
+	Audio.play2d("ammo_pickup" if (item.kind == "ammo" or item.kind == "material" or item.kind == "gold") else "loot_pickup", -3.0)
 	var rar := Items.rarity_of(item)
 	if item.kind == "weapon" and rar >= 1:
 		Audio.play2d("rarity_%d" % (rar + 1), -6.0)

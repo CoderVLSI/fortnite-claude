@@ -15,6 +15,7 @@ const Bus = preload("res://scripts/Bus.gd")
 const HUD = preload("res://scripts/HUD.gd")
 const Menu = preload("res://scripts/Menu.gd")
 const Lobby = preload("res://scripts/Lobby.gd")
+const VendingMachine = preload("res://scripts/VendingMachine.gd")
 const Pois = preload("res://scripts/Pois.gd")
 const BuildPiece = preload("res://scripts/BuildPiece.gd")
 const Vehicle = preload("res://scripts/Vehicle.gd")
@@ -94,6 +95,7 @@ func _ready() -> void:
 	_spawn_fighters()
 	_spawn_boss()
 	_spawn_vehicles()
+	_spawn_vending()
 	if profile.use_bus:
 		_start_bus()
 
@@ -500,6 +502,52 @@ func spawn_build(kind: String, material: String, key: String, pos: Vector3, yaw:
 	return piece
 
 
+# ------------------------------------------------------------------ vending machines
+
+const VENDING_KINDS := ["weapons", "healing", "utility"]
+const VENDING_SPOTS := [Vector2(4, 18), Vector2(-6, 19), Vector2(22, -4), Vector2(-12, -18), Vector2(8, -20), Vector2(-20, 6)]
+
+
+func _spawn_vending() -> void:
+	var plaza := [Vector2(7, 9), Vector2(-7, 9), Vector2(0, -11)]       # one of each around the town tower
+	for i in range(3):
+		add_vending(VENDING_KINDS[i], plaza[i], Vector2.ZERO)
+	var n := 0
+	for poi in pois:
+		var spot := _vending_spot(poi)
+		if spot != Vector2.INF:
+			add_vending(VENDING_KINDS[n % 3], spot, poi.center)
+			n += 1
+
+
+# A free spot around a POI: on land, away from its buildings and props.
+func _vending_spot(poi: Dictionary) -> Vector2:
+	for c in VENDING_SPOTS:
+		var p3 := _poi_point(poi, c)
+		var p := Vector2(p3.x, p3.z)
+		if p3.y < 1.0 or _near_building(p, 6.0):
+			continue
+		var clear := true
+		for nd in poi.get("nodes", []):
+			if nd != null and Vector2(nd.pos.x, nd.pos.z).distance_to(p) < 7.0:
+				clear = false
+				break
+		if clear:
+			return p
+	return Vector2.INF
+
+
+func add_vending(kind: String, pos: Vector2, face_to: Vector2) -> Node:
+	var v := VendingMachine.new()
+	v.kind = kind
+	v.translation = Vector3(pos.x, terrain.height_at(pos.x, pos.y), pos.y)
+	var to := (face_to - pos)
+	if to.length() > 0.1:
+		v.rotation.y = atan2(-to.x, -to.y)                         # the front (-Z) looks at the town / POI middle
+	add_child(v)
+	return v
+
+
 func spawn_vehicle(kind: String, pos: Vector3, yaw: float) -> Node:
 	var v: Node
 	if kind == "boat":
@@ -716,6 +764,10 @@ func _drop_inventory(victim) -> void:
 		if it.kind == "weapon":
 			var ammo := Items.make_ammo(Items.WEAPONS[it.id].ammo, Items.AMMO[Items.WEAPONS[it.id].ammo].pack)
 			spawn_item(ammo, pos + Vector3(cos(a + 1.0), 0.2, sin(a + 1.0)) * 1.4)
+	if victim.gold >= 5:
+		var ag := float(n) * 1.7 + 0.3
+		spawn_item(Items.make_gold(victim.gold), pos + Vector3(cos(ag), 0.2, sin(ag)) * 1.3)
+		n += 1
 	for kind in Items.MATERIAL_NAMES:                  # and whatever materials they were carrying
 		var have: int = victim.materials.get(kind, 0)
 		if have >= 10:

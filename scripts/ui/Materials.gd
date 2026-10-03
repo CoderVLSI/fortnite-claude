@@ -12,7 +12,7 @@ var _icons := {}                # keeps the icon textures alive (a texture with 
 
 
 static func wanted_size() -> Vector2:
-	return Vector2(KINDS.size() * BOX.x + (KINDS.size() - 1) * GAP, BOX.y)
+	return Vector2(KINDS.size() * BOX.x + (KINDS.size() - 1) * GAP, BOX.y * 2.0 + GAP)      # second row: the gold wallet
 
 
 func set_player(p) -> void:
@@ -53,3 +53,10 @@ func _draw() -> void:
 		draw_string(font, r.position + Vector2(40, 28), str(player.materials[k[0]]), Color.white)
 		if chosen:
 			draw_rect(r, Color(0.45, 0.75, 1.0), false, 3.0)
+	var g := Rect2(Vector2((KINDS.size() - 1) * (BOX.x + GAP), BOX.y + GAP), BOX)
+	var gold := Color(1.0, 0.8, 0.2)
+	draw_rect(g, Color(0.05, 0.07, 0.12, 0.62))
+	draw_rect(Rect2(g.position + Vector2(8, 22), Vector2(12, 9)), gold)
+	draw_rect(Rect2(g.position + Vector2(22, 22), Vector2(12, 9)), gold)
+	draw_rect(Rect2(g.position + Vector2(15, 12), Vector2(13, 9)), Color(1.0, 0.9, 0.4))
+	draw_string(font, g.position + Vector2(40, 28), str(player.gold), gold)

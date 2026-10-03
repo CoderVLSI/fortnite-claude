@@ -94,6 +94,14 @@ static func make_consumable(id: String, count: int = 1) -> Dictionary:
 	return {"kind": "consumable", "id": id, "count": count}
 
 
+const GOLD_COLOR := Color(1.0, 0.82, 0.2)
+
+
+# Gold bars: the currency for vending machines. Collected by walking over them.
+static func make_gold(count: int) -> Dictionary:
+	return {"kind": "gold", "id": "gold", "count": count}
+
+
 # Building materials lying on the floor: collected by walking over them, like ammo.
 static func make_material(kind: String, count: int) -> Dictionary:
 	return {"kind": "material", "id": kind, "count": count}
@@ -123,6 +131,8 @@ static func color_of(item: Dictionary) -> Color:
 		return AMMO[item.id].color
 	if item.kind == "material":
 		return MATERIAL_COLORS[item.id]
+	if item.kind == "gold":
+		return GOLD_COLOR
 	if item.kind == "pickaxe":
 		return RARITIES[0].color
 	return RARITIES[rarity_of(item)].color
@@ -141,6 +151,8 @@ static func name_of(item: Dictionary) -> String:
 			return "%s x%d" % [AMMO[item.id].name, item.count]
 		"material":
 			return "%s x%d" % [MATERIAL_NAMES[item.id], item.count]
+		"gold":
+			return "Gold Bars x%d" % item.count
 	return "Pickaxe"
 
 
@@ -154,6 +166,8 @@ static func model_of(item: Dictionary) -> String:
 		return MODEL_DIR + item.id + ".glb"
 	if item.kind == "ammo":
 		return MODEL_DIR + "ammo_pickup.glb"
+	if item.kind == "gold":
+		return MODEL_DIR + "gold_bars.glb"
 	return MODEL_DIR + "pickaxe.glb"
 
 
@@ -242,6 +256,7 @@ static func chest_loot(kind: String, rng: RandomNumberGenerator) -> Array:
 			loot.append(ammo_for(w, rng, 1.5))
 			loot.append(random_consumable(rng))
 			loot.append(random_material(rng, 30, 70))
+			loot.append(make_gold(rng.randi_range(10, 30) / 5 * 5))
 		"ammo_box":   # ammo box: lots of ammo, two types
 			var types: Array = AMMO.keys()
 			types.shuffle()
@@ -257,6 +272,7 @@ static func chest_loot(kind: String, rng: RandomNumberGenerator) -> Array:
 			loot.append(make_consumable("chug_jug", 1))
 			loot.append(make_material("metal", 150))
 			loot.append(make_material("stone", 100))
+			loot.append(make_gold(150))
 		"supply":     # supply drop: top-tier weapons plus shield/heal
 			var w1 := make_weapon(["assault", "sniper", "shotgun", "smg"][rng.randi() % 4], 3 + rng.randi() % 2)
 			if rng.randf() < 0.12:       # 1 in 8 supply drops carries a mythic
@@ -272,6 +288,7 @@ static func chest_loot(kind: String, rng: RandomNumberGenerator) -> Array:
 			loot.append(make_material("wood", 100))
 			loot.append(make_material("stone", 100))
 			loot.append(make_material("metal", 100))
+			loot.append(make_gold(100))
 	return loot
 
 

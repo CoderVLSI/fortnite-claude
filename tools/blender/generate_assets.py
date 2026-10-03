@@ -757,6 +757,44 @@ def make_grenade():
     export("grenade", [g.build()])
 
 
+def make_gold_bars():
+    gold = material("gold_bar", (0.95, 0.74, 0.16), rough=0.22, emit=(0.9, 0.55, 0.05), emit_strength=0.25)
+    dark = material("gold_bar_edge", (0.75, 0.55, 0.08), rough=0.3)
+    g = Part("GoldBars")
+    for x in (-0.19, 0.19):                                                       # two bars below, one across the top
+        g.box((x, 0, 0.07), (0.34, 0.22, 0.14), gold)
+        g.box((x, 0, 0.145), (0.28, 0.16, 0.02), dark)
+    g.box((0, 0, 0.21), (0.38, 0.22, 0.14), gold)
+    g.box((0, 0, 0.285), (0.32, 0.16, 0.02), dark)
+    export("gold_bars", [g.build()])
+
+
+def make_vending():
+    body = material("vm_body", (0.20, 0.22, 0.27), rough=0.5)
+    steel = material("vm_steel", (0.55, 0.57, 0.62), rough=0.3)
+    glass = material("vm_glass", (0.55, 0.85, 1.0), rough=0.1, emit=(0.35, 0.7, 1.0), emit_strength=0.9)
+    dark = material("vm_dark", (0.05, 0.05, 0.07), rough=0.6)
+    accent = material("accent", (0.60, 0.60, 0.65), rough=0.35)
+    v = Part("VendingMachine")
+    v.box((0, 0, 0.06), (1.0, 0.86, 0.12), dark)                                  # base plinth
+    v.box((0, 0, 1.06), (0.94, 0.80, 1.88), body)                                 # cabinet
+    v.box((0, 0.405, 1.30), (0.74, 0.03, 1.16), glass)                            # lit display window (front = +Y here, +Z in game)
+    for i in range(3):                                                            # shelves with products
+        z = 0.90 + i * 0.38
+        v.box((0, 0.395, z), (0.78, 0.06, 0.03), steel)
+        for j in range(3):
+            v.box((-0.24 + j * 0.24, 0.37, z + 0.11), (0.14, 0.08, 0.16), accent)
+    v.box((0, 0.405, 0.40), (0.62, 0.05, 0.26), dark)                             # dispensing flap
+    v.box((0, 0.43, 0.40), (0.56, 0.02, 0.20), steel)
+    v.box((0.30, 0.41, 0.62), (0.16, 0.04, 0.12), steel)                          # coin slot panel
+    v.box((0.30, 0.435, 0.62), (0.08, 0.02, 0.02), dark)
+    v.box((0, 0.0, 2.10), (0.98, 0.84, 0.30), accent)                             # top sign
+    v.box((0, 0.425, 2.10), (0.80, 0.02, 0.16), glass)
+    for sx in (-0.47, 0.47):                                                      # side trim
+        v.box((sx, 0, 1.06), (0.03, 0.82, 1.9), steel)
+    export("vending_machine", [v.build()])
+
+
 def make_ammo_pickup():
     brass = material("ammo_brass", (0.85, 0.65, 0.2), rough=0.3)
     box = material("ammo_box", (0.25, 0.35, 0.2))
@@ -1241,6 +1279,10 @@ def main():
     make_potion("chug_jug", (0.55, 0.80, 1.0), 1.5)
     reset_scene()
     make_grenade()
+    reset_scene()
+    make_gold_bars()
+    reset_scene()
+    make_vending()
 
 
 if __name__ == "__main__":

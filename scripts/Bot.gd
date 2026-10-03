@@ -54,6 +54,7 @@ func _equip_loadout() -> void:
 	if is_boss:
 		w = Items.make_weapon(["assault", "shotgun", "sniper", "smg"][world.rng.randi() % 4], Items.MYTHIC)
 	give_weapon(w.id, w.rarity)
+	gold = 150 if is_boss else (world.rng.randi_range(0, 8) * 5 if world.rng.randf() < 0.5 else 0)    # what you get for an elimination
 	if not is_boss:                          # a few heals, and now and then a grenade or two
 		var heal_id: String = ["bandage", "bandage", "mini_shield", "slurp_juice", "medkit"][world.rng.randi() % 5]
 		pickup(Items.make_consumable(heal_id, 3 if heal_id == "bandage" else 1))
