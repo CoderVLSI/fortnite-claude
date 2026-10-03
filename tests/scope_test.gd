@@ -140,5 +140,16 @@ func _run() -> void:
 	yield(_frames(30), "completed")
 	check(not p.aiming, "toggling the scope off stops aiming")
 
+	# every mythic gun has its own shot sound
+	var audio = root.get_node("Audio")
+	for id in ["pistol", "smg", "assault", "shotgun", "sniper"]:
+		p.slots[1] = Items.make_weapon(id, Items.MYTHIC)
+		p.select_slot(1)
+		yield(_frames(5), "completed")
+		p._fire_cd = 0.0
+		p.fire_at_crosshair()
+		var snd := "shot_mythic" if id == "sniper" else "shot_mythic_" + id
+		check(audio.count_of(snd) > 0, "mythic %s fires '%s'" % [id, snd])
+
 	print("SCOPE_RESULT failures=", failures.size())
 	quit(1 if failures.size() > 0 else 0)
