@@ -33,15 +33,21 @@ KEY_COLOUR = "0xFF00FF"
 # Inventory-slot tile each keyed icon is composited onto: (top colour, bottom colour, border colour).
 TILES = {"weapons": ("0x4a6a9c", "0x1c2b4a", "0x9bb8e8"), "ammo": ("0x9c6a2e", "0x4a2e12", "0xf0c070"),
          "items": ("0x3f8a52", "0x16361f", "0x9be0a8"), "mythic": ("0xf2c14e", "0x7a4f0a", "0xffe9a0"),
-         "vehicles": ("0x3a8a9c", "0x123844", "0x9be0ee"), "build": ("0x8a6a3f", "0x3a2a14", "0xe0c08a")}
+         "vehicles": ("0x3a8a9c", "0x123844", "0x9be0ee"), "build": ("0x8a6a3f", "0x3a2a14", "0xe0c08a"),
+         "sprites": ("0x6a5aa8", "0x241a52", "0xc8b8f4")}
 
 # name -> dict(prompt, size, group, key=True removes the magenta background, dest=override path)
 ASSETS = {}
 
 
-def add(name, group, prompt, size=128, key=True, dest=None, height=None):
+def keyed(name, hexcode):
+    return "on a perfectly flat solid pure %s (#%s) background" % (name, hexcode)
+
+
+def add(name, group, prompt, size=128, key=True, dest=None, height=None, key_colour=KEY_COLOUR):
     """height=None -> square size x size; otherwise a 16:9-style size x height image (backgrounds)."""
-    ASSETS[name] = {"group": group, "size": size, "height": height, "key": key, "dest": dest, "prompt": prompt}
+    ASSETS[name] = {"group": group, "size": size, "height": height, "key": key, "dest": dest, "prompt": prompt,
+                   "key_colour": key_colour}
 
 
 # Weapons: Items.WEAPONS keys, shown side-on, barrel pointing right.
@@ -80,8 +86,40 @@ for _n, _d in [
     ("medkit", "a white first-aid medkit box with a red cross"),
     ("mini_shield", "a small glowing blue potion bottle"),
     ("shield_potion", "a large glowing blue shield potion flask"),
+    ("grenade", "a classic frag hand grenade with an olive-green segmented faceted body, a steel safety lever along "
+                "one side and a gold brass pull ring on the top pin, slightly tilted, glossy with a small warm "
+                "highlight on the metal, thick dark outline"),
+    ("slurp_juice", "a chunky round glass vial full of glowing teal-cyan liquid with a few bubbles, a cork stopper and a "
+                    "thin cyan glow around it, teal and cyan tones only, glossy, thick dark outline, drawn large so it "
+                    "fills about 70 percent of the canvas"),
+    ("chug_jug", "a big round glass jar jug with a metal clamp lid and a handle ring, filled with bright "
+                 "blue-white glowing liquid and a soft bright glow, large premium legendary-looking, glossy, thick "
+                 "dark outline"),
+    ("shockwave_grenade", "a round grenade in cyan and blue with a glowing shock ring around it, thick dark outline"),
+    ("junk_rift", "a swirling purple portal with a cartoon anvil falling out of it, thick dark outline"),
+    ("jetpack", "a twin-tank red jetpack with orange flames at the nozzles, thick dark outline"),
+    ("skateboard", "a cyan skateboard with yellow wheels, tilted, thick dark outline"),
+    ("rift_to_go", "a small glowing violet portal ring like a handheld gadget, thick dark outline"),
 ]:
     add("heal_" + _n, "items", "%s%s, %s" % (STYLE, _d, KEYED))
+
+add("weapon_charge_shotgun", "weapons", "%sside view of a chunky shotgun with glowing blue-and-yellow charge coils along "
+    "the barrel, barrel pointing right, %s" % (STYLE, KEYED))
+
+# Companion "sprites": round glowing little ghosts tinted by element. Purple/pink ones use another key colour so
+# the chroma key does not eat them.
+_GREEN, _CYAN = keyed("lime green", "00FF00"), keyed("cyan", "00FFFF")
+for _n, _d, _k in [
+    ("earth", "green", None), ("fire", "orange, with a small flame tuft on top", None),
+    ("water", "blue", None), ("duck", "yellow, with an orange duck bill", None),
+    ("ghost", "pale white-blue", None), ("demon", "red, with small horns", None),
+    ("king", "lilac, with a small gold crown", _GREEN), ("dream", "purple, with little stars around it", _GREEN),
+    ("punk", "pink, with a green mohawk", _CYAN), ("aegis", "teal, with a glowing halo above it", None),
+    ("lucky", "gold, with a green bow tie", None),
+]:
+    add("sprite_" + _n, "sprites", "%sa round glowing little ghost companion with a cute face and tiny arms, %s, "
+        "thick dark outline, %s" % (STYLE, _d, _k or KEYED),
+        key_colour={_GREEN: "0x00FF00", _CYAN: "0x00FFFF"}.get(_k, KEY_COLOUR))
 
 for _n, _d in [("wood", "a stack of wooden logs"), ("stone", "a pile of grey stones"), ("metal", "a stack of metal ingots")]:
     add("material_" + _n, "items", "%s%s, %s" % (STYLE, _d, KEYED))
@@ -260,7 +298,7 @@ def convert(raw, spec, dest):
     else:
         vf = ["crop='min(iw,ih)':'min(iw,ih)'", "format=rgba"]
     if spec["key"]:
-        vf.append("colorkey=%s:0.30:0.08" % KEY_COLOUR)
+        vf.append("colorkey=%s:0.30:0.08" % spec["key_colour"])
     vf.append("scale=%d:%d:flags=lanczos" % (spec["size"], spec["height"] or spec["size"]))
     os.makedirs(os.path.dirname(dest), exist_ok=True)
     q = ["-q:v", "3"] if dest.endswith(".jpg") else []

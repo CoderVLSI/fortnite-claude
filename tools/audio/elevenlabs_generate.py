@@ -12,12 +12,14 @@ Each result is converted with ffmpeg to 22.05 kHz mono WAV and written over asse
 tools/import_assets.sh. UNTESTED against the live API: the sandbox this was written in cannot reach it.
 Needs outbound access to api.elevenlabs.io and ffmpeg.
 
-Loops are cross-faded into a seamless join (loopify). music_menu / music_bus use the /v1/music endpoint, which
-needs a PAID ElevenLabs plan (free plans get HTTP 402); without it the synthesised music stays in place.
+Loops are cross-faded into a seamless join (loopify). music_bus uses the /v1/music endpoint, which needs a
+PAID ElevenLabs plan (free plans get HTTP 402); without it the synthesised music stays in place. music_menu
+(title/lobby) is a 20 s sound-generator music bed, so it works on the free plan.
 `--loopify NAME...` re-applies the seam fix to an existing 16-bit mono WAV, spending no credits.
 """
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -68,6 +70,20 @@ SFX = {
     "swim_stroke": ("swimmer arm stroke through water, short splash", 0.6),
     "consume_bandage": ("applying a bandage, fabric rip and wrap", 1.2),
     "shield_up": ("magical energy shield charging up, rising shimmer", 1.0),
+    # --- gadgets / special effects: (prompt, seconds); the exact final length is in TRIM below
+    "charge_start": ("a mechanical click followed by a rising electric whine, a shotgun starting to charge, no speech, no music", 0.5),
+    "charge_full": ("a bright short electronic ready ping, single clear chime, no speech, no music", 0.5),
+    "shot_charge_shotgun": ("a heavy shotgun blast with an electric crackle, bigger and more powerful than a pump shotgun, clear attack and short tail, no speech, no music", 0.9),
+    "jetpack_thrust": ("one short rocket pack burst, hissing roar with a quick fade, no speech, no music", 0.5),
+    "board_mount": ("a skateboard dropped on the ground then hopped onto, a clack and a short wheel rattle, no speech, no music", 0.5),
+    "board_roll": ("skateboard wheels rolling over pavement, steady rumble, no speech, no music", 0.5),
+    "shockwave_boom": ("a deep concussive air blast thump with an outward sweeping whoosh, no speech, no music", 1.2),
+    "junk_rift_open": ("a magical portal tearing open in the sky, rising crackle and a magical hum, no speech, no music", 1.0),
+    "junk_impact": ("something enormous crashing into the ground, deep boom, metal clang and falling debris, no speech, no music", 2.0),
+    "rift_enter": ("stepping through a portal, a rising whoosh with a sparkle as you are flung skyward, no speech, no music", 0.9),
+    "building_collapse": ("a wooden house collapsing, creaks, snapping beams and a rumbling dust cloud, no speech, no music", 2.5),
+    "sprite_equip": ("a cute magical chime as a little spirit joins you, soft sparkle, no speech", 0.6),
+    "sprite_levelup": ("an upbeat short rising arpeggio, video game level up jingle, no speech", 0.8),
     "car_horn": ("short double car horn honk", 0.8),
 }
 LOOPS = {   # looped ambience / engines: ElevenLabs supports a "loop" flag on newer models
@@ -82,9 +98,19 @@ LOOPS = {   # looped ambience / engines: ElevenLabs supports a "loop" flag on ne
     "ambient_loop": ("gentle outdoor wind over grass and distant birds, seamless loop", 10.0),
 }
 
-MUSIC = {   # /v1/music, instrumental; looped by Audio.gd, so each track is cross-faded into a seamless loop
-    "music_menu": ("calm upbeat video game lobby music, instrumental, warm synths and light percussion, "
-                   "friendly adventurous mood, loopable", 30),
+# Title/lobby music made with the sound generator (works on the free plan): 20 s bed, equal-power
+# cross-faded into a loop and normalised to the level of the other music tracks.
+MUSIC_BEDS = {
+    "music_menu": ("energetic electronic game lobby music, punchy synth bass, bright arpeggios, upbeat drums, "
+                   "stormy sci-fi atmosphere, instrumental music, loopable", 20),
+}
+MUSIC_LUFS = -19.6
+
+# Exact final length in seconds for sounds shorter than the API's 0.5 s minimum (and the gadget set):
+# the file is cut to this length with a 40 ms fade-out so it never ends on a click.
+TRIM = {"charge_start": 0.3, "charge_full": 0.4, "jetpack_thrust": 0.35, "board_mount": 0.4, "board_roll": 0.5}
+
+MUSIC = {   # /v1/music, instrumental (PAID plan only); each track is cross-faded into a seamless loop
     "music_bus": ("energetic instrumental for an airborne drop, driving drums, rising synth arpeggios, "
                   "anticipation and excitement, loopable", 30),
 }
@@ -140,19 +166,34 @@ def loopify(path, xf=1.0):
         w.writeframes(out.tobytes())
 
 
+def set_loudness(path, target):
+    """Apply one fixed gain so the integrated loudness equals `target` LUFS (peaks limited to -1 dBFS)."""
+    out = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", path, "-af", "ebur128", "-f", "null", "-"],
+                         capture_output=True, text=True).stderr
+    measured = float(re.findall(r"I:\s+(-?[\d.]+) LUFS", out)[-1])
+    tmp = path + ".norm.wav"
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", path, "-af",
+                    "volume=%gdB,alimiter=limit=0.89:level=disabled" % (target - measured), "-sample_fmt", "s16", tmp], check=True)
+    os.replace(tmp, path)
+
+
 RATES = {}
 
 
-def to_wav(audio_bytes, name, rate=22050, loop=False, xf=1.0):
+def to_wav(audio_bytes, name, rate=22050, loop=False, xf=1.0, lufs=None, trim=None):
     with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
         f.write(audio_bytes)
         tmp = f.name
     dest = os.path.join(OUT, name + ".wav")
-    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", tmp, "-ar", str(rate), "-ac", "1", "-sample_fmt", "s16", dest], check=True)
+    cut = ["-t", "%g" % trim, "-af", "afade=t=out:st=%g:d=0.04" % max(trim - 0.04, 0)] if trim else []
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", tmp] + cut + ["-ar", str(rate), "-ac", "1", "-sample_fmt", "s16", dest],
+                   check=True)
     os.unlink(tmp)
     if loop:
         RATES[dest] = rate
         loopify(dest, xf)
+    if lufs is not None:
+        set_loudness(dest, lufs)
     print("  wrote", dest)
 
 
@@ -160,6 +201,7 @@ def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     table = dict(SFX)
     table.update(LOOPS)
+    table.update(MUSIC_BEDS)
     table.update(MUSIC)
     if "--list" in sys.argv:
         for n, (p, s) in table.items():
@@ -180,6 +222,10 @@ def main():
         print(n, "->", prompt)
         if "--dry-run" in sys.argv:
             continue
+        if n in MUSIC_BEDS:
+            payload = {"text": prompt, "duration_seconds": secs, "prompt_influence": 0.6, "loop": True}
+            to_wav(request("/v1/sound-generation", payload, key), n, rate=32000, loop=True, xf=2.0, lufs=MUSIC_LUFS)
+            continue
         if n in MUSIC:
             payload = {"prompt": prompt, "music_length_ms": int(secs * 1000), "force_instrumental": True}
             to_wav(request("/v1/music", payload, key), n, rate=32000, loop=True, xf=2.0)
@@ -187,7 +233,7 @@ def main():
         payload = {"text": prompt, "duration_seconds": secs, "prompt_influence": 0.5}
         if n in LOOPS:
             payload["loop"] = True
-        to_wav(request("/v1/sound-generation", payload, key), n, loop=n in LOOPS)
+        to_wav(request("/v1/sound-generation", payload, key), n, loop=n in LOOPS, trim=TRIM.get(n))
 
 
 if __name__ == "__main__":
