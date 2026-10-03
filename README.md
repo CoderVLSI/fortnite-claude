@@ -42,7 +42,8 @@ storm closes in. Last one standing wins.
 | Sprint | Shift | L3 | SPRINT toggle / push stick fully |
 | Aim down sights | right mouse (hold) | L2 | scope button (tap to toggle) |
 | Reload / horn | R | X | reload button beside the ammo readout |
-| Pick up, open, enter / exit vehicle | E | Y | PICK UP / EXIT (appears when relevant) |
+| Pick up (swaps the item in hand when full), open, enter / exit vehicle | E | Y | PICK UP / EXIT (appears when relevant) |
+| Inventory screen (X drops) | Tab | Select | bag button (top right) |
 | Hotbar | 1-5 / wheel | L1 / R1 | tap the slots |
 | Build mode | Q, or Z X C V for wall / floor / ramp / roof (wheel: material) | | the four piece buttons down the right edge (tap again to leave); tap a materials box to pick wood / stone / metal |
 | Map | M | | tap the minimap |

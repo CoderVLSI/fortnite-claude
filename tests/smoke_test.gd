@@ -15,6 +15,13 @@ var controls
 var hits := []
 
 
+var harvest_log := []
+
+
+func _on_harvested(_pos, fraction, _kind, _label, _id) -> void:
+	harvest_log.append(fraction)
+
+
 func check(cond: bool, msg: String) -> void:
 	if cond:
 		print("PASS  ", msg)
@@ -205,8 +212,9 @@ func _run() -> void:
 		if p.slots[i] == null:
 			full = false
 	check(full, "all four item slots can be filled")
+	p.select_slot(1)
 	var res: Dictionary = p.pickup(Items.make_consumable("bandage", 3))
-	check(not res.ok, "full inventory refuses a new consumable stack")
+	check(res.ok and p.slots[1].kind == "consumable" and res.dropped != null, "full inventory swaps a new consumable stack for the item in hand")
 	p.select_slot(3)
 	var swapped: Dictionary = p.pickup(Items.make_weapon("sniper", 4))
 	check(swapped.ok and swapped.dropped != null and p.slots[3].id == "sniper", "picking up a weapon with full slots swaps the selected one")
@@ -255,10 +263,16 @@ func _run() -> void:
 	var b2: Basis = p.global_transform.basis
 	p.global_transform.origin += b2.x * -p.SHOULDER_OFFSET.x    # camera ray is offset to the right: shift so it lines up
 	yield(_frames(6), "completed")
+	p.connect("harvested", self, "_on_harvested")
+	harvest_log.clear()
 	for i in range(5):
 		p._fire_cd = 0.0
 		p.fire_at_crosshair()
 		yield(_frames(2), "completed")
+	check(harvest_log.size() == 5, "each pickaxe hit on a tree reports its health (%d reports)" % harvest_log.size())
+	if harvest_log.size() == 5:
+		check(abs(harvest_log[0] - 0.8) < 0.01 and harvest_log[4] == 0.0, "the tree's bar drains 80%% -> 0%% (first %.2f, last %.2f)" % [harvest_log[0], harvest_log[4]])
+	check(world.hud.hv_root.visible or world.hud._hv_t > 0.0, "the HUD shows the harvest health bar")
 	check(p.materials["wood"] > wood_before, "pickaxe harvests wood from a tree (+%d)" % (p.materials["wood"] - wood_before))
 	check(trees.hits.get(0, 0) >= 5, "tree is felled after repeated hits")
 

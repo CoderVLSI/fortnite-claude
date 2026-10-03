@@ -578,14 +578,20 @@ func _scatter_props(model: String, count: int, smin: float, smax: float, col_rad
 
 
 # Pickaxe hit on a harvestable thing. Trees / rocks run out after a few swings.
-func harvest_hit(body, shape_idx: int, kind: String, by) -> void:
+const HARVEST_HITS := 5
+const HARVEST_LABELS := {"wood": "TREE", "stone": "ROCK", "metal": "METAL"}
+
+
+func harvest_hit(body, shape_idx: int, kind: String, by, at: Vector3 = Vector3.ZERO) -> void:
 	by.add_material(kind, 8 + rng.randi() % 5)
 	if not _props.has(body.name):
 		return
 	var data: Dictionary = _props[body.name]
 	var hits: int = data.hits.get(shape_idx, 0) + 1
 	data.hits[shape_idx] = hits
-	if hits >= 5 and shape_idx < data.body.get_child_count():
+	var left: float = clamp(1.0 - float(hits) / HARVEST_HITS, 0.0, 1.0)
+	by.emit_signal("harvested", at, left, kind, HARVEST_LABELS.get(kind, kind.to_upper()), "%s:%d" % [body.name, shape_idx])
+	if hits >= HARVEST_HITS and shape_idx < data.body.get_child_count():
 		var gone := Transform(Basis().scaled(Vector3(0.0001, 0.0001, 0.0001)), data.transforms[shape_idx].origin)
 		data.mm.set_instance_transform(shape_idx, gone)
 		data.body.get_child(shape_idx).set_deferred("disabled", true)

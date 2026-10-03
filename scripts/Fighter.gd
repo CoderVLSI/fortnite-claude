@@ -14,6 +14,7 @@ signal died(victim, killer)
 signal damaged(amount, source)
 signal hit_landed(target, killed, headshot)
 signal picked_up(text)
+signal harvested(pos, fraction, kind, label, id)   # a pickaxe hit on a tree / rock / build piece: what is left (0 = gone)
 signal slot_changed
 signal landed
 
@@ -51,6 +52,7 @@ var damage_scale := 1.0
 # inventory
 var slots := []
 var selected := 0
+var last_item_slot := 1           # the last non-pickaxe slot held: where a swap goes when the pickaxe is out
 var reserves := {"light": 0, "medium": 0, "shells": 0, "heavy": 0}
 var materials := {"wood": 0, "stone": 0, "metal": 0}
 
@@ -179,7 +181,49 @@ func select_slot(index: int) -> void:
 	if index < 0 or index >= slots.size() or index == selected or is_dead:
 		return
 	selected = index
+	if index > 0:
+		last_item_slot = index
 	_apply_selected()
+
+
+# Which slot a full-inventory pickup replaces: the item in hand, or (pickaxe out) the last item held.
+func swap_slot() -> int:
+	if selected > 0 and slots[selected] != null:
+		return selected
+	if last_item_slot > 0 and last_item_slot < slots.size() and slots[last_item_slot] != null:
+		return last_item_slot
+	for i in range(1, slots.size()):
+		if slots[i] != null:
+			return i
+	return -1
+
+
+# Put `item` into slot t (dropping whatever was there) and equip it.
+func _swap_into(t: int, item: Dictionary):
+	var old = slots[t]
+	slots[t] = item
+	selected = t
+	last_item_slot = t
+	_apply_selected()
+	return old
+
+
+# Drop the item in slot i on the ground in front of the character. The pickaxe cannot be dropped.
+func drop_slot(i: int) -> bool:
+	if is_dead or i <= 0 or i >= slots.size() or slots[i] == null:
+		return false
+	var it: Dictionary = slots[i]
+	slots[i] = null
+	if selected == i:
+		selected = 0
+		_apply_selected()
+	else:
+		emit_signal("slot_changed")
+	var fwd := -global_transform.basis.z
+	for w in get_tree().get_nodes_in_group("world"):
+		w.spawn_item(it, global_transform.origin + fwd * 1.6 + Vector3(0, 0.3, 0))
+	Audio.play3d("loot_pickup", global_transform.origin, -8.0, 0.8)
+	return true
 
 
 func cycle_slot(direction: int) -> void:
@@ -283,11 +327,10 @@ func pickup(item: Dictionary) -> Dictionary:
 						select_slot(i)
 					emit_signal("slot_changed")
 					return {"ok": true, "text": Items.name_of(item), "dropped": null}
-			if selected > 0 and slots[selected] != null and slots[selected].kind == "weapon":
-				var old = slots[selected]
-				slots[selected] = item
-				_apply_selected()
-				return {"ok": true, "text": Items.name_of(item), "dropped": old}
+			var t := swap_slot()          # full: the new weapon replaces the item in hand (or the last one held)
+			if t > 0:
+				var old = _swap_into(t, item)
+				return {"ok": true, "text": "Swapped: " + Items.name_of(item), "dropped": old}
 			return {"ok": false, "text": "Inventory full", "dropped": null}
 		"consumable":
 			var cap: int = Items.CONSUMABLES[item.id].stack
@@ -305,11 +348,20 @@ func pickup(item: Dictionary) -> Dictionary:
 						remaining -= int(min(cap, remaining))
 						break
 			emit_signal("slot_changed")
+			var swapped = null
+			if remaining > 0:             # no room: replace the item in hand (not another stack of the same thing)
+				var t := swap_slot()
+				if t > 0 and not (slots[t].kind == "consumable" and slots[t].id == item.id):
+					var take: int = int(min(cap, remaining))
+					swapped = _swap_into(t, Items.make_consumable(item.id, take))
+					remaining -= take
 			if remaining == item.count:
 				return {"ok": false, "text": "Inventory full", "dropped": null}
 			var leftover = null
 			if remaining > 0:
 				leftover = Items.make_consumable(item.id, remaining)
+			if swapped != null:
+				return {"ok": true, "text": "Swapped: " + Items.name_of(item), "dropped": swapped, "dropped2": leftover}
 			return {"ok": true, "text": Items.name_of(item), "dropped": leftover}
 	return {"ok": false, "text": "", "dropped": null}
 
@@ -832,7 +884,7 @@ func _swing_pickaxe(aim_from: Vector3, aim_dir: Vector3) -> bool:
 		var kind: String = target.get_meta("harvest")
 		Audio.play3d("hit_" + kind if kind != "metal" else "hit_metal", hit.position, 0.0, rand_range(0.92, 1.08))
 		for w in get_tree().get_nodes_in_group("world"):
-			w.harvest_hit(target, hit.shape, target.get_meta("harvest"), self)
+			w.harvest_hit(target, hit.shape, target.get_meta("harvest"), self, hit.position)
 	return true
 
 

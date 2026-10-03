@@ -11,6 +11,7 @@ const DEAD_ZONE := 0.12
 const HOTBAR_HALF := 167.0       # half the hotbar width: the pickup ring and reload button sit beside it
 
 signal map_pressed
+signal bag_pressed
 signal piece_pressed(index)
 signal material_pressed(name)
 
@@ -44,6 +45,7 @@ func _layout() -> void:
 		"fire2": {"center": Vector2(86, h - 345), "radius": 54.0, "icon": "fire", "action": "fire", "look_drag": true},
 		"jump": {"center": Vector2(w - 84, h - 98), "radius": 58.0, "icon": "jump", "action": "jump"},
 		"sprint": {"center": Vector2(w - 300, h - 480), "radius": 56.0, "icon": "sprint", "action": "sprint", "toggle": true},
+		"bag": {"center": Vector2(w - 372, 38), "radius": 30.0, "icon": "bag", "bag": true},
 		"scope": {"center": Vector2(w - 348, h - 338), "radius": 50.0, "icon": "scope", "aim": true},
 		"reload": {"center": Vector2(w / 2.0 + HOTBAR_HALF + 235.0, h - 64), "radius": 40.0, "icon": "reload", "action": "reload"},
 		"interact": {"center": Vector2(w / 2.0 - HOTBAR_HALF - 72.0, h - 78), "radius": 58.0, "label": "PICK UP", "action": "interact", "hidden": true},
@@ -120,6 +122,8 @@ func _down(index: int, pos: Vector2) -> void:
 			b["id"] = index
 			if b.has("piece"):
 				emit_signal("piece_pressed", b["piece"])
+			elif b.get("bag", false):
+				emit_signal("bag_pressed")
 			elif b.get("aim", false):
 				Controls.touch_aim = not Controls.touch_aim       # tap to scope in, tap again to scope out
 			elif b.get("toggle", false):
@@ -278,6 +282,11 @@ func _draw_icon(icon: String, c: Vector2, r: float, col: Color, chosen: bool) ->
 		"sprint":    # three chevrons pointing right with speed lines
 			for off in [-16.0, 2.0, 20.0]:
 				draw_polyline(PoolVector2Array([c + Vector2(off - 6, -18) * k, c + Vector2(off + 12, 0) * k, c + Vector2(off - 6, 18) * k]), col, 5.0 * max(k, 0.8))
+		"bag":       # backpack: rounded body, flap line and straps
+			draw_rect(Rect2(c + Vector2(-14, -10), Vector2(28, 26)), Color(1, 1, 1, 0.92))
+			draw_rect(Rect2(c + Vector2(-14, -10), Vector2(28, 26)), Color(0.1, 0.12, 0.2, 0.6), false, 2.0)
+			draw_arc(c + Vector2(0, -10), 7.0, PI, TAU, 10, col, 3.0)
+			draw_line(c + Vector2(-14, 1), c + Vector2(14, 1), Color(0.1, 0.12, 0.2, 0.7), 2.0)
 		"scope":     # sight ring with a crosshair
 			draw_arc(c, 19.0 * max(k * 1.3, 1.0), 0, TAU, 28, col, 3.0)
 			for dir in [Vector2(1, 0), Vector2(-1, 0), Vector2(0, 1), Vector2(0, -1)]:

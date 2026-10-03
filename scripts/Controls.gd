@@ -39,6 +39,7 @@ func _register_actions() -> void:
 	_key("reload", KEY_R)
 	_key("interact", KEY_E)
 	_key("map", KEY_M)
+	_key("inventory", KEY_TAB)
 	_key("build_toggle", KEY_Q)
 	_key("build_toggle", KEY_F)
 	_key("build_wall", KEY_Z)
@@ -66,6 +67,7 @@ func _register_actions() -> void:
 	_axis("aim", JOY_AXIS_6, 1.0)  # left trigger
 	_axis("fire", JOY_AXIS_7, 1.0)  # right trigger
 	_pad("interact", JOY_XBOX_Y)
+	_pad("inventory", JOY_SELECT)
 
 
 func _add(action: String, event: InputEvent) -> void:

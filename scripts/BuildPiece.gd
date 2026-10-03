@@ -80,6 +80,9 @@ func take_damage(amount: float, _source = null) -> void:
 	if is_dead:
 		return
 	health -= amount
+	if _source != null and _source.has_signal("harvested"):      # shows the health bar over the piece being hit
+		_source.emit_signal("harvested", global_transform.origin + Vector3(0, 0.6, 0), clamp(health / MAT_HP[mat_name], 0.0, 1.0),
+			mat_name, "%s %s" % [mat_name.to_upper(), kind.to_upper()], "piece:%d" % get_instance_id())
 	_flash = 0.12
 	if _mesh_node != null:
 		_mesh_node.material_override.albedo_color = MAT_COLOR[mat_name].linear_interpolate(Color(1, 1, 1), 0.45)

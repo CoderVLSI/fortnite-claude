@@ -122,5 +122,8 @@ func interact(by) -> void:
 	if res.dropped != null:
 		for w in get_tree().get_nodes_in_group("world"):
 			w.spawn_item(res.dropped, global_transform.origin + Vector3(0.9, 0.0, 0.0))
+	if res.get("dropped2") != null:
+		for w in get_tree().get_nodes_in_group("world"):
+			w.spawn_item(res.dropped2, global_transform.origin + Vector3(-0.9, 0.0, 0.0))
 	remove_from_group("interactable")
 	queue_free()

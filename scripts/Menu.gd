@@ -5,8 +5,8 @@ extends CanvasLayer
 # character, a player card, the mode card with the big PLAY button and a tab bar.
 
 const FONT_PATH := "res://assets/fonts/DejaVuSans-Bold.ttf"
-const HELP_PC := "Move: WASD        Look: mouse        Fire: left click        Aim / scope: right click\nJump / handbrake: Space        Sprint: Shift        Reload / horn: R\nPick up / open / enter vehicle: E        Build: Q toggles, Z X C V = wall / floor / ramp / roof, wheel = material\nHotbar: 1-5 or wheel        Map: M        Pause: Esc"
-const HELP_TOUCH := "Left thumb: move    Right side: look    FIRE / JUMP / SPRINT buttons, scope button to aim down sights\nPICK UP appears next to loot, chests and vehicles    BUILD toggles building\nTap the hotbar to switch items    Tap the minimap for the island map"
+const HELP_PC := "Move: WASD        Look: mouse        Fire: left click        Aim / scope: right click\nJump / handbrake: Space        Sprint: Shift        Reload / horn: R\nPick up / swap / open / enter vehicle: E        Inventory: Tab  (X drops)        Build: Q toggles, Z X C V = wall / floor / ramp / roof, wheel = material\nHotbar: 1-5 or wheel        Map: M        Pause: Esc"
+const HELP_TOUCH := "Left thumb: move    Right side: look    FIRE / JUMP / SPRINT buttons, scope button to aim down sights\nPICK UP appears next to loot, chests and vehicles    BUILD toggles building\nTap the hotbar to switch items, the bag button for the inventory    Tap the minimap for the island map"
 const HELP_GOAL := "Ride the Sky Ferry, jump, glide down and loot.  Fight bots, stay inside the shrinking storm,\ndrive vehicles, swim, climb ledges, take on the Warden at Iron Bunker for Mythic loot.\nBe the last one standing."
 
 const TIPS := [
@@ -587,6 +587,10 @@ func _process(delta: float) -> void:
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and event.scancode == KEY_ESCAPE and not event.echo:
+		if world != null and world.hud != null and world.hud.inventory.visible:
+			world.hud.close_inventory()                 # Esc closes the inventory screen before it pauses the game
+			get_tree().set_input_as_handled()
+			return
 		toggle_pause()
 		get_tree().set_input_as_handled()
 	elif event is InputEventKey and event.pressed and event.scancode == KEY_ENTER and state == "title":

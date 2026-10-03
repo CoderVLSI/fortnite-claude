@@ -11,6 +11,7 @@ const Crosshair = preload("res://scripts/ui/Crosshair.gd")
 const ScopeOverlay = preload("res://scripts/ui/ScopeOverlay.gd")
 const Minimap = preload("res://scripts/ui/Minimap.gd")
 const Materials = preload("res://scripts/ui/Materials.gd")
+const InventoryScreen = preload("res://scripts/ui/InventoryScreen.gd")
 const TouchControls = preload("res://scripts/ui/TouchControls.gd")
 const FONT_PATH := "res://assets/fonts/DejaVuSans-Bold.ttf"
 
@@ -28,6 +29,7 @@ var scope_overlay: Control
 var minimap: Control
 var hotbar: Control
 var materials: Control
+var inventory: Control
 var compass: Control
 var prompt_label: Label
 var bus_label: Label
@@ -52,6 +54,14 @@ var feed_box: VBoxContainer
 var flash_rect: ColorRect
 var storm_rect: ColorRect
 var end_panel: Panel
+var hv_root: Control            # health bar over the tree / rock / wall being hit with the pickaxe
+var hv_bar: Control
+var hv_label: Label
+var _hv_pos := Vector3.ZERO
+var _hv_t := 0.0
+var _hv_id := ""
+var _hv_shown := 1.0
+var _hv_target := 1.0
 var end_bg: TextureRect
 var badge: TextureRect
 var _badge_name := ""
@@ -203,6 +213,23 @@ func _build() -> void:
 	bus_label.visible = false
 	root.add_child(bus_label)
 
+	hv_root = Control.new()
+	hv_root.rect_size = Vector2(150, 40)
+	hv_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hv_root.visible = false
+	root.add_child(hv_root)
+	hv_label = _label("", Label.ALIGN_CENTER)
+	hv_label.rect_position = Vector2(0, 0)
+	hv_label.rect_size = Vector2(150, 22)
+	hv_root.add_child(hv_label)
+	hv_bar = Bar.new()
+	hv_bar.show_text = false
+	hv_bar.max_value = 1.0
+	hv_bar.rect_position = Vector2(5, 24)
+	hv_bar.rect_size = Vector2(140, 12)
+	hv_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hv_root.add_child(hv_bar)
+
 	badge = TextureRect.new()                   # what you are riding: bus, glider, buggy, quad or boat
 	badge.expand = true
 	badge.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -252,12 +279,17 @@ func _build() -> void:
 	map_screen.visible = false
 	root.add_child(map_screen)
 
+	inventory = InventoryScreen.new()
+	inventory.connect("closed", self, "close_inventory")
+	root.add_child(inventory)
+
 	touch = TouchControls.new()
 	touch.visible = Controls.touch_mode
 	touch.hotbar = hotbar
 	touch.minimap = minimap
 	touch.materials = materials
 	touch.connect("map_pressed", self, "toggle_map")
+	touch.connect("bag_pressed", self, "toggle_inventory")
 	touch.connect("piece_pressed", self, "_on_piece_pressed")
 	touch.connect("material_pressed", self, "_on_material_pressed")
 	root.add_child(touch)
@@ -309,6 +341,8 @@ func bind(world_node) -> void:
 	minimap.world = world
 	crosshair.player = player
 	scope_overlay.player = player
+	inventory.player = player
+	player.connect("harvested", self, "_on_harvested")
 	player.connect("damaged", self, "_on_player_damaged")
 	player.connect("hit_landed", self, "_on_hit_landed")
 	player.connect("picked_up", self, "show_toast")
@@ -359,6 +393,44 @@ func _layout() -> void:
 	materials.visible = Controls.touch_mode
 
 
+func toggle_inventory() -> void:
+	if inventory.visible:
+		close_inventory()
+	else:
+		open_inventory()
+
+
+func open_inventory() -> void:
+	if player == null or player.is_dead or world == null or world.match_over or inventory.visible:
+		return
+	if world.menu != null and world.menu.state != "hidden":
+		return
+	map_screen.visible = false
+	inventory.visible = true
+	player.input_enabled = false                      # the character stands still while the screen is open
+	for a in ["fire", "aim", "sprint", "jump", "reload", "interact"]:
+		Input.action_release(a)
+	Controls.touch_aim = false
+	if touch:
+		touch.visible = false
+	Controls.capture_mouse(false)
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	Audio.play2d("ui_click", -6.0)
+
+
+func close_inventory() -> void:
+	if not inventory.visible:
+		return
+	inventory.visible = false
+	if player != null:
+		player.input_enabled = true
+	if touch:
+		touch.visible = Controls.touch_mode and not end_panel.visible
+	if not Controls.touch_mode and not ("--no-capture" in OS.get_cmdline_args()) and not end_panel.visible:
+		Controls.capture_mouse(true)
+	Audio.play2d("ui_click", -6.0)
+
+
 func toggle_map() -> void:
 	map_screen.visible = not map_screen.visible
 	Audio.play2d("ui_click", -6.0)
@@ -385,6 +457,38 @@ func _on_slot_pressed(index: int) -> void:
 func _on_pause_pressed() -> void:
 	if world != null and world.menu != null:
 		world.menu.toggle_pause()
+
+
+func _on_harvested(pos: Vector3, fraction: float, kind: String, label: String, id: String) -> void:
+	if id != _hv_id:
+		_hv_id = id
+		_hv_shown = 1.0                                   # a new target starts from full
+	_hv_pos = pos
+	_hv_t = 1.7 if fraction > 0.0 else 0.55            # linger, then vanish (quickly once it is gone)
+	hv_label.text = label
+	_hv_target = fraction
+	var colors := {"wood": Color(0.80, 0.55, 0.25), "stone": Color(0.72, 0.74, 0.78), "metal": Color(0.45, 0.70, 1.0)}
+	hv_bar.fill_color = colors.get(kind, Color(0.9, 0.8, 0.3))
+	hv_root.visible = true
+
+
+func _update_harvest_bar(delta: float) -> void:
+	if _hv_t <= 0.0:
+		hv_root.visible = false
+		_hv_id = ""
+		return
+	_hv_t -= delta
+	_hv_shown = lerp(_hv_shown, _hv_target, clamp(14.0 * delta, 0.0, 1.0))
+	hv_bar.value = _hv_shown
+	var cam: Camera = player.camera
+	if cam == null or cam.is_position_behind(_hv_pos):
+		hv_root.visible = false
+		return
+	var sp: Vector2 = cam.unproject_position(_hv_pos)
+	var screen: Vector2 = root.rect_size
+	hv_root.rect_position = Vector2(clamp(sp.x - 75.0, 6.0, screen.x - 156.0), clamp(sp.y - 64.0, 6.0, screen.y - 46.0))
+	hv_root.modulate.a = clamp(_hv_t / 0.35, 0.0, 1.0)
+	hv_root.visible = true
 
 
 func _on_touch_mode(enabled: bool) -> void:
@@ -452,6 +556,10 @@ func _process(delta: float) -> void:
 	_update_poi(delta)
 	if Input.is_action_just_pressed("map"):
 		toggle_map()
+	if Input.is_action_just_pressed("inventory") and not end_panel.visible:
+		toggle_inventory()
+	if inventory.visible and (player.is_dead or world.match_over):
+		close_inventory()
 	_update_prompts()
 	storm_label.text = world.storm.status_text()
 	stats_label.text = "ALIVE %d    KILLS %d" % [world.alive_count(), player.kills]
@@ -459,6 +567,7 @@ func _process(delta: float) -> void:
 	var outside: bool = world.storm.active and not player.is_dead and not world.storm.is_inside(player.global_transform.origin)
 	warn_label.visible = outside
 	storm_rect.color.a = (0.16 + sin(_t * 5.0) * 0.04) if outside else 0.0
+	_update_harvest_bar(delta)
 	if end_bg.visible and end_bg.modulate.a < 1.0:
 		end_bg.modulate.a = min(1.0, end_bg.modulate.a + delta * 1.2)
 	_flash = max(0.0, _flash - delta * 2.5)
@@ -470,7 +579,7 @@ func _process(delta: float) -> void:
 	else:
 		toast_label.text = ""
 
-	hint_label.visible = (not Controls.touch_mode) and (not end_panel.visible) \
+	hint_label.visible = (not Controls.touch_mode) and (not end_panel.visible) and (not inventory.visible) \
 		and Input.get_mouse_mode() != Input.MOUSE_MODE_CAPTURED
 
 
