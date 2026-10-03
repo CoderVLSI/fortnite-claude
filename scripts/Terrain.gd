@@ -36,7 +36,7 @@ func raw_height(x: float, z: float) -> float:
 	h -= smoothstep(0.62, 1.0, radial) * 30.0   # island falloff into the sea
 	# mountain ranges: ridged noise, only well away from the town and the coast
 	var m: float = 1.0 - abs(ridge.get_noise_2d(x, z))
-	var range_w: float = smoothstep(0.26, 0.42, radial) * (1.0 - smoothstep(0.66, 0.84, radial))
+	var range_w: float = smoothstep(0.26, 0.42, radial) * (1.0 - smoothstep(0.55, 0.72, radial))
 	h += pow(max(m - 0.72, 0.0) / 0.28, 1.4) * 38.0 * range_w
 	return h
 

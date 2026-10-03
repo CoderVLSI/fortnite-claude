@@ -252,7 +252,18 @@ func _run() -> void:
 
 	# --- pickaxe harvesting: trees give wood and get felled after 5 hits
 	var trees: Dictionary = world._props["TreeColliders"]
-	var tree_pos: Vector3 = trees.body.get_child(0).translation
+	var tree_idx := 0
+	for ti in range(trees.body.get_child_count()):       # a tree on gentle ground with no neighbour in the way
+		var tp: Vector3 = trees.body.get_child(ti).translation
+		var flat: bool = abs(world.terrain.height_at(tp.x + 2.0, tp.z) - world.terrain.height_at(tp.x - 2.0, tp.z)) < 0.8 and abs(world.terrain.height_at(tp.x, tp.z + 3.0) - world.terrain.height_at(tp.x, tp.z - 3.0)) < 1.2
+		var clear := true
+		for tj in range(trees.body.get_child_count()):
+			if tj != ti and tj < ti + 40 and tj > ti - 40 and Vector2(trees.body.get_child(tj).translation.x - tp.x, trees.body.get_child(tj).translation.z - tp.z).length() < 4.5:
+				clear = false
+		if flat and clear:
+			tree_idx = ti
+			break
+	var tree_pos: Vector3 = trees.body.get_child(tree_idx).translation
 	var wood_before: int = p.materials["wood"]
 	p.select_slot(0)
 	p.global_transform.origin = Vector3(tree_pos.x, world.terrain.height_at(tree_pos.x, tree_pos.z) + 1.0, tree_pos.z + 2.4)
@@ -274,7 +285,7 @@ func _run() -> void:
 		check(abs(harvest_log[0] - 0.8) < 0.01 and harvest_log[4] == 0.0, "the tree's bar drains 80%% -> 0%% (first %.2f, last %.2f)" % [harvest_log[0], harvest_log[4]])
 	check(world.hud.hv_root.visible or world.hud._hv_t > 0.0, "the HUD shows the harvest health bar")
 	check(p.materials["wood"] > wood_before, "pickaxe harvests wood from a tree (+%d)" % (p.materials["wood"] - wood_before))
-	check(trees.hits.get(0, 0) >= 5, "tree is felled after repeated hits")
+	check(trees.hits.get(tree_idx, 0) >= 5, "tree is felled after repeated hits")
 
 	# --- chests: each variety opens and drops its contents
 	var spots := [Vector3(4, 0, 0), Vector3(-4, 0, 0), Vector3(0, 0, 5)]
