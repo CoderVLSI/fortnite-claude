@@ -82,6 +82,7 @@ func _run() -> void:
 	root.add_child(main)
 	current_scene = main
 	yield(create_timer(1.0), "timeout")
+	paused = true                          # the lobby / party menus pause the game: networking must work like that
 	var d := Directory.new()
 	d.make_dir_recursive(DIR)
 
@@ -199,7 +200,7 @@ func _run() -> void:
 		net.send_event("throw", [1, "frag", spot + Vector3(0, 1.5, 0), Vector3(3, 6, 0)])
 	if role == "client":
 		var hit: bool = yield(wait_for(self, "struct0_hit", 30.0), "completed")
-		check(hit, "a building the other player hit shows the damage here (hits %s)" % str(struct0.get_meta("hits")))
+		check(hit, "a building the other player hit shows the damage here (piece hits %d)" % _piece_hits(struct0))
 		var rp2 = get_nodes_in_group("remote_players")[0]
 		var heard: bool = yield(wait_for(self, "shots_seen", 30.0), "completed")
 		check(heard, "the other player's shots are heard here (%d)" % rp2.net_shots_seen)
@@ -268,7 +269,16 @@ func wall_built() -> bool:
 
 func struct0_hit() -> bool:
 	var s = world.net_nodes.get("b0")
-	return s != null and int(s.get_meta("hits")) >= 1
+	return s != null and _piece_hits(s) >= 1
+
+
+func _piece_hits(s) -> int:
+	var n := 0
+	if s.has_meta("pieces"):
+		for pm in s.get_meta("pieces"):
+			if pm != null and is_instance_valid(pm):
+				n += int(pm.get_meta("hits"))
+	return n
 
 
 func shots_seen() -> bool:

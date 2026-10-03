@@ -77,7 +77,10 @@ func _run() -> void:
 	check(rose > 2.0, "the stairs climb to the first upper floor (+%.1f m)" % rose)
 
 	# the tallest tower is destructible
-	check(inst.has_meta("hits_max") and int(inst.get_meta("hits_max")) >= 100, "towers can be brought down with many pickaxe hits (%s)" % str(inst.get_meta("hits_max")))
+	check(inst.has_meta("res") and inst.is_in_group("structures"), "towers are destructible structures")
+	world._slice_structure(inst)
+	var np: int = inst.get_meta("pieces").size()
+	check(np >= 60, "a tower is cut into many pieces, so it comes down a chunk at a time (%d)" % np)
 	print("HIGHRISE_RESULT failures=", failures.size())
 	for f in failures:
 		print("  - ", f)

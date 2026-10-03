@@ -52,6 +52,16 @@ func _draw() -> void:
 		if fp.distance_to(pp) < RADAR_RANGE:
 			draw_circle(mid + fp * s, 2.8, Color(1.0, 0.25, 0.2))
 
+	for f in get_tree().get_nodes_in_group("fighters"):          # teammates are always on the radar
+		if f != p and not f.is_dead and p.is_ally(f):
+			var tp := Vector2(f.global_transform.origin.x, f.global_transform.origin.z)
+			draw_circle(mid + tp * s, 3.6, Color(0.3, 1.0, 0.45))
+			draw_arc(mid + tp * s, 3.6, 0, TAU, 12, Color.white, 1.0)
+	for pg in world.pings:
+		var gp := mid + Vector2(pg.pos.x, pg.pos.z) * s
+		var gc: Color = {"go": Color(0.35, 0.85, 1.0), "enemy": Color(1.0, 0.3, 0.25), "loot": Color(1.0, 0.85, 0.25)}.get(pg.kind, Color.white)
+		draw_colored_polygon(PoolVector2Array([gp + Vector2(0, -5), gp + Vector2(4, 0), gp + Vector2(0, 5), gp + Vector2(-4, 0)]), gc)
+		draw_arc(gp, 6.5, 0, TAU, 14, gc, 1.2)
 	var fwd := Vector2(-sin(p.rotation.y), -cos(p.rotation.y))
 	var perp := Vector2(-fwd.y, fwd.x)
 	var c := mid + pp * s

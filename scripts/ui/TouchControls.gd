@@ -14,6 +14,7 @@ signal map_pressed
 signal bag_pressed
 signal edit_pressed
 signal emote_pressed
+signal ping_pressed
 signal piece_pressed(index)
 signal material_pressed(name)
 
@@ -53,6 +54,7 @@ func _layout() -> void:
 		"reload": {"center": Vector2(w / 2.0 + HOTBAR_HALF + 235.0, h - 64), "radius": 40.0, "icon": "reload", "action": "reload"},
 		"interact": {"center": Vector2(w / 2.0 - HOTBAR_HALF - 72.0, h - 78), "radius": 58.0, "label": "PICK UP", "action": "interact", "hidden": true},
 	}
+	_buttons["ping"] = {"center": Vector2(142, 262.0), "radius": 30.0, "icon": "ping", "ping": true}
 	_buttons["emote"] = {"center": Vector2(64, 262.0), "radius": 32.0, "icon": "emote", "emote": true}
 	_buttons["edit"] = {"center": Vector2(w - 46, 486.0), "radius": 34.0, "icon": "edit", "edit": true}
 	for i in range(4):
@@ -144,6 +146,8 @@ func _down(index: int, pos: Vector2) -> void:
 				emit_signal("edit_pressed")
 			elif b.get("emote", false):
 				emit_signal("emote_pressed")
+			elif b.get("ping", false):
+				emit_signal("ping_pressed")
 			elif b.get("aim", false):
 				Controls.touch_aim = not Controls.touch_aim       # tap to scope in, tap again to scope out
 			elif b.get("toggle", false):
@@ -304,6 +308,10 @@ func _draw_icon(icon: String, c: Vector2, r: float, col: Color, chosen: bool) ->
 		"sprint":    # three chevrons pointing right with speed lines
 			for off in [-16.0, 2.0, 20.0]:
 				draw_polyline(PoolVector2Array([c + Vector2(off - 6, -18) * k, c + Vector2(off + 12, 0) * k, c + Vector2(off - 6, 18) * k]), col, 5.0 * max(k, 0.8))
+		"ping":      # a map pin
+			draw_circle(c + Vector2(0, -8) * k, 13.0 * k, col)
+			draw_colored_polygon(PoolVector2Array([c + Vector2(-11, -2) * k, c + Vector2(11, -2) * k, c + Vector2(0, 24) * k]), col)
+			draw_circle(c + Vector2(0, -8) * k, 5.0 * k, Color(0.1, 0.12, 0.2, 0.9))
 		"emote":     # a little dancing figure
 			draw_circle(c + Vector2(0, -22) * k, 7.0 * k, col)
 			draw_line(c + Vector2(0, -14) * k, c + Vector2(0, 8) * k, col, 4.0 * max(k, 0.8))

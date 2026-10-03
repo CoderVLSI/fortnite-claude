@@ -38,6 +38,7 @@ run accounts_test --no-bus --skip-menu
 run perf_test --no-bus --skip-menu
 run farm_test --no-bus --skip-menu
 run vault_test --no-bus --skip-menu
+run team_test --no-bus --skip-menu
 run emote_test --no-bus --skip-menu
 run menu_test
 run pad_test

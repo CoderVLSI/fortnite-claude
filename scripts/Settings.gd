@@ -21,6 +21,9 @@ var loadout := {"skin": "ranger", "pickaxe": "classic", "backbling": "none", "co
 var starter_sprite := "earth"    # the sprite you bring to a match (none / earth / fire / water)
 var damage_numbers := true
 var edit_on_release := false     # builds: false = press Edit once to start and again to confirm; true = hold it and let go to confirm
+var team_size := 1                 # 1 solo, 2 duos, 3 trios, 4 squads
+var friends := []                  # [{name, ip}] saved LAN friends
+var recent := []                   # [{name, ip}] people you played with lately (newest first)
 var emote_wheel := []              # emote ids on the wheel, in order (Locker > Emotes); sanitised in Emotes.sanitize_wheel
 var last_emote := "boogie"
 var padbinds := {}                # action -> controller button (-1 = none); only the ones the player changed
@@ -53,6 +56,9 @@ func load_settings() -> void:
 	if cfg.has_section("keybinds"):
 		for action in cfg.get_section_keys("keybinds"):
 			keybinds[action] = cfg.get_value("keybinds", action, [])
+	team_size = int(clamp(int(cfg.get_value("gameplay", "team_size", team_size)), 1, 4))
+	friends = cfg.get_value("social", "friends", [])
+	recent = cfg.get_value("social", "recent", [])
 	emote_wheel = Array(str(cfg.get_value("gameplay", "emote_wheel", "")).split(",", false))
 	last_emote = str(cfg.get_value("gameplay", "last_emote", last_emote))
 	if cfg.has_section("padbinds"):
@@ -62,6 +68,44 @@ func load_settings() -> void:
 	matches = int(cfg.get_value("profile", "matches", matches))
 	wins = int(cfg.get_value("profile", "wins", wins))
 	elims = int(cfg.get_value("profile", "elims", elims))
+
+
+func is_friend(ip: String, friend_name: String = "") -> bool:
+	for f in friends:
+		if f.ip == ip or (friend_name != "" and str(f.name).to_lower() == friend_name.to_lower()):
+			return true
+	return false
+
+
+func add_friend(friend_name: String, ip: String) -> void:
+	ip = ip.strip_edges()
+	friend_name = friend_name.strip_edges().substr(0, 14)
+	if ip == "" or is_friend(ip):
+		return
+	friends.append({"name": friend_name if friend_name != "" else ip, "ip": ip})
+	save_settings()
+
+
+func remove_friend(ip: String) -> void:
+	for i in range(friends.size()):
+		if friends[i].ip == ip:
+			friends.remove(i)
+			break
+	save_settings()
+
+
+# Remember who you played with (shown under Friends > Recent players).
+func add_recent(player_name: String, ip: String) -> void:
+	if ip == "" or ip == "127.0.0.1":
+		return
+	for i in range(recent.size()):
+		if recent[i].ip == ip:
+			recent.remove(i)
+			break
+	recent.push_front({"name": player_name, "ip": ip})
+	while recent.size() > 8:
+		recent.pop_back()
+	save_settings()
 
 
 func save_settings() -> void:
@@ -81,6 +125,9 @@ func save_settings() -> void:
 	cfg.set_value("gameplay", "edit_hold_to_confirm", edit_on_release)
 	for action in keybinds:
 		cfg.set_value("keybinds", action, keybinds[action])
+	cfg.set_value("gameplay", "team_size", team_size)
+	cfg.set_value("social", "friends", friends)
+	cfg.set_value("social", "recent", recent)
 	cfg.set_value("gameplay", "emote_wheel", PoolStringArray(emote_wheel).join(","))
 	cfg.set_value("gameplay", "last_emote", last_emote)
 	for action in padbinds:

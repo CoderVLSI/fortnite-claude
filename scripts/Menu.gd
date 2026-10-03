@@ -31,6 +31,15 @@ var root: Control
 var sprite_button: Button
 var tab_underline: ColorRect
 var party_panel: Panel
+var friends_panel: Panel
+var friends_body: Control
+var friends_fields := {}
+var mode_title: Label
+var mode_prev: Button
+var mode_next: Button
+var invite_banner: Panel
+var invite_label: Label
+var _invite := {}
 var party_body: Control
 var party_error: Label
 var party_fields := {}
@@ -264,11 +273,11 @@ func _build_title() -> Control:
 		p.add_child(logo)
 	var tabs := HBoxContainer.new()
 	tabs.add_constant_override("separation", 6)
-	_place(tabs, 0.5, 0.0, Vector2(-405, 8), Vector2(810, 50))
+	_place(tabs, 0.5, 0.0, Vector2(-476, 8), Vector2(952, 50))
 	p.add_child(tabs)
 	var clear := _flat(Color(0, 0, 0, 0))
 	var soft := _flat(Color(1, 1, 1, 0.12))
-	for t in [["LOBBY", "lobby"], ["LOCKER", "locker"], ["PROFILE", "profile"], ["PARTY", "party"], ["HOW TO PLAY", "help"], ["SETTINGS", "settings_title"]]:
+	for t in [["LOBBY", "lobby"], ["LOCKER", "locker"], ["PROFILE", "profile"], ["PARTY", "party"], ["FRIENDS", "friends"], ["HOW TO PLAY", "help"], ["SETTINGS", "settings_title"]]:
 		var b := Button.new()
 		b.text = t[0]
 		b.rect_min_size = Vector2(130, 50)
@@ -277,7 +286,7 @@ func _build_title() -> Control:
 		tabs.add_child(b)
 	var underline := ColorRect.new()       # marks the active LOBBY tab
 	underline.color = gold
-	_place(underline, 0.5, 0.0, Vector2(-405 + 8, 58), Vector2(114, 4))
+	_place(underline, 0.5, 0.0, Vector2(-476 + 8, 58), Vector2(114, 4))
 	tab_underline = underline
 	underline.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	p.add_child(underline)
@@ -340,6 +349,19 @@ func _build_title() -> Control:
 	var solo := _label("SOLO", 38, Color.white)
 	solo.rect_position = Vector2(22, 32)
 	mode.add_child(solo)
+	mode_title = solo
+	mode_prev = Button.new()
+	mode_prev.text = "<"
+	mode_prev.rect_position = Vector2(300, 36)
+	mode_prev.rect_size = Vector2(54, 44)
+	mode_prev.connect("pressed", self, "_cycle_mode", [-1])
+	mode.add_child(mode_prev)
+	mode_next = Button.new()
+	mode_next.text = ">"
+	mode_next.rect_position = Vector2(366, 36)
+	mode_next.rect_size = Vector2(54, 44)
+	mode_next.connect("pressed", self, "_cycle_mode", [1])
+	mode.add_child(mode_next)
 	mode_info = _label("", 16, Color(0.85, 0.9, 1.0))
 	mode_info.rect_position = Vector2(24, 82)
 	mode.add_child(mode_info)
@@ -365,6 +387,7 @@ func _build_title() -> Control:
 	_build_locker(p)
 	_build_profile(p)
 	_build_party(p)
+	_build_friends(p)
 	return p
 
 
@@ -647,6 +670,195 @@ func _build_party(parent: Control) -> void:
 	wait_panel.add_child(wait_label)
 
 
+func _build_friends(parent: Control) -> void:
+	friends_panel = Panel.new()
+	friends_panel.add_stylebox_override("panel", _flat(Color(0.03, 0.05, 0.13, 1.0), Color(1, 1, 1, 0.25), 10, 2))
+	_place(friends_panel, 0.0, 0.0, Vector2(26, 80), Vector2(540, 630))
+	friends_panel.visible = false
+	parent.add_child(friends_panel)
+	friends_body = Control.new()
+	friends_body.rect_size = Vector2(540, 630)
+	friends_panel.add_child(friends_body)
+	Net.connect("invited", self, "_on_invited")
+	Net.connect("games_found", self, "_on_friends_games")
+	invite_banner = Panel.new()
+	invite_banner.add_stylebox_override("panel", _flat(Color(0.05, 0.12, 0.28, 0.96), Color(0.5, 0.8, 1.0, 0.8), 10, 2))
+	_place(invite_banner, 0.5, 0.0, Vector2(-330, 84), Vector2(660, 70))
+	invite_banner.visible = false
+	root.add_child(invite_banner)
+	invite_label = _label("", 20, Color.white)
+	invite_label.rect_position = Vector2(18, 20)
+	invite_banner.add_child(invite_label)
+	var jb := Button.new()
+	jb.text = "JOIN"
+	jb.rect_position = Vector2(470, 12)
+	jb.rect_size = Vector2(90, 46)
+	jb.connect("pressed", self, "_accept_invite")
+	invite_banner.add_child(jb)
+	var xb := Button.new()
+	xb.text = "X"
+	xb.rect_position = Vector2(572, 12)
+	xb.rect_size = Vector2(70, 46)
+	xb.connect("pressed", self, "_dismiss_invite")
+	invite_banner.add_child(xb)
+
+
+func _fr_clear() -> void:
+	for ch in friends_body.get_children():
+		friends_body.remove_child(ch)
+		ch.queue_free()
+	friends_fields.clear()
+
+
+func _fr_label(text: String, size: int, pos: Vector2, color: Color = Color.white, parent: Control = null) -> Label:
+	var l := _label(text, size, color)
+	l.rect_position = pos
+	(parent if parent != null else friends_body).add_child(l)
+	return l
+
+
+func _fr_button(text: String, pos: Vector2, size: Vector2, method: String, args: Array = [], parent: Control = null) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.rect_position = pos
+	b.rect_size = size
+	b.connect("pressed", self, method, args)
+	(parent if parent != null else friends_body).add_child(b)
+	return b
+
+
+# Friends are saved on this device: name + the IP of their machine. A friend who is hosting on your network shows up as
+# HOSTING with a JOIN button; when you host, INVITE pops a message up on their screen.
+func friends_show() -> void:
+	_fr_clear()
+	Net.start_discovery()
+	_fr_label("FRIENDS", 30, Vector2(24, 14), Color(1.0, 0.82, 0.25))
+	_fr_label("Same Wi-Fi / network. Add a friend once, then join or invite them from here.", 14, Vector2(24, 54), Color(0.85, 0.9, 1.0))
+	var ne := LineEdit.new()
+	ne.rect_position = Vector2(24, 86)
+	ne.rect_size = Vector2(150, 42)
+	ne.placeholder_text = "name"
+	ne.max_length = 14
+	friends_body.add_child(ne)
+	friends_fields["name"] = ne
+	var ie := LineEdit.new()
+	ie.rect_position = Vector2(182, 86)
+	ie.rect_size = Vector2(210, 42)
+	ie.placeholder_text = "their IP, e.g. 192.168.1.21"
+	friends_body.add_child(ie)
+	friends_fields["ip"] = ie
+	_fr_button("ADD", Vector2(400, 86), Vector2(116, 42), "_friend_add")
+	var scroll := ScrollContainer.new()
+	scroll.follow_focus = true
+	scroll.rect_position = Vector2(14, 140)
+	scroll.rect_size = Vector2(512, 470)
+	scroll.scroll_horizontal_enabled = false
+	friends_body.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.add_constant_override("separation", 6)
+	list.rect_min_size = Vector2(490, 10)
+	scroll.add_child(list)
+	var head := _label("YOUR FRIENDS" if not Settings.friends.empty() else "NO FRIENDS YET - add one above, or pick from recent players", 15, Color(0.65, 0.78, 1.0))
+	list.add_child(head)
+	for f in Settings.friends:
+		_friend_row(list, f, true)
+	var shown := 0
+	var recent_head: Label = null
+	for r in Settings.recent:
+		if Settings.is_friend(r.ip):
+			continue
+		if shown == 0:
+			recent_head = _label("RECENT PLAYERS", 15, Color(0.65, 0.78, 1.0))
+			list.add_child(recent_head)
+		_friend_row(list, r, false)
+		shown += 1
+		if shown >= 5:
+			break
+
+
+func _friend_row(list: Control, f: Dictionary, saved: bool) -> void:
+	var row := Panel.new()
+	row.add_stylebox_override("panel", _flat(Color(0.08, 0.12, 0.26, 0.9), Color(1, 1, 1, 0.15), 6, 1))
+	row.rect_min_size = Vector2(490, 62)
+	list.add_child(row)
+	var hosting := false
+	var info: Dictionary = {}
+	for ip in Net.sessions.keys():
+		if ip == f.ip or str(Net.sessions[ip].name).to_lower() == str(f.name).to_lower():
+			hosting = true
+			info = Net.sessions[ip]
+			info["ip"] = ip
+			break
+	_fr_label(str(f.name), 20, Vector2(12, 6), Color(1, 1, 1), row)
+	var status := "hosting a game on your network" if hosting else f.ip
+	_fr_label(status, 13, Vector2(12, 36), Color(0.55, 1.0, 0.65) if hosting else Color(0.65, 0.7, 0.85), row)
+	var x := 372.0
+	if saved:
+		_fr_button("X", Vector2(x + 84, 10), Vector2(36, 42), "_friend_remove", [f.ip], row)
+		if hosting and not Net.is_host:
+			_fr_button("JOIN", Vector2(x - 90, 10), Vector2(86, 42), "party_join_friend", [info.get("ip", f.ip), int(info.get("port", Net.PORT))], row)
+		elif Net.is_host:
+			_fr_button("INVITE", Vector2(x - 90, 10), Vector2(86, 42), "_friend_invite", [f.ip], row)
+	else:
+		_fr_button("+ FRIEND", Vector2(x - 20, 10), Vector2(120, 42), "_friend_add_recent", [str(f.name), f.ip], row)
+
+
+func _friend_add() -> void:
+	var nm: String = friends_fields["name"].text
+	var ip: String = friends_fields["ip"].text
+	Settings.add_friend(nm, ip)
+	friends_show()
+
+
+func _friend_add_recent(nm: String, ip: String) -> void:
+	Settings.add_friend(nm, ip)
+	friends_show()
+
+
+func _friend_remove(ip: String) -> void:
+	Settings.remove_friend(ip)
+	friends_show()
+
+
+func _friend_invite(ip: String) -> void:
+	Net.send_invite(ip, Settings.player_name)
+	Audio.play2d("ui_click", -6.0)
+
+
+func party_join_friend(ip: String, port: int) -> void:
+	_on_button("party")
+	party_join_ip(ip, port)
+
+
+func _on_friends_games() -> void:
+	if friends_panel != null and friends_panel.visible:
+		friends_show()
+
+
+# Somebody on the LAN invited us.
+func _on_invited(ip: String, host_name: String, port: int) -> void:
+	if Net.active or state != "title":
+		return
+	_invite = {"ip": ip, "port": port, "name": host_name}
+	invite_label.text = "%s invited you to a party" % host_name
+	invite_banner.visible = true
+	Audio.play2d("ui_click", -2.0, 1.4)
+
+
+func _accept_invite() -> void:
+	invite_banner.visible = false
+	if _invite.empty():
+		return
+	Settings.add_recent(str(_invite.name), str(_invite.ip))
+	party_join_friend(str(_invite.ip), int(_invite.port))
+	_invite = {}
+
+
+func _dismiss_invite() -> void:
+	invite_banner.visible = false
+	_invite = {}
+
+
 func show_waiting(text: String) -> void:
 	state = "waiting"
 	_show_none()
@@ -751,9 +963,16 @@ func _party_view() -> void:
 	var y := 96.0
 	var ids := Net.members.keys()
 	ids.sort()
+	if Net.team_size > 1:
+		_pt_label("MODE: %s  -  teams of %d, no friendly fire" % [MODE_NAMES[Net.team_size - 1], Net.team_size], 15, Vector2(24, y - 8), Color(0.55, 1.0, 0.65))
+		y += 22.0
+	var idx := 0
 	for id in ids:
 		var m: Dictionary = Net.members[id]
 		_pt_label("%s%s" % [m.name, "   (host)" if id == 1 else ""] + ("   (you)" if id == Net.my_id else ""), 22, Vector2(24, y))
+		if Net.team_size > 1:
+			_pt_label("TEAM %d" % (int(idx / Net.team_size) + 1), 16, Vector2(430, y + 6), Color(0.55, 1.0, 0.65))
+		idx += 1
 		y += 38.0
 	_pt_label("%d player%s + %d bots" % [Net.human_count(), "" if Net.human_count() == 1 else "s", max(Net.TOTAL_FIGHTERS - Net.human_count(), 0)], 15, Vector2(24, y + 6), Color(0.65, 0.78, 1.0))
 	party_error = _pt_label("", 15, Vector2(24, 520), Color(1.0, 0.45, 0.4))
@@ -768,6 +987,7 @@ func party_host() -> void:
 		if party_error != null:
 			party_error.text = err
 		return
+	Net.set_team_size(Settings.team_size)
 	Audio.play2d("loot_pickup", -6.0)
 	party_show("party")
 
@@ -799,6 +1019,8 @@ func party_leave() -> void:
 
 
 func _on_party_changed() -> void:
+	if mode_title != null:
+		_refresh_lobby()
 	if party_panel != null and party_panel.visible and Net.active:
 		party_show("party")
 
@@ -834,7 +1056,7 @@ func _on_match_starting() -> void:
 # ------------------------------------------------------------------ account / profile
 
 func _move_underline(idx: int) -> void:
-	tab_underline.margin_left = -405 + 8 + 136 * idx
+	tab_underline.margin_left = -476 + 8 + 136 * idx
 	tab_underline.margin_right = tab_underline.margin_left + 114
 
 
@@ -979,7 +1201,7 @@ func profile_sign_out() -> void:
 
 # A different profile is active: the lobby shows its name, stats and Locker.
 func _side_panels(show: Control) -> void:
-	for pn in [locker_panel, profile_panel, party_panel]:
+	for pn in [locker_panel, profile_panel, party_panel, friends_panel]:
 		pn.visible = (pn == show)
 	if show != party_panel:
 		Net.stop_discovery()
@@ -1234,6 +1456,20 @@ func _show_none() -> void:
 	pause_panel.visible = false
 
 
+const MODE_NAMES := ["SOLO", "DUOS", "TRIOS", "SQUADS"]
+
+
+func _cycle_mode(dir: int) -> void:
+	if Net.active and not Net.is_host:
+		return
+	Settings.team_size = int(posmod(Settings.team_size - 1 + dir, 4)) + 1
+	Settings.save_settings()
+	if Net.active:
+		Net.set_team_size(Settings.team_size)
+	Audio.play2d("ui_click", -6.0)
+	_refresh_lobby()
+
+
 func _refresh_lobby() -> void:
 	stat_labels["matches"].text = str(Accounts.stat("matches"))
 	stat_labels["wins"].text = str(Accounts.stat("wins"))
@@ -1243,13 +1479,19 @@ func _refresh_lobby() -> void:
 	if card_sub != null:
 		card_sub.text = "LEVEL %d   -   %s" % [Accounts.level(), "GUEST (click to sign in)" if Accounts.is_guest() else Accounts.email()]
 	var bots: int = world.profile.get("bots", 24) if world != null else 24
-	mode_info.text = "%d players  -  shrinking storm  -  Mythic boss" % (bots + 1)
+	var size: int = Net.team_size if Net.active else Settings.team_size
+	mode_title.text = MODE_NAMES[size - 1] + ("  (host)" if Net.active and not Net.is_host else "")
+	var can_pick: bool = not Net.active or Net.is_host
+	mode_prev.disabled = not can_pick
+	mode_next.disabled = not can_pick
+	mode_info.text = "%d players  -  %s  -  shrinking storm" % [bots + 1, "everyone for themselves" if size == 1 else "teams of %d, no friendly fire" % size]
 
 
 # The very first screen: the lightning title splash. Press the interact key (E) / tap to continue to the lobby.
 func show_splash() -> void:
 	state = "splash"
 	_show_none()
+	get_viewport().disable_3d = true          # the splash picture covers the whole screen: do not render the island behind it
 	get_tree().paused = true
 	Controls.capture_mouse(false)
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
@@ -1263,6 +1505,8 @@ func show_title() -> void:
 	if Net.active and not Net.in_match and party_panel != null:
 		call_deferred("_on_button", "party")
 	state = "title"
+	Net.listen_for_invites = true
+	get_viewport().disable_3d = false
 	_refresh_lobby()
 	_show_none()
 	title_panel.visible = true
@@ -1277,6 +1521,8 @@ func show_title() -> void:
 
 
 func start_game() -> void:
+	Net.listen_for_invites = false
+	get_viewport().disable_3d = false
 	state = "hidden"
 	_show_none()
 	get_tree().paused = false
@@ -1359,6 +1605,11 @@ func _on_button(id: String) -> void:
 			_side_panels(profile_panel)
 			_move_underline(2)
 			profile_show("home")
+		"friends":
+			_title_tab = 4
+			_side_panels(friends_panel)
+			_move_underline(4)
+			friends_show()
 		"party":
 			_title_tab = 3
 			_side_panels(party_panel)
@@ -1511,7 +1762,7 @@ func _pad_press_of(event: InputEvent) -> int:
 	return -2
 
 
-const TITLE_TABS := ["lobby", "locker", "profile", "party"]
+const TITLE_TABS := ["lobby", "locker", "profile", "party", "friends"]
 const SETTINGS_TABS := ["audio", "graphics", "controls", "gameplay"]
 
 

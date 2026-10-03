@@ -1130,6 +1130,65 @@ func break_pieces_near(pos: Vector3, radius: float, broadcast: bool = true) -> v
 		Net.send_event("bnear", [pos, radius])
 
 
+# ------------------------------------------------------------------ pings
+
+# The player pings what the crosshair is on: an enemy, something to pick up, or just a spot to go to.
+func player_ping() -> void:
+	if player == null or player.is_dead or _ping_cd > 0.0 or player.camera == null:
+		return
+	var cam: Camera = player.camera
+	var centre: Vector2 = get_viewport().get_visible_rect().size / 2.0
+	var from: Vector3 = cam.project_ray_origin(centre)
+	var to: Vector3 = from + cam.project_ray_normal(centre) * 420.0
+	var hit := get_world().direct_space_state.intersect_ray(from, to, [player], 3)
+	if not hit:
+		if hud != null:
+			hud.show_toast("Aim at something to ping it")
+		return
+	var kind := "go"
+	var pos: Vector3 = hit.position
+	var col = hit.collider
+	if col != null and col.is_in_group("fighters") and not player.is_ally(col):
+		kind = "enemy"
+		pos = col.global_transform.origin + Vector3(0, 2.2, 0)
+	elif col != null and col.is_in_group("interactable"):
+		kind = "loot"
+		pos = col.global_transform.origin + Vector3(0, 1.0, 0)
+	add_ping(pos, kind, player.display_name, player.team, true)
+
+
+# From the map: ping a place on the island.
+func map_ping(x: float, z: float) -> void:
+	if player == null or player.is_dead or _ping_cd > 0.0:
+		return
+	add_ping(Vector3(x, terrain.height_at(x, z) + 1.5, z), "go", player.display_name, player.team, true)
+
+
+func add_ping(pos: Vector3, kind: String, owner: String, team: int, local: bool) -> void:
+	if local:
+		_ping_cd = 0.35
+		if net_live:
+			Net.send_event("ping", [pos, kind, owner, team])
+	elif team < 0 or player == null or player.team != team:
+		return                                       # only your team sees its pings
+	var mine := 0
+	for i in range(pings.size() - 1, -1, -1):
+		if pings[i].owner == owner:
+			mine += 1
+			if mine >= 3:
+				pings.remove(i)
+	pings.append({"pos": pos, "kind": kind, "owner": owner, "team": team, "t": 12.0, "mine": local})
+	Audio.play2d("hitmarker", -6.0, 1.7 if local else 1.4)
+
+
+func _ping_tick(delta: float) -> void:
+	_ping_cd = max(0.0, _ping_cd - delta)
+	for i in range(pings.size() - 1, -1, -1):
+		pings[i].t -= delta
+		if pings[i].t <= 0.0:
+			pings.remove(i)
+
+
 # ------------------------------------------------------------------ weak points
 
 var _wp_key := ""
@@ -1363,7 +1422,15 @@ func _find_spawn(taken: Array, min_dist: float, rmin: float, rmax: float) -> Vec
 	return best
 
 
+var team_size := 1
+var pings := []                    # [{pos, kind, owner, team, t, mine}] visible on the screen, the minimap and the map
+var _ping_cd := 0.0
+var _spawn_order := []              # humans first (party order), then bots: teams are cut from this list
+
+
 func _spawn_fighters() -> void:
+	team_size = Net.team_size if net_match else Settings.team_size
+	_spawn_order = []
 	var taken := []
 	var humans: Array = Net.order if net_match else [0]
 	for hi in range(humans.size()):
@@ -1376,6 +1443,7 @@ func _spawn_fighters() -> void:
 			player.map_half = MAP_HALF - 4.0
 			player.translation = _spawn_point(ppos)
 			add_child(player)
+			_spawn_order.append(player)
 			player.rotation.y = atan2(ppos.x, ppos.y)      # face the island centre
 			player.connect("died", self, "_on_fighter_died")
 			if net_match:
@@ -1390,6 +1458,7 @@ func _spawn_fighters() -> void:
 			rp.map_half = MAP_HALF - 4.0
 			rp.translation = _spawn_point(ppos)
 			add_child(rp)
+			_spawn_order.append(rp)
 	for i in range(profile.bots):
 		var p := _find_spawn(taken, 32.0, 0.1, 0.78)
 		taken.append(p)
@@ -1409,8 +1478,10 @@ func _spawn_fighters() -> void:
 		if net_match and not Net.is_host:
 			bot.net_owner = 1                  # the host runs the bots; here they are puppets
 		add_child(bot)
+		_spawn_order.append(bot)
 		bot.rotation.y = rng.randf() * TAU
 		bot.connect("died", self, "_on_fighter_died")
+	_assign_teams()
 
 
 func _start_bus() -> void:
@@ -1436,6 +1507,28 @@ func _on_bus_finished() -> void:
 		if f.mode == 1:
 			f.leave_bus()
 	storm.active = true
+
+
+# Duos / trios / squads: the first `team_size` fighters (humans first) are team 0, the next team 1, and so on.
+func _assign_teams() -> void:
+	for i in range(_spawn_order.size()):
+		_spawn_order[i].team = int(i / team_size) if team_size > 1 else -1
+
+
+# Teams (or lone fighters in solo) that still have someone standing.
+func alive_teams() -> int:
+	var seen := {}
+	for f in get_tree().get_nodes_in_group("fighters"):
+		if not f.is_dead:
+			seen[f.team if f.team >= 0 else -1000 - f.get_instance_id()] = true
+	return seen.size()
+
+
+func allies_alive(of) -> bool:
+	for f in get_tree().get_nodes_in_group("fighters"):
+		if f != of and not f.is_dead and of.is_ally(f):
+			return true
+	return false
 
 
 func alive_count() -> int:
@@ -1537,6 +1630,7 @@ func _audio_process(delta: float) -> void:
 
 func _process(delta: float) -> void:
 	_weak_tick(delta)
+	_ping_tick(delta)
 	if net_live:
 		_net_process(delta)
 	_audio_process(delta)
@@ -1594,14 +1688,23 @@ func _on_fighter_died(victim, killer) -> void:
 
 	if match_over:
 		return
-	if victim == player:
+	var teams := alive_teams()
+	if player.is_dead and not allies_alive(player):
 		match_over = true
-		_record_match(false, alive + 1)
-		get_tree().create_timer(1.8).connect("timeout", hud, "show_end", [false, alive + 1, player.kills])
-	elif alive <= 1 and not player.is_dead:
+		_record_match(false, teams + 1)
+		get_tree().create_timer(1.8).connect("timeout", hud, "show_end", [false, teams + 1, player.kills])
+	elif teams <= 1:
 		match_over = true
 		_record_match(true, 1)
 		get_tree().create_timer(1.2).connect("timeout", hud, "show_end", [true, 1, player.kills])
+	elif victim == player:
+		hud.show_toast("Your team fights on - spectating a teammate")
+		get_tree().create_timer(1.6).connect("timeout", self, "_spectate_ally")
+
+
+func _spectate_ally() -> void:
+	if player != null and player.is_dead and not match_over and not spectating:
+		start_spectating()
 
 
 var _match_start_ms := 0
@@ -1804,6 +1907,8 @@ func net_event(from: int, kind: String, data) -> void:
 				_prop_hit(data[1], int(data[2]), data[3], null, Vector3.ZERO, int(data[4]))
 		"bnear":
 			break_pieces_near(data[0], data[1], false)
+		"ping":
+			add_ping(data[0], data[1], data[2], int(data[3]), false)
 		"veh_claim":
 			var vc = net_nodes.get(data)
 			if vc != null and is_instance_valid(vc):
@@ -1869,6 +1974,13 @@ func cycle_spectate(dir: int) -> void:
 	for f in get_tree().get_nodes_in_group("fighters"):
 		if f != player and not f.is_dead:
 			living.append(f)
+	if player != null and player.team >= 0:
+		var mates := []
+		for f in living:
+			if player.is_ally(f):
+				mates.append(f)
+		if not mates.empty():
+			living = mates                      # a team member watches their own team
 	if living.empty():
 		stop_spectating()
 		return

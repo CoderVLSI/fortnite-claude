@@ -301,7 +301,7 @@ func _find_target(origin: Vector3):
 	var best = null
 	var best_d := SIGHT_RANGE
 	for f in get_tree().get_nodes_in_group("fighters"):
-		if f == self or f.is_dead:
+		if f == self or f.is_dead or is_ally(f):
 			continue
 		var d := origin.distance_to(f.global_transform.origin)
 		if f.cloak_t > 0.0 and d > 7.0:          # a Ghost Sprite's cloak hides you from afar

@@ -18,6 +18,7 @@ signal left(reason)                  # the session ended (host left, kicked, con
 signal match_starting                # the host started the match: load the world
 signal match_go                      # all worlds are built: start now
 signal games_found                   # LAN discovery list changed
+signal invited(ip, host_name, port)  # a friend invited us to their party
 
 const VERSION := "storm-island-lan-2"
 const PORT := 7777
@@ -34,6 +35,10 @@ var match_seed := 0
 var bot_count := 49
 var order := []                      # peer ids in the order they take spawn points
 var handler: Node = null             # the World: receives pose / events while a match runs
+var team_size := 1                   # 1 solo, 2 duos, 3 trios, 4 squads (the host decides)
+var listen_for_invites := false      # the menu is up: keep the LAN port open so invites and games show up
+var peer_ips := {}                   # peer id -> address (host side)
+var _joined_ip := ""
 var sessions := {}                   # LAN discovery: ip -> {"name", "players", "port", "seen"}
 var last_error := ""
 
@@ -48,6 +53,7 @@ var _loot_seq := 0
 
 
 func _ready() -> void:
+	pause_mode = Node.PAUSE_MODE_PROCESS          # the lobby / party menus pause the tree: discovery, announcing and RPCs must keep running
 	var tree := get_tree()
 	tree.connect("network_peer_connected", self, "_on_peer_connected")
 	tree.connect("network_peer_disconnected", self, "_on_peer_disconnected")
@@ -57,6 +63,12 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	_retry_t = max(0.0, _retry_t - delta)
+	if listen_for_invites and _udp_in == null and not in_match and _retry_t <= 0.0:
+		_retry_t = 2.0
+		_open_listener()
+	elif not listen_for_invites and _udp_in != null and not active and not _discovery_wanted:
+		stop_discovery()
 	if _udp_out != null and is_host and not in_match:
 		_announce_t -= delta
 		if _announce_t <= 0.0:
@@ -68,6 +80,8 @@ func _process(delta: float) -> void:
 			var text := _udp_in.get_packet().get_string_from_utf8()
 			var ip := _udp_in.get_packet_ip()
 			var parts := text.split("|")
+			if parts.size() >= 4 and parts[0] == "IV" and parts[1] == VERSION and ip != "":
+				emit_signal("invited", ip, parts[2], int(parts[3]))
 			if parts.size() >= 5 and parts[0] == "SI" and ip != "":
 				sessions[ip] = {"name": parts[2], "players": int(parts[3]), "port": int(parts[4]), "version": parts[1], "seen": OS.get_ticks_msec()}
 				emit_signal("games_found")
@@ -129,7 +143,20 @@ func join_game(ip: String, player_name: String, loadout: Dictionary, port: int =
 	in_match = false
 	_my_name = player_name
 	_my_loadout = loadout.duplicate()
+	_joined_ip = ip.strip_edges()
 	return ""
+
+
+# Host: solo / duos / trios / squads. Everybody in the party sees the choice.
+func set_team_size(n: int) -> void:
+	team_size = int(clamp(n, 1, 4))
+	if active and is_host:
+		rpc("_set_team_size", team_size)
+
+
+remote func _set_team_size(n: int) -> void:
+	team_size = int(clamp(n, 1, 4))
+	emit_signal("party_changed")
 
 
 func leave(reason: String = "") -> void:
@@ -146,6 +173,8 @@ func leave(reason: String = "") -> void:
 	in_match = false
 	members = {}
 	order = []
+	peer_ips = {}
+	_joined_ip = ""
 	handler = null
 	_ready_peers = {}
 	if was:
@@ -166,15 +195,36 @@ func _stop_announce() -> void:
 		_udp_out = null
 
 
+var _discovery_wanted := false
+var _retry_t := 0.0
+
+
+# Tell a friend's game (same LAN) that we are hosting: it pops up an invite.
+func send_invite(ip: String, my_name: String) -> void:
+	if not is_host or ip.strip_edges() == "":
+		return
+	var u := PacketPeerUDP.new()
+	u.set_dest_address(ip.strip_edges(), DISCOVERY_PORT)
+	u.put_packet(("IV|%s|%s|%d" % [VERSION, my_name, PORT]).to_utf8())
+	u.close()
+
+
 func start_discovery() -> void:
-	stop_discovery()
+	_discovery_wanted = true
+	stop_discovery(false)
 	sessions = {}
+	_open_listener()
+
+
+func _open_listener() -> void:
 	_udp_in = PacketPeerUDP.new()
 	if _udp_in.listen(DISCOVERY_PORT, "*") != OK:
 		_udp_in = null
 
 
-func stop_discovery() -> void:
+func stop_discovery(clear_want: bool = true) -> void:
+	if clear_want:
+		_discovery_wanted = false
 	if _udp_in != null:
 		_udp_in.close()
 		_udp_in = null
@@ -183,7 +233,8 @@ func stop_discovery() -> void:
 # ------------------------------------------------------------------ connection callbacks
 
 func _on_peer_connected(id: int) -> void:
-	pass          # the newcomer says hello, then we add them
+	if is_host and _peer != null:
+		peer_ips[id] = _peer.get_peer_address(id)          # the newcomer says hello, then we add them
 
 
 func _on_peer_disconnected(id: int) -> void:
@@ -233,8 +284,11 @@ remote func _hello(version: String, player_name: String, loadout: Dictionary) ->
 		_peer.disconnect_peer(id)
 		return
 	members[id] = {"name": player_name.substr(0, 14), "loadout": loadout, "ready": false}
+	if peer_ips.has(id):
+		Settings.add_recent(members[id].name, str(peer_ips[id]))
 	rpc("_party_update", members)
 	rpc_id(id, "_accepted")
+	rpc_id(id, "_set_team_size", team_size)
 	emit_signal("party_changed")
 
 
@@ -249,6 +303,8 @@ remote func _accepted() -> void:
 
 remote func _party_update(m: Dictionary) -> void:
 	members = m
+	if not is_host and _joined_ip != "" and m.has(1):
+		Settings.add_recent(str(m[1].name), _joined_ip)
 	emit_signal("party_changed")
 
 
@@ -284,11 +340,12 @@ func start_match(seed_value: int = 0) -> void:
 	ids.sort()
 	var seed_v: int = seed_value if seed_value != 0 else int(randi() % 2000000000) + 1
 	var bots: int = int(max(TOTAL_FIGHTERS - ids.size(), 0))
-	rpc("_begin_match", seed_v, bots, ids)
-	_begin_match(seed_v, bots, ids)
+	rpc("_begin_match", seed_v, bots, ids, team_size)
+	_begin_match(seed_v, bots, ids, team_size)
 
 
-remote func _begin_match(seed_v: int, bots: int, ids: Array) -> void:
+remote func _begin_match(seed_v: int, bots: int, ids: Array, tsize: int = 1) -> void:
+	team_size = tsize
 	match_seed = seed_v
 	bot_count = bots
 	order = ids.duplicate()

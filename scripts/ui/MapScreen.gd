@@ -40,6 +40,17 @@ func _process(_delta: float) -> void:
 		update()
 
 
+# Click (or tap) the map to ping that place for your team.
+func _gui_input(event: InputEvent) -> void:
+	if visible and event is InputEventMouseButton and event.pressed and event.button_index == BUTTON_LEFT and world != null:
+		var half: float = world.terrain.half
+		var s := rect_size.x / (half * 2.0)
+		var w: Vector2 = (event.position - rect_size / 2.0) / s
+		if abs(w.x) < half and abs(w.y) < half:
+			world.map_ping(w.x, w.y)
+			accept_event()
+
+
 func _draw() -> void:
 	if world == null or world.player == null:
 		return
@@ -94,6 +105,20 @@ func _draw() -> void:
 
 	_draw_labels(font)                      # names go on top of the icons, nudged apart so none overlap
 
+	for f in get_tree().get_nodes_in_group("fighters"):            # teammates
+		if f != world.player and not f.is_dead and world.player.is_ally(f):
+			var tp := Vector2(f.global_transform.origin.x, f.global_transform.origin.z)
+			draw_circle(mid + tp * s, 7.0, Color(0.3, 1.0, 0.45))
+			draw_arc(mid + tp * s, 7.0, 0, TAU, 16, Color.white, 2.0)
+			draw_string(font, mid + tp * s + Vector2(10, 5), str(f.display_name), Color(0.7, 1.0, 0.75))
+	for pg in world.pings:
+		var gp := mid + Vector2(pg.pos.x, pg.pos.z) * s
+		var gc: Color = {"go": Color(0.35, 0.85, 1.0), "enemy": Color(1.0, 0.3, 0.25), "loot": Color(1.0, 0.85, 0.25)}.get(pg.kind, Color.white)
+		draw_colored_polygon(PoolVector2Array([gp + Vector2(0, -11), gp + Vector2(9, 0), gp + Vector2(0, 11), gp + Vector2(-9, 0)]), gc)
+		draw_polyline(PoolVector2Array([gp + Vector2(0, -11), gp + Vector2(9, 0), gp + Vector2(0, 11), gp + Vector2(-9, 0), gp + Vector2(0, -11)]), Color(0, 0, 0, 0.8), 2.0)
+		if pg.owner != "":
+			draw_string(font, gp + Vector2(12, 5), str(pg.owner), gc)
+
 	var p = world.player
 	var pp := Vector2(p.global_transform.origin.x, p.global_transform.origin.z)
 	var fwd := Vector2(-sin(p.rotation.y), -cos(p.rotation.y))
@@ -101,7 +126,7 @@ func _draw() -> void:
 	var c := mid + pp * s
 	draw_colored_polygon(PoolVector2Array([c + fwd * 12.0, c - fwd * 7.0 + perp * 7.5, c - fwd * 7.0 - perp * 7.5]), Color(1, 1, 1))
 	draw_rect(Rect2(Vector2.ZERO, rect_size), Color(1, 1, 1, 0.7), false, 3.0)
-	var title := "ISLAND MAP   [M] close"
+	var title := "ISLAND MAP   [M] close   click: ping a spot"
 	draw_string(font, Vector2(12, 26), title, Color(1, 1, 1, 0.9))
 
 

@@ -11,20 +11,32 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
-	var want: bool = get_tree().get_nodes_in_group("remote_players").size() > 0
+	var want: bool = get_tree().get_nodes_in_group("remote_players").size() > 0 or (player != null and player.team >= 0)
 	if visible != want:
 		visible = want
 	if want:
 		update()
 
 
+# Teammates (human or bot) and, in solo, the other people in the party.
+func _tagged() -> Array:
+	var out := []
+	for f in get_tree().get_nodes_in_group("fighters"):
+		if f == player or f.is_dead:
+			continue
+		if player != null and player.team >= 0:
+			if player.is_ally(f):
+				out.append(f)
+		elif f.is_in_group("remote_players"):
+			out.append(f)
+	return out
+
+
 func _draw() -> void:
 	var cam := get_viewport().get_camera()
 	if cam == null or font == null:
 		return
-	for f in get_tree().get_nodes_in_group("remote_players"):
-		if f.is_dead:
-			continue
+	for f in _tagged():
 		var pos: Vector3 = f.global_transform.origin + Vector3(0, 2.35, 0)
 		if cam.is_position_behind(pos):
 			continue
@@ -32,11 +44,13 @@ func _draw() -> void:
 		if dist > 140.0:
 			continue
 		var sp: Vector2 = cam.unproject_position(pos)
-		var nm: String = str(f.player_name)
+		var nm: String = str(f.player_name) if "player_name" in f else str(f.display_name)
 		var w: float = font.get_string_size(nm).x
 		var a: float = clamp(1.4 - dist / 120.0, 0.35, 1.0)
 		draw_string(font, sp + Vector2(-w * 0.5 + 1, 1), nm, Color(0, 0, 0, a))
-		draw_string(font, sp + Vector2(-w * 0.5, 0), nm, Color(f.color.r, f.color.g, f.color.b, a).linear_interpolate(Color(1, 1, 1, a), 0.45))
+		var ally: bool = player != null and player.is_ally(f)
+		var tc := Color(0.55, 1.0, 0.6, a) if ally else Color(f.color.r, f.color.g, f.color.b, a).linear_interpolate(Color(1, 1, 1, a), 0.45)
+		draw_string(font, sp + Vector2(-w * 0.5, 0), nm, tc)
 		var frac: float = clamp(f.health / max(f.max_health, 1.0), 0.0, 1.0)
 		draw_rect(Rect2(sp + Vector2(-24, 5), Vector2(48, 4)), Color(0, 0, 0, 0.6 * a))
 		draw_rect(Rect2(sp + Vector2(-24, 5), Vector2(48.0 * frac, 4)), Color(0.35, 0.9, 0.4, a))

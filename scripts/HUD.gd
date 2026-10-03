@@ -16,6 +16,7 @@ const InventoryScreen = preload("res://scripts/ui/InventoryScreen.gd")
 const BuildEditor = preload("res://scripts/ui/BuildEditor.gd")
 const TouchControls = preload("res://scripts/ui/TouchControls.gd")
 const EmoteWheel = preload("res://scripts/ui/EmoteWheel.gd")
+const PingLayer = preload("res://scripts/ui/PingLayer.gd")
 const NameTags = preload("res://scripts/ui/NameTags.gd")
 const FONT_PATH := "res://assets/fonts/DejaVuSans-Bold.ttf"
 
@@ -83,6 +84,8 @@ var _flash := 0.0
 var _toast_t := 0.0
 var _t := 0.0
 var emote_wheel
+var name_tags
+var ping_layer
 var _big_font: DynamicFont
 
 
@@ -219,6 +222,10 @@ func _build() -> void:
 	var tags = NameTags.new()
 	tags.font = root.theme.default_font if root.theme != null else null
 	root.add_child(tags)
+	name_tags = tags
+	ping_layer = PingLayer.new()
+	ping_layer.font = tags.font
+	root.add_child(ping_layer)
 	root.move_child(tags, 0)
 	emote_wheel = EmoteWheel.new()
 	emote_wheel.font = tags.font
@@ -316,6 +323,7 @@ func _build() -> void:
 	touch.connect("bag_pressed", self, "toggle_inventory")
 	touch.connect("edit_pressed", self, "try_edit")
 	touch.connect("emote_pressed", emote_wheel, "open_touch")
+	touch.connect("ping_pressed", self, "_on_ping_pressed")
 	touch.connect("piece_pressed", self, "_on_piece_pressed")
 	touch.connect("material_pressed", self, "_on_material_pressed")
 	root.add_child(touch)
@@ -402,6 +410,8 @@ func bind(world_node) -> void:
 	crosshair.player = player
 	scope_overlay.player = player
 	emote_wheel.player = player
+	name_tags.player = player
+	ping_layer.world = world
 	root.move_child(emote_wheel, root.get_child_count() - 1)
 	inventory.player = player
 	player.connect("harvested", self, "_on_harvested")
@@ -532,6 +542,11 @@ func _on_edit_finished(_confirmed: bool) -> void:
 		touch.visible = Controls.touch_mode and not end_panel.visible
 	if not Controls.touch_mode and not ("--no-capture" in OS.get_cmdline_args()) and not end_panel.visible:
 		Controls.capture_mouse(true)
+
+
+func _on_ping_pressed() -> void:
+	if world != null:
+		world.player_ping()
 
 
 func toggle_map() -> void:
@@ -722,6 +737,8 @@ func _process(delta: float) -> void:
 	_update_poi(delta)
 	if Input.is_action_just_pressed("map"):
 		toggle_map()
+	if Input.is_action_just_pressed("ping") and not inventory.visible and not map_screen.visible and not end_panel.visible and not Controls.menu_open:
+		world.player_ping()
 	if Input.is_action_just_pressed("inventory") and not end_panel.visible:
 		toggle_inventory()
 	if Input.is_action_just_pressed("edit"):
@@ -739,7 +756,7 @@ func _process(delta: float) -> void:
 		close_inventory()
 	_update_prompts()
 	storm_label.text = world.storm.status_text()
-	stats_label.text = "ALIVE %d    KILLS %d" % [world.alive_count(), player.kills]
+	stats_label.text = ("ALIVE %d    TEAMS %d    KILLS %d" % [world.alive_count(), world.alive_teams(), player.kills]) if world.team_size > 1 else ("ALIVE %d    KILLS %d" % [world.alive_count(), player.kills])
 
 	var outside: bool = world.storm.active and not player.is_dead and not world.storm.is_inside(player.global_transform.origin)
 	warn_label.visible = outside

@@ -130,6 +130,7 @@ var forward_speed := 0.0
 var sprinting := false
 var crouching := false            # hold crouch: slower, lower, steadier aim
 var sliding := false              # sprint then crouch: a short momentum slide
+var team := -1                    # -1: everyone for themselves; 0, 1, ...: duos / trios / squads (World._assign_teams)
 var emote_id := "boogie"        # which emote is playing (Emotes.gd)
 var _emote_music := ""
 var _emote_player: AudioStreamPlayer3D
@@ -1348,9 +1349,15 @@ func _spawn_tracer(from: Vector3, to: Vector3) -> void:
 	get_tree().create_timer(0.06).connect("timeout", tracer, "queue_free")
 
 
+func is_ally(other) -> bool:
+	return team >= 0 and other != null and is_instance_valid(other) and "team" in other and other.team == team
+
+
 func take_damage(amount: float, source = null) -> void:
 	if is_dead or mode == Mode.BUS:
 		return
+	if source != self and is_ally(source):
+		return                                # no friendly fire
 	if net_owner != 0:                # a puppet: the machine that owns this character applies the damage
 		if Net.active and Net.in_match:
 			Net.send_damage(net_owner, net_key_v, amount, Net.key_of(source), false)
