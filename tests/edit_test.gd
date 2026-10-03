@@ -128,6 +128,32 @@ func _run() -> void:
 	wall.take_damage(10.0, null)
 	check(wall.health < 150.0 and not wall.is_dead, "an edited wall takes damage")
 
+	# press G once to start editing and again to confirm (no holding)
+	wall.apply_mask([true, true, true, true, true, true, true, true, true])
+	p.global_transform.origin = Vector3(X, y + 1.0, ZP)
+	p.velocity = Vector3.ZERO
+	yield(_frames(30), "completed")
+	p.pitch = aim_pitch
+	p.head.rotation.x = aim_pitch
+	yield(_frames(4), "completed")
+	Input.action_press("edit")
+	for i in range(3):
+		yield(self, "idle_frame")
+	Input.action_release("edit")
+	for i in range(10):
+		yield(self, "idle_frame")
+	check(hud.editor.visible, "pressing G once opens the editor and it stays open after you let go")
+	hud.editor.mask[4] = false
+	Input.action_press("edit")
+	for i in range(3):
+		yield(self, "idle_frame")
+	Input.action_release("edit")
+	for i in range(10):
+		yield(self, "idle_frame")
+	check(not hud.editor.visible and not wall.get_mask()[4], "pressing G again confirms the edit and it does not reopen")
+	wall.apply_mask([true, true, true, true, true, true, true, true, true])
+	yield(_frames(4), "completed")
+
 	# cancel leaves it alone
 	p.global_transform.origin = Vector3(X, y + 1.0, ZP)
 	p.velocity = Vector3.ZERO

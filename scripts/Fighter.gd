@@ -80,6 +80,7 @@ var jet_fuel := 100.0             # Jetpack fuel
 var jet_active := false           # set by the controller each frame: thrust (jetpack equipped, jump held)
 var board_on := false             # riding the Skateboard
 var _knock_t := 0.0
+var _swim_lock_t := 0.0
 var _gadget_snd_t := 0.0
 var _board_node: Spatial
 var _jet_node: Spatial
@@ -167,7 +168,9 @@ func setup_fighter(fighter_name: String, color: Color) -> void:
 	cs.transform = Transform(Basis(Vector3.RIGHT, PI / 2.0), Vector3(0, 0.88, 0))
 	add_child(cs)
 	_build_model()
-	slots = [Items.pickaxe(), null, null, null, null]
+	slots = [Items.pickaxe()]
+	for i in range(1, Items.SLOT_COUNT):
+		slots.append(null)
 	_apply_selected()
 
 
@@ -652,7 +655,8 @@ func move_body(delta: float, wish: Vector3, speed: float, want_jump: bool) -> vo
 	_was_grounded = grounded
 	forward_speed = Vector3(velocity.x, 0.0, velocity.z).dot(-global_transform.basis.z)
 	_clamp_to_map()
-	if mode == Mode.GROUND and global_transform.origin.y < SWIM_ENTER:
+	_swim_lock_t = max(0.0, _swim_lock_t - delta)
+	if mode == Mode.GROUND and global_transform.origin.y < SWIM_ENTER and _swim_lock_t <= 0.0:
 		enter_swim()
 
 
@@ -667,6 +671,20 @@ func _clamp_to_map() -> void:
 
 
 # ------------------------------------------------------------------ swimming
+
+# Jump from the water: hop up and out (over deep water you plop back in after the arc).
+func swim_jump() -> void:
+	if mode != Mode.SWIM or is_dead:
+		return
+	mode = Mode.GROUND
+	velocity.y = jump_speed * 1.05
+	var fwd := -global_transform.basis.z
+	fwd.y = 0.0
+	velocity += fwd.normalized() * 2.5
+	_swim_lock_t = 0.75
+	Audio.play3d("splash", Vector3(global_transform.origin.x, WATER_LEVEL, global_transform.origin.z), -6.0, 1.3)
+	Audio.play3d("jump", global_transform.origin + Vector3(0, 0.5, 0), -8.0, rand_range(0.95, 1.1))
+
 
 func enter_swim() -> void:
 	mode = Mode.SWIM
@@ -1015,6 +1033,15 @@ func footstep(speed: float) -> void:
 	Audio.play3d(snd, o, vol, rand_range(0.9, 1.12))
 
 
+# Carrying a gadget anywhere in the item slots is enough (the jetpack works with any item in hand).
+func has_gadget(g: String) -> bool:
+	for i in range(1, slots.size()):
+		var it = slots[i]
+		if it != null and it.kind == "consumable" and Items.CONSUMABLES[it.id].get("gadget", "") == g:
+			return true
+	return false
+
+
 func gadget_selected(g: String) -> bool:
 	var it = selected_item()
 	return it != null and it.kind == "consumable" and Items.CONSUMABLES[it.id].get("gadget", "") == g
@@ -1044,7 +1071,7 @@ func tick_gadgets(delta: float) -> void:
 		if _gadget_snd_t <= 0.0:
 			_gadget_snd_t = 0.45
 			Audio.play3d("board_roll", global_transform.origin, -4.0, rand_range(0.95, 1.05))
-	var jet_sel := gadget_selected("jetpack") and not is_dead
+	var jet_sel := has_gadget("jetpack") and not is_dead
 	if jet_sel and _jet_node == null:
 		_jet_node = Gadgets.jetpack()
 		_jet_node.translation = Vector3(0, 0.75, 0.3)

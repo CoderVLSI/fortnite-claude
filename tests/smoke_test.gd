@@ -122,7 +122,7 @@ func _run() -> void:
 	for i in range(p.slots.size()):
 		if p.slots[i] != null:
 			filled += 1
-	check(p.slots.size() == 5 and filled == 1 and p.slots[0].kind == "pickaxe" and p.selected == 0, "player starts with only a pickaxe (5 slots)")
+	check(p.slots.size() == 6 and filled == 1 and p.slots[0].kind == "pickaxe" and p.selected == 0, "player starts with only a pickaxe (pickaxe + 5 slots)")
 	check(p.get_ammo() == 0 and p.get_reserve() == 0, "pickaxe has no ammo")
 
 	# --- movement

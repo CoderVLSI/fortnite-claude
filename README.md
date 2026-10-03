@@ -18,7 +18,7 @@ storm closes in. Last one standing wins.
 | **Match flow** | Battle bus -> jump -> freefall -> glider -> land, shrinking storm in 5 phases, supply drops, last-one-standing win / elimination screen, title / pause / settings menus |
 | **Combat** | 5 weapon types (pistol, SMG, assault rifle, pump shotgun, bolt sniper) with detailed models, recoil, reloads, headshots, pickaxe melee; tracers; hit markers |
 | **Rarity** | Common / Uncommon / Rare / Epic / Legendary / **Mythic** (faster, bigger mags, tighter spread). Weapons carry a rarity-coloured accent and loot beam |
-| **Inventory** | 5-slot hotbar (pickaxe + 4), heal & shield consumables with use timers (Bandage, Mini Shield, Medkit, Shield Potion, Slurp Juice, Chug Jug), throwable **Grenades**, 4 ammo types, materials counter; a Tab inventory screen (details, resources, ammo, equipment; X drops); a full inventory swaps the picked-up item for the one in hand |
+| **Inventory** | 6-slot hotbar (pickaxe + 5), heal & shield consumables with use timers (Bandage, Mini Shield, Medkit, Shield Potion, Slurp Juice, Chug Jug), throwable **Grenades**, 4 ammo types, materials counter; a Tab inventory screen (details, resources, ammo, equipment; X drops); a full inventory swaps the picked-up item for the one in hand |
 | **Loot** | Floor loot with beams, 4 container types: treasure chest, ammo box, falling **supply drop**, bunker **vault** |
 | **POIs** | A 720 m island for up to 50 players with 18 named places: Maple Square, Saltworks Docks, Skyline Heights, Dusty Outpost, Ridgeway Lookout, Cinder Yard, Glacier Lodge, Orchard Row, Pine Ridge Lodge, Rusty Foundry, Golden Acres, Iron Bunker, Lighthouse Point, Blackwater Marina, Windmill Hollow, Granite Quarry, Ember Mesa, Frostbite Flats, Crescent Cove; roads between them; a full-screen map (M) with every name and the vehicles |
 | **Boss** | *The Warden* guards Iron Bunker (300 hp + shield) with a Mythic weapon |
@@ -31,9 +31,9 @@ storm closes in. Last one standing wins.
 | **Buildings** | Every building has a pickaxe health bar and comes down when destroyed; doors open by themselves; nothing opens through a wall; **Skyline Heights**, a city of walkable high-rises with stairs, loot on every few floors and a roof |
 | **Sprites** | Equip one companion in your backpack for a passive power (Earth, Fire, Water, Duck, Ghost, Demon, King, Dream, Punk, Aegis, Lucky), level it up, find Gold / Galaxy variants; wild sprites roam the island |
 | **Rifts** | Single-use sky portals around the island, and the **Rift-to-Go** item |
-| **Gear** | Charge Shotgun (hold to charge), Jetpack (hold jump), Skateboard, Shockwave Grenade, Junk Rift |
+| **Gear** | Charge Shotgun (hold to charge), Jetpack (carry it, hold Space), Skateboard, Shockwave Grenade, Junk Rift |
 | **Locker** | A LOCKER tab in the lobby: eight **skins**, six **pickaxes** (Star Wand, Candy Cane, Battle Axe, Crystal Scythe, Energy Sword...), seven **back blings** (wings, dragon wings, cape, teddy, rocket, shell), six **contrails** and six **gliders** (umbrella, hang glider, magic carpet, flying saucer, Dragon); the lobby character and glider preview each pick. Sprites ride on your back and take the back bling's place |
-| **Editing** | Fortnite style: hold Edit on a piece, aim at tiles and click / drag, release to confirm, Reset Edit (bindable, wheel too) restores the piece |
+| **Editing** | Fortnite style: press G once on a piece, aim at tiles and click / drag, press G again to confirm (or turn on hold-to-edit in Settings), Reset Edit (bindable, wheel too) restores the piece |
 | **Accounts** | Create an account (email + password) or play as a guest; stats (matches, wins, K/D, damage, play time...), level and your Locker are saved per account on the device. PROFILE tab in the lobby. See `docs/ACCOUNTS.md` for adding a cloud backend |
 | **Platforms** | Keyboard + mouse, gamepad, and full touch controls; mobile quality profile |
 
@@ -52,7 +52,7 @@ storm closes in. Last one standing wins.
 | Reload / horn | R | X | reload button beside the ammo readout |
 | Pick up (swaps the item in hand when full), open, enter / exit vehicle | E | Y | PICK UP / EXIT (appears when relevant) |
 | Inventory screen (X drops) | Tab | Select | bag button (top right) |
-| Items | 1-4 / wheel, F = pickaxe | L1 / R1 | tap the slots |
+| Items | 1-5 / wheel, F = pickaxe | L1 / R1 | tap the slots |
 | Crouch / slide, emote | Ctrl, B | R3, D-pad up | |
 | Build mode | Q, or Z X C V for wall / floor / ramp / roof (wheel: material) | | the four piece buttons down the right edge (tap again to leave); tap a materials box to pick wood / stone / metal |
 | Map | M | | tap the minimap |

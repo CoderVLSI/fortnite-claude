@@ -707,8 +707,11 @@ func _process(delta: float) -> void:
 		toggle_map()
 	if Input.is_action_just_pressed("inventory") and not end_panel.visible:
 		toggle_inventory()
-	if Input.is_action_just_pressed("edit") and not editor.visible:
-		try_edit()
+	if Input.is_action_just_pressed("edit"):
+		if not editor.visible:
+			try_edit()
+		elif editor.aim_mode and not Settings.edit_on_release:
+			editor.confirm()                      # press G once to start, again to confirm
 	elif editor.visible and editor.aim_mode and Settings.edit_on_release and Input.is_action_just_released("edit"):
 		editor.confirm()
 	if not editor.visible and Controls.edit_aim:
@@ -748,6 +751,13 @@ func _process(delta: float) -> void:
 
 
 func _ammo_text() -> String:
+	var base := _ammo_base()
+	if player.has_gadget("jetpack") and not player.gadget_selected("jetpack") and not player.builder.active:
+		return base + ("      " if base != "" else "") + "JET %d%%" % int(player.jet_fuel)
+	return base
+
+
+func _ammo_base() -> String:
 	if player.builder.active:
 		if Controls.touch_mode:      # the ammo readout is narrow on the phone HUD
 			return player.builder.PIECES[player.builder.piece].to_upper()

@@ -100,7 +100,7 @@ func _run() -> void:
 		p.sprite_on_kill(p)
 	check(p.unlimited_t > 0.0, "Punk Sprite can grant unlimited ammo")
 	p.equip_sprite("ghost")
-	p.slots = [Items.pickaxe(), null, null, null, null]
+	p.slots = [Items.pickaxe(), null, null, null, null, null]
 	p.give_weapon("assault", 2, 90)
 	p.selected_item().mag = 3
 	p._reload_left = 0.0
@@ -170,7 +170,7 @@ func _run() -> void:
 	p.global_transform.origin = Vector3(open.x, world.terrain.height_at(open.x, open.z) + 1.0, open.z)
 	p.mode = p.Mode.GROUND
 	p.velocity = Vector3.ZERO
-	p.slots = [Items.pickaxe(), Items.make_consumable("rift_to_go", 2), null, null, null]
+	p.slots = [Items.pickaxe(), Items.make_consumable("rift_to_go", 2), null, null, null, null]
 	p.select_slot(1)
 	yield(_frames(4), "completed")
 	var yy: float = p.global_transform.origin.y

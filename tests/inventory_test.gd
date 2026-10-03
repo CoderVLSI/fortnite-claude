@@ -73,6 +73,7 @@ func _run() -> void:
 	p.slots[2] = Items.make_weapon("smg", 0)
 	p.slots[3] = Items.make_weapon("shotgun", 2)
 	p.slots[4] = Items.make_consumable("bandage", 3)
+	p.slots[5] = Items.make_weapon("pistol", 0)
 	p.select_slot(2)
 	var spot: Vector3 = p.global_transform.origin + Vector3(0, 0.3, -2.0)
 

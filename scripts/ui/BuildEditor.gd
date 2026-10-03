@@ -167,10 +167,6 @@ func _input(event: InputEvent) -> void:
 			return
 		if event.is_action_released("fire"):
 			_painting = false
-		if event.is_action_pressed("edit") and not event.is_echo() and not Settings.edit_on_release:
-			confirm()
-			get_tree().set_input_as_handled()
-			return
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.scancode == KEY_ENTER or event.scancode == KEY_KP_ENTER or (event.scancode == KEY_G and not aim_mode):
 			confirm()
@@ -247,9 +243,9 @@ func _draw_aim(font: Font) -> void:
 			draw_polyline(closed, Color(1, 1, 1, 0.55), 2.0)
 			if i == hover:
 				draw_polyline(closed, Color(1.0, 0.92, 0.2), 4.0)
-	var title := "EDIT %s   click / drag tiles   %s reset   release %s to confirm" % [piece.kind.to_upper(), Controls.key_label("edit_reset"), Controls.key_label("edit")]
-	if not Settings.edit_on_release:
-		title = "EDIT %s   click / drag tiles   %s reset   press %s to confirm" % [piece.kind.to_upper(), Controls.key_label("edit_reset"), Controls.key_label("edit")]
+	var title := "EDIT %s   click / drag tiles   %s reset   press %s again to confirm" % [piece.kind.to_upper(), Controls.key_label("edit_reset"), Controls.key_label("edit")]
+	if Settings.edit_on_release:
+		title = "EDIT %s   click / drag tiles   %s reset   release %s to confirm" % [piece.kind.to_upper(), Controls.key_label("edit_reset"), Controls.key_label("edit")]
 	var w := font.get_string_size(title).x
 	draw_string(font, Vector2((rect_size.x - w) / 2.0, 245.0), title, Color(1.0, 0.92, 0.45))
 

@@ -10,7 +10,7 @@ const Cosmetics = preload("res://scripts/Cosmetics.gd")
 const Items = preload("res://scripts/Items.gd")
 const SplashScreen = preload("res://scripts/ui/SplashScreen.gd")
 const FONT_PATH := "res://assets/fonts/DejaVuSans-Bold.ttf"
-const HELP_PC := "Move: WASD        Look: mouse        Fire: left click        Aim / scope: right click\nJump / handbrake: Space        Sprint: Shift        Reload / horn: R\nPick up / swap / open / enter vehicle: E        Inventory: Tab  (X drops)        Build: Q toggles, Z X C V = wall / floor / ramp / roof, wheel = material\nItems: 1-4 or wheel, F = pickaxe        Map: M        Emote: B        Crouch / slide: Ctrl        Pause: Esc  (all keys can be changed in Settings > Controls)"
+const HELP_PC := "Move: WASD        Look: mouse        Fire: left click        Aim / scope: right click\nJump / handbrake: Space        Sprint: Shift        Reload / horn: R\nPick up / swap / open / enter vehicle: E        Inventory: Tab  (X drops)        Build: Q toggles, Z X C V = wall / floor / ramp / roof, wheel = material\nItems: 1-5 or wheel, F = pickaxe        Map: M        Emote: B        Crouch / slide: Ctrl        Pause: Esc  (all keys can be changed in Settings > Controls)"
 const HELP_TOUCH := "Left thumb: move    Right side: look    FIRE / JUMP / SPRINT buttons, scope button to aim down sights\nPICK UP appears next to loot, chests and vehicles    BUILD toggles building\nTap the hotbar to switch items, the bag button for the inventory    Tap the minimap for the island map"
 const HELP_GOAL := "Ride the Sky Ferry, jump, glide down and loot.  Fight bots, stay inside the shrinking storm,\ndrive vehicles, swim, climb ledges, take on the Warden at Iron Bunker for Mythic loot.\nBe the last one standing."
 
@@ -467,7 +467,7 @@ func _build_settings() -> Control:
 	gp.add_child(dn)
 
 	var er := CheckBox.new()
-	er.text = "Confirm edits on release of the Edit key"
+	er.text = "Hold-to-edit (confirm on release)"
 	er.pressed = Settings.edit_on_release
 	er.connect("toggled", self, "_on_edit_release")
 	gp.add_child(er)

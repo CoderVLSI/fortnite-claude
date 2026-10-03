@@ -154,6 +154,18 @@ func _run() -> void:
 	check(abs(p.global_transform.origin.y - p.SWIM_FEET_Y) < 0.45, "swimmer floats at the surface (feet y=%.2f)" % p.global_transform.origin.y)
 	check(root.get_node("Audio").count_of("splash") > 0, "splash sound on entering the water")
 	yield(_shot("swim_idle"), "completed")
+	# jumping works in the water: hop up out of the surface
+	var sy: float = p.global_transform.origin.y
+	Input.action_press("jump")
+	yield(_frames(6), "completed")
+	Input.action_release("jump")
+	var hop_peak: float = p.global_transform.origin.y
+	for i in range(20):
+		yield(self, "physics_frame")
+		hop_peak = max(hop_peak, p.global_transform.origin.y)
+	check(hop_peak > sy + 0.8, "jumping from the water hops up out of it (+%.1f m)" % (hop_peak - sy))
+	yield(_frames(90), "completed")
+	check(p.mode == 4, "and you splash back into swimming")
 	Input.action_press("move_forward")
 	yield(_frames(60), "completed")
 	var swim_speed := Vector2(p.velocity.x, p.velocity.z).length()

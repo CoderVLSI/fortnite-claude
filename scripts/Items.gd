@@ -5,7 +5,7 @@ extends Reference
 #   {"kind": "ammo",       "id": "light",   "count": 30}     (floor pickup only, goes to reserves)
 #   {"kind": "pickaxe"}
 
-const SLOT_COUNT := 5
+const SLOT_COUNT := 6        # the pickaxe + five item slots
 
 const RARITIES := [
 	{"name": "Common", "color": Color(0.72, 0.74, 0.78), "mult": 1.00},

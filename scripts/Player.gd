@@ -136,6 +136,9 @@ func _swim_process(delta: float) -> void:
 	sprinting = input_enabled and Input.is_action_pressed("sprint") and move.length() > 0.2
 	var b := global_transform.basis
 	var wish := b.x * move.x + b.z * move.y
+	if input_enabled and Input.is_action_just_pressed("jump"):
+		swim_jump()
+		return
 	swim_physics(delta, wish, 5.4 if sprinting else 3.4)
 	aim_pitch = 0.0
 	animate(delta)
@@ -161,7 +164,7 @@ func _ground_process(delta: float) -> void:
 			if builder.active:
 				builder.set_active(false)
 			select_slot(0)
-		for i in range(1, Items.SLOT_COUNT):                 # 1-4: the item slots, in order
+		for i in range(1, Items.SLOT_COUNT):                 # 1-5: the item slots, in order
 			if Input.is_action_just_pressed("slot_%d" % i):
 				if builder.active:
 					builder.set_active(false)          # picking an item leaves build mode
@@ -179,11 +182,11 @@ func _ground_process(delta: float) -> void:
 	_update_stance(delta, move, want_jump)
 	if emoting:
 		move = Vector2.ZERO
-	if gadget_selected("jetpack") and input_enabled and mode == Mode.GROUND and Input.is_action_pressed("jump"):
+	if has_gadget("jetpack") and input_enabled and mode == Mode.GROUND and Input.is_action_pressed("jump"):
 		_jet_hold += delta
 	else:
 		_jet_hold = 0.0
-	jet_active = _jet_hold > 0.2                   # a tap is a normal jump; holding lights the jetpack
+	jet_active = _jet_hold > 0.15                  # a tap is a normal jump; holding Space lights the jetpack (it only has to be in your inventory)
 	var wish := b.x * move.x + b.z * move.y    # move.y > 0 is backwards, and basis.z points backwards
 	var speed := sprint_speed if sprinting else walk_speed
 	if sliding:                                # momentum: a fixed direction, losing speed as the slide ends

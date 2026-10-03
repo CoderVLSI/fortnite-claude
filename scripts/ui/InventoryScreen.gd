@@ -70,8 +70,10 @@ func _layout() -> Dictionary:
 	out["ammo_y"] = 56.0 + 142.0
 	out["eq_y"] = 56.0 + 284.0
 	var slots := []
-	for i in range(Items.SLOT_COUNT):
-		slots.append(Rect2(Vector2(x0 + 14.0 + i * (96.0 + gap), out["eq_y"] + 50.0), Vector2(96, 96)))
+	var n := Items.SLOT_COUNT
+	var sw: float = min(96.0, (rw - 28.0 - gap * (n - 1)) / float(n))
+	for i in range(n):
+		slots.append(Rect2(Vector2(x0 + 14.0 + i * (sw + gap), out["eq_y"] + 50.0), Vector2(sw, sw)))
 	out["slots"] = slots
 	out["tile"] = tile
 	out["gap"] = gap

@@ -19,7 +19,7 @@ var aim_toggle := false           # tap to aim instead of hold
 var loadout := {"skin": "ranger", "pickaxe": "classic", "backbling": "none", "contrail": "none", "glider": "classic"}     # the Locker
 var starter_sprite := "earth"    # the sprite you bring to a match (none / earth / fire / water)
 var damage_numbers := true
-var edit_on_release := true      # builds: confirm an edit when the Edit key is let go (Fortnite style)
+var edit_on_release := false     # builds: false = press Edit once to start and again to confirm; true = hold it and let go to confirm
 var keybinds := {}                # action -> [[type, code], ...]; only the actions the player changed
 var autostart := false            # runtime only: skip the title screen after "Play again"
 
@@ -44,7 +44,7 @@ func load_settings() -> void:
 	for c in loadout.keys():
 		loadout[c] = str(cfg.get_value("loadout", c, loadout[c]))
 	damage_numbers = bool(cfg.get_value("gameplay", "damage_numbers", damage_numbers))
-	edit_on_release = bool(cfg.get_value("gameplay", "edit_on_release", edit_on_release))
+	edit_on_release = bool(cfg.get_value("gameplay", "edit_hold_to_confirm", edit_on_release))
 	if cfg.has_section("keybinds"):
 		for action in cfg.get_section_keys("keybinds"):
 			keybinds[action] = cfg.get_value("keybinds", action, [])
@@ -67,7 +67,7 @@ func save_settings() -> void:
 	for c in loadout.keys():
 		cfg.set_value("loadout", c, loadout[c])
 	cfg.set_value("gameplay", "damage_numbers", damage_numbers)
-	cfg.set_value("gameplay", "edit_on_release", edit_on_release)
+	cfg.set_value("gameplay", "edit_hold_to_confirm", edit_on_release)
 	for action in keybinds:
 		cfg.set_value("keybinds", action, keybinds[action])
 	cfg.set_value("profile", "name", player_name)
