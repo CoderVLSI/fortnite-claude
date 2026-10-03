@@ -208,7 +208,7 @@ func _brain() -> void:
 			_hold("fire", false)
 		# loot: nearest interactable
 		var best = null
-		var bd := 40.0
+		var bd := 140.0
 		for n in get_nodes_in_group("interactable"):
 			if is_instance_valid(n) and n.has_method("can_interact") and n.can_interact():
 				var d: float = o.distance_to(n.global_transform.origin)
@@ -220,6 +220,8 @@ func _brain() -> void:
 			if bd < 2.8:
 				_pulse("interact")
 				_stats.loot += 1
+			elif bd < 6.0 and _rng.randf() < 0.3:
+				_pulse("jump")
 		else:
 			if _target_pos == Vector3.ZERO or o.distance_to(_target_pos) < 6.0 or _rng.randf() < 0.05:
 				var sc: Vector2 = world.storm.center
