@@ -80,6 +80,7 @@ var animator
 var grounded := true
 var forward_speed := 0.0
 var sprinting := false
+var aiming := false               # aim-down-sights (player only; see Player._update_aim)
 var vehicle = null
 var vehicle_seat := 0
 var vehicle_steer := 0.0
@@ -836,9 +837,14 @@ func _swing_pickaxe(aim_from: Vector3, aim_dir: Vector3) -> bool:
 
 
 func _spread(dir: Vector3) -> Vector3:
-	if spread_deg <= 0.0:
+	var deg := spread_deg
+	var item = selected_item()
+	if item != null and item.kind == "weapon" and is_in_group("player"):
+		var sc: Dictionary = Items.scope_of(item.id)
+		deg = deg * sc.spread if aiming else deg + sc.get("hip_spread", 0.0)    # aiming tightens; a sniper hip-fires wide
+	if deg <= 0.0:
 		return dir
-	var s := deg2rad(spread_deg)
+	var s := deg2rad(deg)
 	var b := Basis(Vector3.UP, rand_range(-s, s)) * Basis(Vector3.RIGHT, rand_range(-s, s))
 	return b.xform(dir).normalized()
 

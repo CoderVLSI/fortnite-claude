@@ -9,6 +9,8 @@ signal slot_scroll(direction)   # +1 next item, -1 previous (mouse wheel / gamep
 const MOVE_ACTIONS = ["move_forward", "move_back", "move_left", "move_right"]
 
 var touch_mode := false
+var touch_aim := false            # the on-screen scope button is a toggle
+var look_scale := 1.0             # < 1 while zoomed in, so aiming stays controllable
 var mouse_look := Vector2.ZERO   # accumulated mouse pixels since last consume
 var touch_look := Vector2.ZERO   # accumulated touch-drag pixels since last consume
 
@@ -42,6 +44,7 @@ func _register_actions() -> void:
 	for i in range(5):
 		_key("slot_%d" % (i + 1), KEY_1 + i)
 	_mouse("fire", BUTTON_LEFT)
+	_mouse("aim", BUTTON_RIGHT)
 	# Gamepad: left stick = move, right stick = look, R2/RB = fire, A = jump.
 	_axis("move_left", JOY_AXIS_0, -1.0)
 	_axis("move_right", JOY_AXIS_0, 1.0)
@@ -55,6 +58,8 @@ func _register_actions() -> void:
 	_pad("reload", JOY_XBOX_X)
 	_pad("sprint", JOY_BUTTON_8)  # left stick click
 	_pad("fire", JOY_R2)
+	_pad("aim", JOY_L2)
+	_axis("aim", JOY_AXIS_6, 1.0)  # left trigger
 	_axis("fire", JOY_AXIS_7, 1.0)  # right trigger
 	_pad("interact", JOY_XBOX_Y)
 
@@ -124,7 +129,7 @@ func get_move() -> Vector2:
 
 # Look delta in radians (x = yaw, y = pitch), consuming accumulated pointer motion.
 func consume_look(delta: float) -> Vector2:
-	var l := (mouse_look * MOUSE_SENSITIVITY + touch_look * TOUCH_SENSITIVITY) * Settings.look_sensitivity
+	var l := (mouse_look * MOUSE_SENSITIVITY + touch_look * TOUCH_SENSITIVITY) * Settings.look_sensitivity * look_scale
 	mouse_look = Vector2.ZERO
 	touch_look = Vector2.ZERO
 	l.x += (Input.get_action_strength("look_right") - Input.get_action_strength("look_left")) * STICK_LOOK_SPEED * delta

@@ -42,7 +42,8 @@ func _layout() -> void:
 		"fire": {"center": Vector2(w - 190, h - 215), "radius": 80.0, "icon": "fire", "action": "fire", "look_drag": true},
 		"fire2": {"center": Vector2(86, h - 345), "radius": 54.0, "icon": "fire", "action": "fire", "look_drag": true},
 		"jump": {"center": Vector2(w - 84, h - 98), "radius": 58.0, "icon": "jump", "action": "jump"},
-		"sprint": {"center": Vector2(w - 300, h - 440), "radius": 56.0, "icon": "sprint", "action": "sprint", "toggle": true},
+		"sprint": {"center": Vector2(w - 300, h - 480), "radius": 56.0, "icon": "sprint", "action": "sprint", "toggle": true},
+		"scope": {"center": Vector2(w - 348, h - 338), "radius": 50.0, "icon": "scope", "aim": true},
 		"reload": {"center": Vector2(w / 2.0 + HOTBAR_HALF + 235.0, h - 64), "radius": 40.0, "icon": "reload", "action": "reload"},
 		"interact": {"center": Vector2(w / 2.0 - HOTBAR_HALF - 72.0, h - 78), "radius": 58.0, "label": "PICK UP", "action": "interact", "hidden": true},
 	}
@@ -81,6 +82,7 @@ func _release_all() -> void:
 			Input.action_release(b["action"])
 	_sprint_toggle = false
 	_stick_sprint = false
+	Controls.touch_aim = false
 	update()
 
 
@@ -117,6 +119,8 @@ func _down(index: int, pos: Vector2) -> void:
 			b["id"] = index
 			if b.has("piece"):
 				emit_signal("piece_pressed", b["piece"])
+			elif b.get("aim", false):
+				Controls.touch_aim = not Controls.touch_aim       # tap to scope in, tap again to scope out
 			elif b.get("toggle", false):
 				_sprint_toggle = not _sprint_toggle
 				_apply_sprint()
@@ -213,7 +217,7 @@ func _draw() -> void:
 			continue
 		var c: Vector2 = b["center"]
 		var r: float = b["radius"]
-		var active: bool = b["id"] != -1 or (b.get("toggle", false) and _sprint_toggle)
+		var active: bool = b["id"] != -1 or (b.get("toggle", false) and _sprint_toggle) or (b.get("aim", false) and Controls.touch_aim)
 		var chosen: bool = b.has("piece") and builder != null and builder.active and builder.piece == b["piece"]
 		var ring := Color(1, 1, 1, 0.6)
 		var fill := Color(0.05, 0.07, 0.12, 0.30)
@@ -248,6 +252,11 @@ func _draw_icon(icon: String, c: Vector2, r: float, col: Color, chosen: bool) ->
 		"sprint":    # three chevrons pointing right with speed lines
 			for off in [-16.0, 2.0, 20.0]:
 				draw_polyline(PoolVector2Array([c + Vector2(off - 6, -18) * k, c + Vector2(off + 12, 0) * k, c + Vector2(off - 6, 18) * k]), col, 5.0 * max(k, 0.8))
+		"scope":     # sight ring with a crosshair
+			draw_arc(c, 19.0 * max(k * 1.3, 1.0), 0, TAU, 28, col, 3.0)
+			for dir in [Vector2(1, 0), Vector2(-1, 0), Vector2(0, 1), Vector2(0, -1)]:
+				draw_line(c + dir * 8.0, c + dir * 27.0 * max(k * 1.2, 1.0), col, 3.0)
+			draw_circle(c, 2.5, col)
 		"reload":    # circular arrow
 			draw_arc(c, 17.0 * max(k * 1.4, 1.0), -0.6, TAU - 1.4, 24, col, 4.0)
 			var tip := c + Vector2(cos(-0.6), sin(-0.6)) * 17.0 * max(k * 1.4, 1.0)

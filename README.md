@@ -40,6 +40,7 @@ storm closes in. Last one standing wins.
 | Fire (auto) | left mouse | R2 | big FIRE button right, or the second FIRE above the joystick (drag on either to aim) |
 | Jump, drop from bus, glider, handbrake | Space | A | JUMP |
 | Sprint | Shift | L3 | SPRINT toggle / push stick fully |
+| Aim down sights | right mouse (hold) | L2 | scope button (tap to toggle) |
 | Reload / horn | R | X | reload button beside the ammo readout |
 | Pick up, open, enter / exit vehicle | E | Y | PICK UP / EXIT (appears when relevant) |
 | Hotbar | 1-5 / wheel | L1 / R1 | tap the slots |

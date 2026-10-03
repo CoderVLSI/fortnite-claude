@@ -59,6 +59,8 @@ func _build_camera() -> void:
 func _physics_process(delta: float) -> void:
 	tick_weapon(delta)
 	_update_air_audio()
+	if mode != Mode.GROUND or is_dead:
+		aiming = false
 	if is_dead:
 		velocity = Vector3(0, velocity.y, 0)
 		move_body(delta, Vector3.ZERO, 0.0, false)
@@ -139,6 +141,7 @@ func _ground_process(delta: float) -> void:
 		move = Controls.get_move()
 		want_jump = Input.is_action_pressed("jump")
 		sprinting = Input.is_action_pressed("sprint") and move.length() > 0.2
+		_update_aim()
 		if Input.is_action_just_pressed("reload"):
 			start_reload()
 		if Input.is_action_just_pressed("build_toggle"):
@@ -157,6 +160,7 @@ func _ground_process(delta: float) -> void:
 	var b := global_transform.basis
 	if not input_enabled:
 		sprinting = false
+		aiming = false
 	if input_enabled and want_jump and move.y < -0.3 and try_mantle(-b.z * -move.y + b.x * move.x):
 		return
 	if input_enabled and not grounded and move.y < -0.3 and try_mantle(-b.z):
@@ -165,9 +169,28 @@ func _ground_process(delta: float) -> void:
 	var speed := sprint_speed if sprinting else walk_speed
 	if is_using():
 		speed *= 0.5
+	if aiming:
+		speed *= Items.scope_of(selected_item().id).move
 	move_body(delta, wish, speed, want_jump)
 	aim_pitch = pitch
 	animate(delta)
+
+
+# Right mouse / L2 (hold) or the touch scope button (toggle) aims the equipped gun. Aiming cancels sprinting and
+# pauses while reloading or using an item.
+func _update_aim() -> void:
+	var item = selected_item()
+	var gun: bool = item != null and item.kind == "weapon" and not builder.active
+	if not gun:
+		Controls.touch_aim = false
+	var wants: bool = gun and (Input.is_action_pressed("aim") or Controls.touch_aim) and _can_aim()
+	if wants:
+		sprinting = false
+	aiming = wants and not is_reloading() and not is_using()
+
+
+func is_scoped() -> bool:
+	return aiming and Items.scope_of(selected_item().id).kind == "scope"
 
 
 func _fire_input(delta: float) -> void:
@@ -270,14 +293,25 @@ func _process(delta: float) -> void:
 		Mode.VEHICLE:
 			dist = 8.5
 			offset = Vector3(0.0, 2.5, 0.0)
-	var k: float = clamp(3.0 * delta, 0.0, 1.0)
 	var run_fov: float = 80.0 if (sprinting and mode == Mode.GROUND and speed_ratio() > 0.8) else (74.0 if mode == Mode.SWIM else 72.0)
-	camera.fov = lerp(camera.fov, run_fov, clamp(5.0 * delta, 0.0, 1.0))
+	var fov_rate := 5.0
+	if aiming and selected_item() != null:      # zoom in over the shoulder, or right up to the eye behind a scope
+		var sc: Dictionary = Items.scope_of(selected_item().id)
+		run_fov = sc.fov
+		dist = sc.dist
+		offset = Vector3(0.0, 1.62, 0.0) if sc.kind == "scope" else Vector3(0.72, 1.5, 0.0)
+	if mode == Mode.GROUND:
+		fov_rate = 12.0
+	var k: float = clamp((9.0 if mode == Mode.GROUND else 3.0) * delta, 0.0, 1.0)
+	camera.fov = lerp(camera.fov, run_fov, clamp(fov_rate * delta, 0.0, 1.0))
+	if model != null:
+		model.visible = is_dead or not is_scoped()        # no body in the way of the scope view
 	spring.spring_length = lerp(spring.spring_length, dist, k)
 	head.translation = head.translation.linear_interpolate(offset, k)
 
 
 func _look(delta: float) -> void:
+	Controls.look_scale = Items.scope_of(selected_item().id).sens if (aiming and selected_item() != null) else 1.0
 	var l := Controls.consume_look(delta)
 	if l.length() > 0.002:
 		_last_look_time = OS.get_ticks_msec() / 1000.0

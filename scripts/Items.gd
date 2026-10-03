@@ -33,6 +33,22 @@ const WEAPONS := {
 		"pellets": 1, "auto": false, "ammo": "heavy", "range": 260.0, "head": 2.5},
 }
 
+# Aim-down-sights per weapon: the sight picture (HUD/Crosshair.gd + ScopeOverlay.gd), the zoomed FOV, how much the
+# spread / walk speed / look sensitivity shrink while aiming, the camera distance, and the hip-fire crosshair.
+const SCOPES := {
+	"pistol": {"kind": "irons", "fov": 60.0, "spread": 0.40, "move": 0.85, "sens": 0.80, "dist": 1.9, "hip": "dot"},
+	"smg": {"kind": "reddot", "fov": 56.0, "spread": 0.55, "move": 0.80, "sens": 0.70, "dist": 1.9, "hip": "cross_wide"},
+	"assault": {"kind": "holo", "fov": 50.0, "spread": 0.35, "move": 0.75, "sens": 0.62, "dist": 1.9, "hip": "cross"},
+	"shotgun": {"kind": "bead", "fov": 58.0, "spread": 0.70, "move": 0.80, "sens": 0.75, "dist": 1.9, "hip": "ring"},
+	"sniper": {"kind": "scope", "fov": 14.0, "spread": 0.0, "move": 0.50, "sens": 0.22, "dist": 0.2, "hip": "cross_far",
+		"hip_spread": 2.2},
+}
+
+
+static func scope_of(id: String) -> Dictionary:
+	return SCOPES.get(id, SCOPES["assault"])
+
+
 const AMMO := {
 	"light": {"name": "Light Ammo", "color": Color(0.95, 0.75, 0.25), "pack": 30},
 	"medium": {"name": "Medium Ammo", "color": Color(0.55, 0.85, 0.35), "pack": 30},

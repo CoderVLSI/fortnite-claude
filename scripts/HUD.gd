@@ -8,6 +8,7 @@ const Hotbar = preload("res://scripts/ui/Hotbar.gd")
 const Compass = preload("res://scripts/ui/Compass.gd")
 const MapScreen = preload("res://scripts/ui/MapScreen.gd")
 const Crosshair = preload("res://scripts/ui/Crosshair.gd")
+const ScopeOverlay = preload("res://scripts/ui/ScopeOverlay.gd")
 const Minimap = preload("res://scripts/ui/Minimap.gd")
 const Materials = preload("res://scripts/ui/Materials.gd")
 const TouchControls = preload("res://scripts/ui/TouchControls.gd")
@@ -23,6 +24,7 @@ var world
 var player
 var root: Control
 var crosshair: Control
+var scope_overlay: Control
 var minimap: Control
 var hotbar: Control
 var materials: Control
@@ -124,8 +126,13 @@ func _build() -> void:
 	flash_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(flash_rect)
 
+	scope_overlay = ScopeOverlay.new()                 # under the crosshair and every button
+	scope_overlay.set_anchors_and_margins_preset(Control.PRESET_WIDE)
+	scope_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	scope_overlay.visible = false
+	root.add_child(scope_overlay)
 	crosshair = Crosshair.new()
-	_place(crosshair, 0.5, 0.5, Vector2(-40, -40), Vector2(80, 80))
+	_place(crosshair, 0.5, 0.5, Vector2(-80, -80), Vector2(160, 160))
 	root.add_child(crosshair)
 
 	minimap = Minimap.new()
@@ -276,6 +283,8 @@ func bind(world_node) -> void:
 	world = world_node
 	player = world.player
 	minimap.world = world
+	crosshair.player = player
+	scope_overlay.player = player
 	player.connect("damaged", self, "_on_player_damaged")
 	player.connect("hit_landed", self, "_on_hit_landed")
 	player.connect("picked_up", self, "show_toast")

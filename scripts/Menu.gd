@@ -5,8 +5,8 @@ extends CanvasLayer
 # character, a player card, the mode card with the big PLAY button and a tab bar.
 
 const FONT_PATH := "res://assets/fonts/DejaVuSans-Bold.ttf"
-const HELP_PC := "Move: WASD        Look: mouse        Fire: left click\nJump / handbrake: Space        Sprint: Shift        Reload / horn: R\nPick up / open / enter vehicle: E        Build mode: Q  (1-4 pieces, wheel = material)\nHotbar: 1-5 or wheel        Map: M        Pause: Esc"
-const HELP_TOUCH := "Left thumb: move    Right side: look    FIRE / JUMP / RELOAD / SPRINT buttons\nPICK UP appears next to loot, chests and vehicles    BUILD toggles building\nTap the hotbar to switch items    Tap the minimap for the island map"
+const HELP_PC := "Move: WASD        Look: mouse        Fire: left click        Aim / scope: right click\nJump / handbrake: Space        Sprint: Shift        Reload / horn: R\nPick up / open / enter vehicle: E        Build mode: Q  (1-4 pieces, wheel = material)\nHotbar: 1-5 or wheel        Map: M        Pause: Esc"
+const HELP_TOUCH := "Left thumb: move    Right side: look    FIRE / JUMP / SPRINT buttons, scope button to aim down sights\nPICK UP appears next to loot, chests and vehicles    BUILD toggles building\nTap the hotbar to switch items    Tap the minimap for the island map"
 const HELP_GOAL := "Ride the Sky Ferry, jump, glide down and loot.  Fight bots, stay inside the shrinking storm,\ndrive vehicles, swim, climb ledges, take on the Warden at Iron Bunker for Mythic loot.\nBe the last one standing."
 
 const TIPS := [
