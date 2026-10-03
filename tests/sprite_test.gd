@@ -17,6 +17,14 @@ func _frames(n: int) -> void:
 		yield(self, "idle_frame")
 
 
+func _near_loot(p) -> int:
+	var n := 0
+	for i in get_nodes_in_group("interactable"):
+		if is_instance_valid(i) and i.has_method("setup") and i.global_transform.origin.distance_to(p.global_transform.origin) < 4.0:
+			n += 1
+	return n
+
+
 func _init() -> void:
 	call_deferred("_run")
 
@@ -145,11 +153,11 @@ func _run() -> void:
 	check(p.materials["wood"] - w0 >= 10, "King Sprite boosts harvest (+%d wood)" % (p.materials["wood"] - w0))
 	# levels
 	p.equip_sprite("dream")
-	var loot_before := get_nodes_in_group("interactable").size()
+	var near_before := _near_loot(p)
 	p.sprite_gain_xp(3.1)
 	check(p.sprite.level == 2, "xp levels the sprite up (level %d)" % p.sprite.level)
 	yield(_frames(2), "completed")
-	check(get_nodes_in_group("interactable").size() > loot_before, "Dream Sprite grants an item on level up")
+	check(_near_loot(p) > near_before, "Dream Sprite grants an item on level up (%d -> %d items next to you)" % [near_before, _near_loot(p)])
 	p.sprite_gain_xp(100.0)
 	check(p.sprite.level == Sprites.MAX_LEVEL, "levels stop at the maximum")
 	p.equip_sprite("earth")
