@@ -6,6 +6,8 @@ extends CanvasLayer
 
 const Sprites = preload("res://scripts/Sprites.gd")
 const Skins = preload("res://scripts/Skins.gd")
+const Cosmetics = preload("res://scripts/Cosmetics.gd")
+const Items = preload("res://scripts/Items.gd")
 const SplashScreen = preload("res://scripts/ui/SplashScreen.gd")
 const FONT_PATH := "res://assets/fonts/DejaVuSans-Bold.ttf"
 const HELP_PC := "Move: WASD        Look: mouse        Fire: left click        Aim / scope: right click\nJump / handbrake: Space        Sprint: Shift        Reload / horn: R\nPick up / swap / open / enter vehicle: E        Inventory: Tab  (X drops)        Build: Q toggles, Z X C V = wall / floor / ramp / roof, wheel = material\nItems: 1-4 or wheel, F = pickaxe        Map: M        Emote: B        Crouch / slide: Ctrl        Pause: Esc  (all keys can be changed in Settings > Controls)"
@@ -25,9 +27,12 @@ var world
 var lobby
 var root: Control
 var sprite_button: Button
-var skin_name_label: Label
-var skin_desc_label: Label
-var skin_count_label: Label
+var tab_underline: ColorRect
+var locker_panel: Panel
+var locker_list: VBoxContainer
+var locker_desc: Label
+var locker_tabs := {}
+var locker_cat := "skin"
 var splash: Control
 var title_panel: Control
 var settings_panel: Control
@@ -239,11 +244,11 @@ func _build_title() -> Control:
 		p.add_child(logo)
 	var tabs := HBoxContainer.new()
 	tabs.add_constant_override("separation", 6)
-	_place(tabs, 0.5, 0.0, Vector2(-230, 8), Vector2(460, 50))
+	_place(tabs, 0.5, 0.0, Vector2(-270, 8), Vector2(540, 50))
 	p.add_child(tabs)
 	var clear := _flat(Color(0, 0, 0, 0))
 	var soft := _flat(Color(1, 1, 1, 0.12))
-	for t in [["LOBBY", "lobby"], ["HOW TO PLAY", "help"], ["SETTINGS", "settings_title"]]:
+	for t in [["LOBBY", "lobby"], ["LOCKER", "locker"], ["HOW TO PLAY", "help"], ["SETTINGS", "settings_title"]]:
 		var b := Button.new()
 		b.text = t[0]
 		b.rect_min_size = Vector2(130, 50)
@@ -252,7 +257,8 @@ func _build_title() -> Control:
 		tabs.add_child(b)
 	var underline := ColorRect.new()       # marks the active LOBBY tab
 	underline.color = gold
-	_place(underline, 0.5, 0.0, Vector2(-230 + 8, 58), Vector2(114, 4))
+	_place(underline, 0.5, 0.0, Vector2(-270 + 8, 58), Vector2(114, 4))
+	tab_underline = underline
 	underline.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	p.add_child(underline)
 	if not OS.has_feature("mobile") and not OS.has_feature("HTML5"):
@@ -300,32 +306,6 @@ func _build_title() -> Control:
 		stat_labels[k[1]] = val
 		x += 104.0
 
-	# skin picker
-	var skin_card := Panel.new()
-	skin_card.add_stylebox_override("panel", _flat(Color(0.04, 0.07, 0.17, 0.78), Color(1, 1, 1, 0.18), 10, 2))
-	_place(skin_card, 0.0, 0.0, Vector2(26, 254), Vector2(330, 128))
-	p.add_child(skin_card)
-	var skin_cap := _label("SKIN", 14, Color(0.65, 0.78, 1.0))
-	skin_cap.rect_position = Vector2(16, 8)
-	skin_card.add_child(skin_cap)
-	skin_name_label = _label("", 24, Color.white)
-	skin_name_label.rect_position = Vector2(16, 26)
-	skin_card.add_child(skin_name_label)
-	skin_desc_label = _label("", 14, Color(0.85, 0.9, 1.0))
-	skin_desc_label.rect_position = Vector2(16, 58)
-	skin_card.add_child(skin_desc_label)
-	for sb in [["<", -1, 16.0], [">", 1, 262.0]]:
-		var b := Button.new()
-		b.text = sb[0]
-		b.rect_position = Vector2(sb[2], 80)
-		b.rect_size = Vector2(52, 38)
-		b.connect("pressed", self, "_cycle_skin", [sb[1]])
-		skin_card.add_child(b)
-	skin_count_label = _label("", 16, Color(0.7, 0.8, 1.0))
-	skin_count_label.rect_position = Vector2(140, 88)
-	skin_card.add_child(skin_count_label)
-	_refresh_skin()
-
 	# mode card with the PLAY button
 	var mode := Panel.new()
 	mode.add_stylebox_override("panel", _flat(Color(0.04, 0.07, 0.17, 0.80), Color(1, 1, 1, 0.18), 10, 2))
@@ -359,6 +339,7 @@ func _build_title() -> Control:
 	hint.align = Label.ALIGN_CENTER
 	_place(hint, 0.5, 1.0, Vector2(-250, -30), Vector2(500, 24))
 	p.add_child(hint)
+	_build_locker(p)
 	return p
 
 
@@ -544,23 +525,81 @@ func _on_name_changed(text: String) -> void:
 		name_label.text = Settings.player_name
 
 
-func _cycle_skin(dir: int) -> void:
-	var i: int = Skins.ORDER.find(Settings.skin)
-	Settings.skin = Skins.ORDER[int(posmod(i + dir, Skins.ORDER.size()))]
+# ------------------------------------------------------------------ the Locker
+
+func _build_locker(parent: Control) -> void:
+	locker_panel = Panel.new()
+	locker_panel.add_stylebox_override("panel", _flat(Color(0.03, 0.05, 0.13, 0.98), Color(1, 1, 1, 0.25), 10, 2))
+	_place(locker_panel, 0.0, 0.0, Vector2(26, 80), Vector2(440, 620))
+	locker_panel.visible = false
+	parent.add_child(locker_panel)
+	var title := _label("LOCKER", 30, Color(1.0, 0.82, 0.25))
+	title.rect_position = Vector2(18, 10)
+	locker_panel.add_child(title)
+	var grid := GridContainer.new()
+	grid.columns = 3
+	grid.rect_position = Vector2(14, 58)
+	grid.add_constant_override("hseparation", 6)
+	grid.add_constant_override("vseparation", 6)
+	locker_panel.add_child(grid)
+	for cat in Cosmetics.CATEGORIES:
+		var b := Button.new()
+		b.text = Cosmetics.TITLES[cat]
+		b.rect_min_size = Vector2(134, 40)
+		b.connect("pressed", self, "locker_show", [cat])
+		grid.add_child(b)
+		locker_tabs[cat] = b
+	var scroll := ScrollContainer.new()
+	scroll.rect_position = Vector2(14, 176)
+	scroll.rect_size = Vector2(412, 380)
+	scroll.scroll_horizontal_enabled = false
+	locker_panel.add_child(scroll)
+	locker_list = VBoxContainer.new()
+	locker_list.add_constant_override("separation", 6)
+	locker_list.rect_min_size = Vector2(390, 10)
+	scroll.add_child(locker_list)
+	locker_desc = _label("", 15, Color(0.85, 0.9, 1.0))
+	locker_desc.rect_position = Vector2(18, 566)
+	locker_panel.add_child(locker_desc)
+	locker_show("skin")
+
+
+func locker_show(cat: String) -> void:
+	locker_cat = cat
+	for c in locker_tabs:
+		locker_tabs[c].modulate = Color(1.0, 0.88, 0.35) if c == cat else Color.white
+	for ch in locker_list.get_children():
+		locker_list.remove_child(ch)
+		ch.queue_free()
+	var t: Dictionary = Cosmetics.table(cat)
+	for id in Cosmetics.order(cat):
+		var d: Dictionary = t[id]
+		var b := Button.new()
+		var equipped: bool = Settings.loadout[cat] == id
+		b.text = ("[x]  " if equipped else "      ") + d.name
+		b.rect_min_size = Vector2(390, 50)
+		b.align = Button.ALIGN_LEFT
+		b.clip_text = true
+		var rc: Color = Cosmetics.rarity_color(d.rarity)
+		b.add_color_override("font_color", rc.lightened(0.25))
+		b.add_color_override("font_color_hover", rc.lightened(0.5))
+		if equipped:
+			b.modulate = Color(1.0, 0.95, 0.6)
+		b.connect("pressed", self, "locker_select", [cat, id])
+		locker_list.add_child(b)
+	var cur: Dictionary = t[Settings.loadout[cat]]
+	locker_desc.text = "%s  -  %s" % [Items.RARITIES[cur.rarity].name, cur.desc]
+	if get_tree() != null:
+		Audio.play2d("ui_click", -10.0)
+
+
+func locker_select(cat: String, id: String) -> void:
+	Settings.loadout[cat] = id
 	Settings.save_settings()
 	if lobby != null:
-		lobby.set_skin(Settings.skin)
+		lobby.apply_loadout(Settings.loadout, true)
 	Audio.play2d("ui_click", -6.0)
-	_refresh_skin()
-
-
-func _refresh_skin() -> void:
-	if skin_name_label == null:
-		return
-	var d: Dictionary = Skins.LIST[Settings.skin]
-	skin_name_label.text = d.name.to_upper()
-	skin_desc_label.text = d.desc
-	skin_count_label.text = "%d / %d" % [Skins.ORDER.find(Settings.skin) + 1, Skins.ORDER.size()]
+	locker_show(cat)
 
 
 func _on_starter_sprite() -> void:
@@ -766,7 +805,14 @@ func _on_button(id: String) -> void:
 		"play":
 			start_game()
 		"lobby":
-			pass
+			locker_panel.visible = false
+			tab_underline.margin_left = -270 + 8
+			tab_underline.margin_right = tab_underline.margin_left + 114
+		"locker":
+			locker_panel.visible = true
+			tab_underline.margin_left = -270 + 8 + 136
+			tab_underline.margin_right = tab_underline.margin_left + 114
+			locker_show(locker_cat)
 		"help":
 			_open_sub(help_panel, "title")
 		"settings_title":

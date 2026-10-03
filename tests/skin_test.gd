@@ -53,18 +53,47 @@ func _run() -> void:
 	p.set_skin("not_a_skin")
 	check(p.skin_id == "ranger", "an unknown skin falls back to the Ranger")
 
-	# the lobby picker
+	# the Locker
 	var menu = world.menu
-	settings.skin = "ranger"
-	menu._cycle_skin(1)
-	check(settings.skin == Skins.ORDER[1] and menu.skin_name_label.text == Skins.LIST[Skins.ORDER[1]].name.to_upper(), "the arrows pick the next skin (%s)" % settings.skin)
+	var Cosmetics = load("res://scripts/Cosmetics.gd")
+	settings.loadout = Cosmetics.DEFAULT_LOADOUT.duplicate()
+	menu._on_button("locker")
+	check(menu.locker_panel.visible, "the Locker tab opens the locker")
+	check(menu.locker_tabs.size() == 5, "it has five categories (skin, pickaxe, back bling, contrail, glider)")
+	menu.locker_select("skin", "ninja")
+	check(settings.loadout.skin == "ninja", "picking a skin equips it")
 	var lobby_torso: MeshInstance = menu.lobby.character.find_node("TorsoMesh", true, false)
 	check(lobby_torso.get_surface_material(0).albedo_color.v < 0.2, "the lobby character tries it on")
-	menu._cycle_skin(-1)
-	check(settings.skin == "ranger", "and the other arrow goes back")
-	menu._cycle_skin(-1)
-	check(settings.skin == Skins.ORDER[Skins.ORDER.size() - 1], "the list wraps around")
-	settings.skin = "ranger"
+	menu.locker_select("backbling", "wings")
+	check(menu.lobby._backbling != null, "back bling appears on the lobby character")
+	menu.locker_select("pickaxe", "starwand")
+	check(menu.lobby._held != null and menu.lobby._held.get_child_count() >= 2, "the lobby character holds the Star Wand")
+	menu.locker_select("glider", "dragon")
+	check(menu.lobby._glider_model != null and menu.lobby._glider_model.get_child_count() > 10, "the showcase glider becomes the Dragon")
+	menu.locker_select("contrail", "rainbow")
+	check(menu.lobby._contrail != null, "and the contrail streams behind it")
+	for cat in Cosmetics.CATEGORIES:
+		check(Cosmetics.table(cat).size() >= 5, "%s has at least five choices" % cat)
+
+	# in a match: the player wears the loadout
+	p.apply_loadout(settings.loadout)
+	check(p.skin_id == "ninja" and p.glider != null and p._backbling_node != null and p._contrail != null, "the player model takes the whole loadout")
+	check(p.held != null and p.held.get_child_count() >= 2, "the player swings the Star Wand")
+	p.equip_sprite("earth")
+	var sp_parent: Node = p._sprite_model.get_parent()
+	check(sp_parent.name == "Spine" and p._sprite_model.translation.z > 0.2, "the sprite rides on the back (parent %s)" % sp_parent.name)
+	p.tick_sprite(0.1)
+	check(not p._backbling_node.visible, "and takes the back bling's place")
+	p.clear_sprite()
+	p.tick_sprite(0.1)
+	check(p._backbling_node.visible, "back bling returns when the sprite is gone")
+	p.mode = p.Mode.GLIDE
+	p.tick_sprite(0.1)
+	check(p._contrail.emitting, "the contrail streams while gliding")
+	p.mode = p.Mode.GROUND
+	p.tick_sprite(0.1)
+	check(not p._contrail.emitting, "and stops on the ground")
+	settings.loadout = Cosmetics.DEFAULT_LOADOUT.duplicate()
 	settings.save_settings()
 
 	var kinds := {}

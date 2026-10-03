@@ -26,6 +26,7 @@ const MODEL_PATH := "res://assets/models/player.glb"
 const Grenade = preload("res://scripts/Grenade.gd")
 const Rift = preload("res://scripts/Rift.gd")
 const Skins = preload("res://scripts/Skins.gd")
+const Cosmetics = preload("res://scripts/Cosmetics.gd")
 const JunkRift = preload("res://scripts/JunkRift.gd")
 const Gadgets = preload("res://scripts/Gadgets.gd")
 const Sprites = preload("res://scripts/Sprites.gd")
@@ -52,6 +53,9 @@ export var jump_speed := 8.0
 var display_name := "Fighter"
 var vest_color := Color(0.30, 0.42, 0.22)
 var skin_id := "ranger"
+var loadout := Cosmetics.DEFAULT_LOADOUT.duplicate()
+var _backbling_node: Spatial
+var _contrail: CPUParticles
 var health := 100.0
 var shield := 0.0
 var kills := 0
@@ -181,11 +185,56 @@ func _build_model() -> void:
 	animator.setup(model)
 	Skins.apply(model, skin_id, vest_color)       # the default Ranger wears the fighter's vest colour
 
-	var gl = load(GLIDER_PATH)
-	if gl != null:
-		glider = gl.instance()
-		glider.visible = false
+	_make_glider()
+	_make_backbling()
+	_make_contrail()
+
+
+func _make_glider() -> void:
+	if glider != null:
+		glider.queue_free()
+		glider = null
+	var g = Cosmetics.build_glider(loadout.glider)
+	if g == null:
+		var gl = load(GLIDER_PATH)
+		g = gl.instance() if gl != null else null
+	if g != null:
+		glider = g
+		glider.visible = mode == Mode.GLIDE
 		model.add_child(glider)
+
+
+func _make_backbling() -> void:
+	if _backbling_node != null:
+		_backbling_node.queue_free()
+		_backbling_node = null
+	var b = Cosmetics.build_backbling(loadout.backbling)
+	var spine: Node = model.find_node("Spine", true, false) if model != null else null
+	if b != null and spine != null:
+		_backbling_node = b
+		spine.add_child(b)
+
+
+func _make_contrail() -> void:
+	if _contrail != null:
+		_contrail.queue_free()
+		_contrail = null
+	var c = Cosmetics.build_contrail(loadout.contrail)
+	if c != null and air_pivot != null:
+		_contrail = c
+		air_pivot.add_child(c)
+		c.translation = Vector3(0, 0.0, 0.35)
+
+
+# Put on a whole Locker loadout (skin, pickaxe, back bling, contrail, glider).
+func apply_loadout(d: Dictionary) -> void:
+	loadout = Cosmetics.sanitize(d)
+	set_skin(loadout.skin)
+	if model != null:
+		_make_glider()
+		_make_backbling()
+		_make_contrail()
+		_equip_model(selected_item())
 
 
 func _fallback_model() -> Spatial:
@@ -324,11 +373,18 @@ func _equip_model(item) -> void:
 		muzzle = null
 	if item == null or model == null:
 		return
+	var hand: Node = animator.nodes.get("HandR", model) if animator != null else model
+	if item.kind == "pickaxe":
+		var cp = Cosmetics.build_pickaxe(loadout.pickaxe)
+		if cp != null:
+			held = cp
+			hand.add_child(held)
+			held.translation = Vector3(0, -0.02, -0.04)
+			return
 	var scene = load(Items.model_of(item))
 	if scene == null:
 		return
 	held = scene.instance()
-	var hand: Node = animator.nodes.get("HandR", model) if animator != null else model
 	hand.add_child(held)
 	held.translation = Vector3(0, -0.02, -0.04)
 	if item.kind == "consumable":
@@ -1210,6 +1266,7 @@ func _die(killer) -> void:
 
 func set_skin(id: String) -> void:
 	skin_id = id if Skins.LIST.has(id) else "ranger"
+	loadout["skin"] = skin_id
 	if model != null:
 		Skins.apply(model, skin_id, vest_color)
 
@@ -1231,10 +1288,15 @@ func equip_sprite(id: String, variant: String = "", level: int = 1, xp: float = 
 	if _sprite_model != null:
 		_sprite_model.queue_free()
 		_sprite_model = null
-	_sprite_model = SpriteCreature.build_for(id, variant, 0.55)
-	_sprite_model.translation = Vector3(0.6, 1.85, 0.4)
+	_sprite_model = SpriteCreature.build_for(id, variant, 0.5)
+	var spine: Node = model.find_node("Spine", true, false) if model != null else null
+	if spine != null:                                   # it rides on your back, like back bling
+		_sprite_model.translation = Vector3(0, 0.26, 0.36)
+		_sprite_model.rotation.y = PI
+		spine.add_child(_sprite_model)
+	else:
+		add_child(_sprite_model)
 	_sprite_model.visible = not is_dead
-	add_child(_sprite_model)
 	emit_signal("sprite_changed")
 	return old
 
@@ -1252,8 +1314,12 @@ func tick_sprite(delta: float) -> void:
 	unlimited_t = max(0.0, unlimited_t - delta)
 	bubble_t = max(0.0, bubble_t - delta)
 	if _sprite_model != null:
-		_sprite_model.translation.y = 1.85 + sin(OS.get_ticks_msec() * 0.003) * 0.08
+		_sprite_model.rotation.z = sin(OS.get_ticks_msec() * 0.0025) * 0.05
 		_sprite_model.visible = not is_dead and mode != Mode.BUS and mode != Mode.VEHICLE
+	if _backbling_node != null:
+		_backbling_node.visible = sprite.empty() and not is_dead and mode != Mode.BUS and mode != Mode.VEHICLE     # a sprite takes the back bling's place
+	if _contrail != null:
+		_contrail.emitting = (mode == Mode.FREEFALL or mode == Mode.GLIDE) and not is_dead
 	if sprite.empty() or is_dead:
 		return
 	if has_sprite("water") and mode == Mode.SWIM:

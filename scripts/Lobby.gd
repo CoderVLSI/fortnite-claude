@@ -6,6 +6,7 @@ extends Spatial
 const Items = preload("res://scripts/Items.gd")
 const MODEL := "res://assets/models/player.glb"
 const Skins = preload("res://scripts/Skins.gd")
+const Cosmetics = preload("res://scripts/Cosmetics.gd")
 const ORIGIN := Vector3(4000, 300, 0)
 const CAMERA_POS := Vector3(0.0, 1.35, 5.0)      # relative to ORIGIN, looks at CAMERA_TARGET
 const CAMERA_TARGET := Vector3(0.0, 1.05, 0.0)
@@ -21,6 +22,11 @@ var env = null                   # unused (kept so Menu can still ask for a came
 var _backdrop: MeshInstance
 var _bus: Spatial
 var _glider: Spatial
+var _glider_holder: Spatial
+var _glider_model: Spatial
+var _backbling: Spatial
+var _held: Spatial
+var _contrail: CPUParticles
 var _floaters := []             # [node, base position, phase]
 var _cur := {}
 
@@ -100,7 +106,6 @@ func _build_character() -> void:
 	character = res.instance()
 	character.rotation_degrees = Vector3(0, 168, 0)      # faces the camera (+Z), turned slightly
 	add_child(character)
-	Skins.apply(character, Settings.skin, Color(0.20, 0.45, 0.95))
 	for n in ["Hips", "Spine", "Head", "ShoulderL", "ElbowL", "HandL", "ShoulderR", "ElbowR", "HandR", "HipL", "KneeL", "HipR", "KneeR"]:
 		var node := character.find_node(n, true, false)
 		if node:
@@ -108,21 +113,64 @@ func _build_character() -> void:
 			_cur[n] = Vector3.ZERO
 	if nodes.has("Hips"):
 		rest_hips = nodes["Hips"].translation
-	if nodes.has("HandR"):       # the mythic Stormcaller held low, like a lobby idle pose
-		var item := Items.make_weapon("assault", Items.MYTHIC)
-		var gun = load(Items.model_of(item))
-		if gun != null:
-			var held: Spatial = gun.instance()
-			nodes["HandR"].add_child(held)
-			held.translation = Vector3(0, -0.02, -0.04)
-			held.rotation_degrees = Vector3(-35, 0, 0)
-			Items.apply_accent(held, Items.color_of(item))
-	var glider = load("res://assets/models/glider.glb")
-	if glider != null:
-		_glider = glider.instance()
-		_glider.translation = Vector3(-0.2, 3.1, -1.8)
-		_glider.rotation_degrees = Vector3(-18, 0, 0)
-		add_child(_glider)
+	_glider_holder = Spatial.new()
+	_glider_holder.translation = Vector3(1.9, -0.25, -0.5)       # parked beside the character so the Locker can show it off
+	_glider_holder.rotation_degrees = Vector3(-8, -32, 0)
+	_glider_holder.scale = Vector3(0.5, 0.5, 0.5)
+	add_child(_glider_holder)
+	_glider = _glider_holder
+	apply_loadout(Settings.loadout)
+
+
+# Dress the lobby character and its showcase glider in a Locker loadout.
+func apply_loadout(d: Dictionary, wave_it: bool = false) -> void:
+	var lo: Dictionary = Cosmetics.sanitize(d)
+	if character == null:
+		return
+	Skins.apply(character, lo.skin, Color(0.20, 0.45, 0.95))
+	if _backbling != null:
+		_backbling.queue_free()
+		_backbling = null
+	var bb = Cosmetics.build_backbling(lo.backbling)
+	var spine: Node = character.find_node("Spine", true, false)
+	if bb != null and spine != null:
+		_backbling = bb
+		spine.add_child(bb)
+	if _held != null:
+		_held.queue_free()
+		_held = null
+	if nodes.has("HandR"):       # the chosen pickaxe held low, like a lobby idle pose
+		var pick = Cosmetics.build_pickaxe(lo.pickaxe)
+		if pick == null:
+			var res = load(Items.model_of(Items.pickaxe()))
+			pick = res.instance() if res != null else null
+		if pick != null:
+			_held = pick
+			nodes["HandR"].add_child(pick)
+			pick.translation = Vector3(0, -0.02, -0.04)
+			pick.rotation_degrees = Vector3(-35, 0, 0)
+	if _glider_model != null:
+		_glider_model.queue_free()
+		_glider_model = null
+	var g = Cosmetics.build_glider(lo.glider)
+	if g == null:
+		var gl = load("res://assets/models/glider.glb")
+		g = gl.instance() if gl != null else null
+	if g != null:
+		_glider_model = g
+		_glider_holder.add_child(g)
+	if _contrail != null:
+		_contrail.queue_free()
+		_contrail = null
+	var c = Cosmetics.build_contrail(lo.contrail)
+	if c != null:
+		_contrail = c
+		_glider_holder.add_child(c)
+		c.translation = Vector3(0, 2.6, 0.6)
+		c.initial_velocity = 2.5
+		c.emitting = true
+	if wave_it:
+		wave()
 
 
 # The generated lobby painting (assets/ui/lobby_bg.png) is a big unshaded quad far behind the stage, so it is drawn by
@@ -190,13 +238,6 @@ func _build_lights() -> void:
 	add_child(rim)
 
 
-# Try on a skin in the lobby.
-func set_skin(id: String) -> void:
-	if character != null:
-		Skins.apply(character, id, Color(0.20, 0.45, 0.95))
-		wave()
-
-
 func wave() -> void:
 	_wave = 2.4
 
@@ -218,7 +259,7 @@ func _process(delta: float) -> void:
 		_backdrop.scale = Vector3(z, z, 1.0)
 	_pose(delta)
 	if _glider != null:
-		_glider.translation.y = 3.1 + sin(_t * 1.1) * 0.12
+		_glider.translation.y = -0.25 + sin(_t * 1.1) * 0.08
 	if _bus != null:
 		_bus.translation.x -= delta * 2.2
 		if _bus.translation.x < -34.0:

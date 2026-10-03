@@ -32,7 +32,7 @@ storm closes in. Last one standing wins.
 | **Sprites** | Equip one companion in your backpack for a passive power (Earth, Fire, Water, Duck, Ghost, Demon, King, Dream, Punk, Aegis, Lucky), level it up, find Gold / Galaxy variants; wild sprites roam the island |
 | **Rifts** | Single-use sky portals around the island, and the **Rift-to-Go** item |
 | **Gear** | Charge Shotgun (hold to charge), Jetpack (hold jump), Skateboard, Shockwave Grenade, Junk Rift |
-| **Skins** | Eight character skins picked in the lobby (Ranger, Shadow Ninja, Astro, Silver Knight, Unit 7, Captain Jolly, Dusty Rider, Rex Hoodie) |
+| **Locker** | A LOCKER tab in the lobby: eight **skins**, six **pickaxes** (Star Wand, Candy Cane, Battle Axe, Crystal Scythe, Energy Sword...), seven **back blings** (wings, dragon wings, cape, teddy, rocket, shell), six **contrails** and six **gliders** (umbrella, hang glider, magic carpet, flying saucer, Dragon); the lobby character and glider preview each pick. Sprites ride on your back and take the back bling's place |
 | **Editing** | Fortnite style: hold Edit on a piece, aim at tiles and click / drag, release to confirm, Reset Edit (bindable, wheel too) restores the piece |
 | **Platforms** | Keyboard + mouse, gamepad, and full touch controls; mobile quality profile |
 
@@ -106,7 +106,7 @@ Headless: `tools/import_assets.sh` imports assets without a display.
 | `structure_test` | doors, destructible buildings, no opening through walls, biomes, mountains |
 | `gadget_test` | charge shotgun, jetpack, skateboard, shockwave grenade, junk rift |
 | `highrise_test` | Skyline Heights and its stairs |
-| `skin_test` | skins and the lobby picker |
+| `skin_test` | the Locker: skins, pickaxes, back bling, contrails, gliders, sprites on the back |
 
 `tests/anim_test.gd` and `tests/gallery_test.gd` render pose / model galleries; `tools/contact_sheet.py` stitches screenshots.
 
