@@ -4,22 +4,22 @@ extends Spatial
 # outside the circle takes damage every second.
 
 const PHASES := [
-	{"wait": 35.0, "shrink": 30.0, "radius": 100.0, "dps": 1.0},
-	{"wait": 28.0, "shrink": 25.0, "radius": 62.0, "dps": 2.0},
-	{"wait": 22.0, "shrink": 22.0, "radius": 34.0, "dps": 4.0},
-	{"wait": 18.0, "shrink": 18.0, "radius": 15.0, "dps": 7.0},
-	{"wait": 12.0, "shrink": 14.0, "radius": 4.0, "dps": 10.0},
+	{"wait": 35.0, "shrink": 30.0, "radius": 150.0, "dps": 1.0},
+	{"wait": 28.0, "shrink": 25.0, "radius": 93.0, "dps": 2.0},
+	{"wait": 22.0, "shrink": 22.0, "radius": 51.0, "dps": 4.0},
+	{"wait": 18.0, "shrink": 18.0, "radius": 22.0, "dps": 7.0},
+	{"wait": 12.0, "shrink": 14.0, "radius": 6.0, "dps": 10.0},
 ]
 const WALL_HEIGHT := 140.0
 
 var center := Vector2.ZERO
-var radius := 150.0
+var radius := 232.0
 var phase := 0
 var waiting := true
 var time_left := 0.0
 var damage_per_second := 0.0
 var next_center := Vector2.ZERO
-var next_radius := 100.0
+var next_radius := 150.0
 var finished := false
 var active := true          # false while the battle bus is still flying
 

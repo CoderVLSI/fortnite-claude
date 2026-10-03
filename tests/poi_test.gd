@@ -40,7 +40,8 @@ func _run() -> void:
 	world.add_child(cam)
 	cam.make_current()
 
-	check(world.pois.size() == 6, "six POIs were placed (%d)" % world.pois.size())
+	var defined: int = load("res://scripts/Pois.gd").POIS.size()
+	check(world.pois.size() == defined and defined >= 12, "all %d named POIs were placed (%d)" % [defined, world.pois.size()])
 	var names := []
 	for poi in world.pois:
 		names.append(poi.name)

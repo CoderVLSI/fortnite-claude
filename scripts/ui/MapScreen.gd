@@ -2,11 +2,13 @@ extends Control
 # Full map overlay (M key / tap the minimap): terrain heat-map, roads, named POIs, storm
 # circles, supply drops, the bus route, the boss and the player.
 
-const N := 96
+const N := 160
 
 var world
 var _tex: ImageTexture
 var _icons := {}                # keeps the generated vehicle icons alive between draws
+var _small: DynamicFont         # POI names: smaller than the HUD font so thirteen of them fit
+var _pending := []              # [text, centre, colour, is_town] collected while drawing, then laid out and drawn on top
 
 
 func _build_texture() -> void:
@@ -34,6 +36,17 @@ func _build_texture() -> void:
 	img.unlock()
 	_tex = ImageTexture.new()
 	_tex.create_from_image(img, 0)
+
+
+func _label_font(fallback: Font) -> Font:
+	if _small == null:
+		var data = load("res://assets/fonts/DejaVuSans-Bold.ttf")
+		if data != null:
+			_small = DynamicFont.new()
+			_small.font_data = data
+			_small.size = 17
+			_small.use_filter = true
+	return _small if _small != null else fallback
 
 
 func _icon(name: String):
@@ -67,6 +80,7 @@ func _draw() -> void:
 	if storm.waiting and not storm.finished and storm.active:
 		draw_arc(mid + storm.next_center * s, storm.next_radius * s, 0, TAU, 64, Color(1, 1, 1, 0.95), 2.0)
 
+	_pending.clear()
 	_label(font, mid, s, Vector2.ZERO, "MAPLE SQUARE", Color(1, 1, 1))
 	for poi in world.pois:
 		var tint := Color(1.0, 0.85, 0.3) if poi.def.has("boss") else Color.white
@@ -99,6 +113,8 @@ func _draw() -> void:
 		else:
 			draw_circle(mid + bus_p * s, 6.0, Color(1.0, 0.8, 0.3))
 
+	_draw_labels(font)                      # names go on top of the icons, nudged apart so none overlap
+
 	var p = world.player
 	var pp := Vector2(p.global_transform.origin.x, p.global_transform.origin.z)
 	var fwd := Vector2(-sin(p.rotation.y), -cos(p.rotation.y))
@@ -110,9 +126,28 @@ func _draw() -> void:
 	draw_string(font, Vector2(12, 26), title, Color(1, 1, 1, 0.9))
 
 
-func _label(font: Font, mid: Vector2, s: float, pos: Vector2, text: String, color: Color) -> void:
-	var c := mid + pos * s
-	draw_rect(Rect2(c - Vector2(4, 4), Vector2(8, 8)), color)
-	var w := font.get_string_size(text).x
-	draw_rect(Rect2(c + Vector2(-w / 2.0 - 3, 6), Vector2(w + 6, 24)), Color(0, 0, 0, 0.55))
-	draw_string(font, c + Vector2(-w / 2.0, 24), text, color)
+func _label(_font: Font, mid: Vector2, s: float, pos: Vector2, text: String, color: Color) -> void:
+	_pending.append([text, mid + pos * s, color])
+
+
+func _draw_labels(font: Font) -> void:
+	var f := _label_font(font)
+	var taken := []
+	for entry in _pending:
+		var c: Vector2 = entry[1]
+		draw_rect(Rect2(c - Vector2(4, 4), Vector2(8, 8)), entry[2])                     # the marker
+		var w := f.get_string_size(entry[0]).x
+		var best := Rect2()
+		for off in [Vector2(0, 14), Vector2(0, -34), Vector2(0, 40), Vector2(0, -60), Vector2(0, 66), Vector2(0, -86)]:
+			var r := Rect2(c + off + Vector2(-w / 2.0 - 4, 0), Vector2(w + 8, 22))
+			var clash := false
+			for t in taken:
+				if r.intersects(t):
+					clash = true
+					break
+			best = r
+			if not clash:
+				break
+		taken.append(best)
+		draw_rect(best, Color(0, 0, 0, 0.62))
+		draw_string(f, best.position + Vector2(4, 17), entry[0], entry[2])

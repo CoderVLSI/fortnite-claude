@@ -20,12 +20,13 @@ const BuildPiece = preload("res://scripts/BuildPiece.gd")
 const Vehicle = preload("res://scripts/Vehicle.gd")
 const Boat = preload("res://scripts/Boat.gd")
 
-const MAP_HALF := 160.0
+const MAP_HALF := 240.0                  # a 480 m island (it was 320 m)
+const MAP_SCALE := MAP_HALF / 160.0      # POI radii and spacing are authored for the old 160 m island
 const SEED := 20241002
 const MODEL_DIR := "res://assets/models/"
 const HOUSES := ["house_a", "house_b"]
 const BUS_ALTITUDE := 260.0
-const BUS_LENGTH := 480.0
+const BUS_LENGTH := 720.0
 const BOT_NAMES := ["Rook", "Nova", "Echo", "Blitz", "Sable", "Juno", "Kestrel", "Moxie", "Vesper", "Dash",
 	"Onyx", "Pixel", "Zephyr", "Ember", "Gizmo", "Havoc", "Indigo", "Lynx", "Maverick", "Nimbus",
 	"Orbit", "Pepper", "Quill", "Riot", "Sprout"]
@@ -136,12 +137,12 @@ func _make_profile() -> Dictionary:
 	var mobile := OS.has_feature("mobile") or ("--mobile" in args)
 	var p := {
 		"mobile": mobile,
-		"bots": 14 if mobile else 24,
-		"trees": 170 if mobile else 420,
-		"rocks": 22 if mobile else 55,
-		"outlying": 9 if mobile else 14,
-		"floor_items": 22 if mobile else 38,
-		"outdoor_chests": 3 if mobile else 5,
+		"bots": 16 if mobile else 28,
+		"trees": 260 if mobile else 700,
+		"rocks": 36 if mobile else 90,
+		"outlying": 13 if mobile else 21,
+		"floor_items": 36 if mobile else 70,
+		"outdoor_chests": 5 if mobile else 9,
 		"shadows": not mobile,
 		"cell": 4.0 if mobile else 3.0,
 		"use_bus": not ("--no-bus" in args),
@@ -274,41 +275,83 @@ func _find_mesh(node: Node):
 
 # ------------------------------------------------------------------ points of interest
 
-func _locate_poi(def: Dictionary) -> Vector2:
-	var a := deg2rad(def.angle)
-	var dir := Vector2(cos(a), sin(a))
-	if def.mode == "shore":
-		var r_land := 60.0
-		for r in range(60, 155, 2):
-			if terrain.raw_height(dir.x * r, dir.y * r) > 1.5:
-				r_land = float(r)
-		return dir * (r_land - def.inland)
-	var best_r: float = def.rmin
+# Pick a POI centre: near its authored angle, on good ground for its mode, and clear of the town and every POI already
+# placed. The first pass fans out a few degrees either side of the authored angle and radius band (preferring the
+# authored spot); if that finds nothing it searches the whole sector and a wider radius band, and as a last resort
+# takes the spot with the most clearance.
+func _locate_poi(def: Dictionary, placed: Array) -> Vector2:
+	var best := Vector2.ZERO
 	var best_score := -1e9
-	var r: float = def.rmin
-	while r <= def.rmax:
-		var c := dir * r
-		var h: float = terrain.raw_height(c.x, c.y)
-		if h > 4.0:
-			var variance := 0.0
-			for k in range(8):
-				var q := c + Vector2(cos(k * PI / 4.0), sin(k * PI / 4.0)) * 16.0
-				variance += abs(terrain.raw_height(q.x, q.y) - h)
-			var score: float = (h * 0.5 if def.mode == "hill" else 0.0) - variance
-			if score > best_score:
-				best_score = score
-				best_r = r
-		r += 3.0
-	return dir * best_r
+	var roomiest := Vector2.ZERO
+	var most_room := -1e9
+	for attempt in range(2):
+		var fan: Array = [0.0, 5.0, -5.0, 10.0, -10.0, 15.0, -15.0, 20.0, -20.0, 26.0, -26.0, 32.0, -32.0, 40.0, -40.0, 50.0, -50.0]
+		var rmin: float = def.get("rmin", 60.0) * MAP_SCALE
+		var rmax: float = def.get("rmax", 90.0) * MAP_SCALE
+		if attempt == 1:
+			fan = []
+			for k in range(0, 21):
+				fan.append(float(k) * 9.0 * (1.0 if k % 2 == 0 else -1.0) / 1.0)
+			rmin = max(rmin * 0.8, 78.0)
+			rmax = min(rmax * 1.2, MAP_HALF * 0.74)
+		for da in fan:
+			var a := deg2rad(def.angle + da)
+			var dir := Vector2(cos(a), sin(a))
+			var cands := []                           # [centre, score]
+			if def.mode == "shore":
+				var r_land := 0.0
+				for r in range(60, int(MAP_HALF) - 5, 2):
+					if terrain.raw_height(dir.x * r, dir.y * r) > 1.5:
+						r_land = float(r)
+				if r_land > 0.0:
+					cands.append([dir * (r_land - def.inland), 0.0])
+			else:
+				var r := rmin
+				while r <= rmax:
+					var c := dir * r
+					var h: float = terrain.raw_height(c.x, c.y)
+					if h > 4.0:
+						var variance := 0.0
+						for k in range(8):
+							var q := c + Vector2(cos(k * PI / 4.0), sin(k * PI / 4.0)) * 16.0
+							variance += abs(terrain.raw_height(q.x, q.y) - h)
+						cands.append([c, (h * 0.5 if def.mode == "hill" else 0.0) - variance])
+					r += 3.0 * MAP_SCALE
+			for cand in cands:
+				var room := 1e9                       # smallest gap to the town or an earlier POI (negative = overlap)
+				for q in placed:
+					room = min(room, cand[0].distance_to(q.center) - def.zone - q.zone)
+				if room > most_room:
+					most_room = room
+					roomiest = cand[0]
+				var score: float = cand[1] - abs(da) * 0.25
+				if room >= 6.0 and score > best_score:
+					best_score = score
+					best = cand[0]
+		if best_score > -1e9:
+			return best
+	return roomiest if most_room > -1e9 else Vector2(cos(deg2rad(def.angle)), sin(deg2rad(def.angle))) * 90.0
 
 
 func _plan_pois() -> void:
 	var centers := {"maple": Vector2.ZERO}
+	var placed := [{"center": Vector2.ZERO, "zone": 62.0}]      # the town pad
+	# Shore POIs have only one possible spot per angle, so place them first; the inland ones then fit around them.
+	var order := []
 	for def in Pois.POIS:
-		var c := _locate_poi(def)
+		if def.mode == "shore":
+			order.append(def)
+	for def in Pois.POIS:
+		if def.mode != "shore":
+			order.append(def)
+	for def in order:
+		var c := _locate_poi(def, placed)
+		placed.append({"center": c, "zone": def.zone})
 		centers[def.id] = c
+	for def in Pois.POIS:                                         # keep the authored order for the lists and the map
+		var c: Vector2 = centers[def.id]
 		terrain.add_zone(c.x, c.y, def.zone)
-		pois.append({"id": def.id, "name": def.name, "center": c, "frame_yaw": -deg2rad(def.angle), "def": def, "zone": def.zone})
+		pois.append({"id": def.id, "name": def.name, "center": c, "frame_yaw": -atan2(c.y, c.x), "def": def, "zone": def.zone})   # local +X points away from the island centre
 	for r in Pois.ROADS:
 		terrain.add_road(centers[r[0]], centers[r[1]])
 		poi_roads.append([centers[r[0]], centers[r[1]]])
@@ -486,7 +529,7 @@ func _spawn_vehicles() -> void:
 				p.y += 1.2
 			spawn_vehicle(def.kind, p, yaw)
 	# a few extra along the roads
-	for i in range(2 if profile.mobile else 4):
+	for i in range(3 if profile.mobile else 6):
 		var seg: Array = poi_roads[rng.randi() % poi_roads.size()]
 		var t := rng.randf_range(0.25, 0.75)
 		var base: Vector2 = seg[0].linear_interpolate(seg[1], t)
@@ -731,7 +774,7 @@ func _spawn_fighters() -> void:
 		bot.skill = rng.randf_range(0.2, 0.85)
 		bot.map_half = MAP_HALF - 4.0
 		bot.translation = _spawn_point(p)
-		bot.jump_at = rng.randf_range(110.0, 380.0)
+		bot.jump_at = rng.randf_range(110.0, 380.0) * MAP_SCALE
 		add_child(bot)
 		bot.rotation.y = rng.randf() * TAU
 		bot.connect("died", self, "_on_fighter_died")

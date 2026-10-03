@@ -18,13 +18,13 @@ storm closes in. Last one standing wins.
 | **Match flow** | Battle bus -> jump -> freefall -> glider -> land, shrinking storm in 5 phases, supply drops, last-one-standing win / elimination screen, title / pause / settings menus |
 | **Combat** | 5 weapon types (pistol, SMG, assault rifle, pump shotgun, bolt sniper) with detailed models, recoil, reloads, headshots, pickaxe melee; tracers; hit markers |
 | **Rarity** | Common / Uncommon / Rare / Epic / Legendary / **Mythic** (faster, bigger mags, tighter spread). Weapons carry a rarity-coloured accent and loot beam |
-| **Inventory** | 5-slot hotbar (pickaxe + 4), heal & shield consumables with use timers, 4 ammo types, materials counter |
+| **Inventory** | 5-slot hotbar (pickaxe + 4), heal & shield consumables with use timers, 4 ammo types, materials counter; a Tab inventory screen (details, resources, ammo, equipment; X drops); a full inventory swaps the picked-up item for the one in hand |
 | **Loot** | Floor loot with beams, 4 container types: treasure chest, ammo box, falling **supply drop**, bunker **vault** |
-| **POIs** | 7 named locations: Maple Square, Saltworks Docks, Pine Ridge Lodge, Rusty Foundry, Golden Acres, Iron Bunker, Lighthouse Point; roads between them; full map (M) |
+| **POIs** | A 480 m island with 13 named places: Maple Square, Saltworks Docks, Pine Ridge Lodge, Rusty Foundry, Golden Acres, Iron Bunker, Lighthouse Point, Blackwater Marina, Windmill Hollow, Granite Quarry, Ember Mesa, Frostbite Flats, Crescent Cove; roads between them; a full-screen map (M) with every name and the vehicles |
 | **Boss** | *The Warden* guards Iron Bunker (300 hp + shield) with a Mythic weapon |
 | **Movement** | Sprint, jump, **mantling** ledges, **swimming** (floating, strokes, ripples), freefall dive, glider |
 | **Vehicles** | Buggy (2 seats), quad bike, motor boat; run-over and crash damage, explosions, horn |
-| **Building** | Walls, floors, ramps and roofs in wood / stone / metal on a 4 m grid, destructible, harvested from trees / rocks / structures with the pickaxe |
+| **Building** | Walls, floors, ramps and roofs in wood / stone / metal on a 4 m grid, destructible, harvested from trees / rocks / structures with the pickaxe, with a draining health bar over whatever you are hitting |
 | **Animation** | Jointed rig: idle breathing, walk / run / sprint cycles, landing squash, aim + recoil, reload, pickaxe wind-up, drinking, swimming strokes, mantle, vehicle seat, skydive, glide |
 | **Audio** | 71 synthesised sound effects (per-weapon shots, footsteps per surface, water, chests, rarity chimes, storm, engines...) and 6 music tracks (menu, bus, ambient, combat, victory, defeat) with crossfades |
 | **Platforms** | Keyboard + mouse, gamepad, and full touch controls; mobile quality profile |

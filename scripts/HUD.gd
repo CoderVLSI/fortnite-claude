@@ -431,7 +431,15 @@ func close_inventory() -> void:
 	Audio.play2d("ui_click", -6.0)
 
 
+func _fit_map() -> void:
+	var side: float = min(root.rect_size.x, root.rect_size.y) - 28.0     # the island map fills the screen
+	_place(map_screen, 0.5, 0.5, Vector2(-side / 2.0, -side / 2.0), Vector2(side, side))
+	map_screen.mouse_filter = Control.MOUSE_FILTER_STOP
+
+
 func toggle_map() -> void:
+	if not map_screen.visible:
+		_fit_map()
 	map_screen.visible = not map_screen.visible
 	Audio.play2d("ui_click", -6.0)
 

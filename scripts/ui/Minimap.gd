@@ -4,6 +4,7 @@ extends Control
 const RADAR_RANGE := 45.0   # enemies are only shown when this close
 
 var world
+var _small: DynamicFont         # place-name banner font: small enough for the longest POI name
 
 
 func _process(_delta: float) -> void:
@@ -52,8 +53,17 @@ func _draw() -> void:
 	var c := mid + pp * s
 	draw_colored_polygon(PoolVector2Array([c + fwd * 9.0, c - fwd * 5.0 + perp * 5.5, c - fwd * 5.0 - perp * 5.5]), Color(1, 1, 1))
 	var font := get_font("font", "Label")
+	if _small == null:
+		var data = load("res://assets/fonts/DejaVuSans-Bold.ttf")
+		if data != null:
+			_small = DynamicFont.new()
+			_small.font_data = data
+			_small.size = 15
+			_small.use_filter = true
+	if _small != null:
+		font = _small
 	var loc: String = world.location_name(p.global_transform.origin)
 	draw_rect(Rect2(Vector2(0, rect_size.y - 24), Vector2(rect_size.x, 24)), Color(0, 0, 0, 0.55))
 	var nw := font.get_string_size(loc).x
-	draw_string(font, Vector2((rect_size.x - nw) / 2.0, rect_size.y - 6), loc, Color.white)
+	draw_string(font, Vector2(max((rect_size.x - nw) / 2.0, 2.0), rect_size.y - 7), loc, Color.white)
 	draw_rect(Rect2(Vector2.ZERO, rect_size), Color(1, 1, 1, 0.6), false, 2.0)
