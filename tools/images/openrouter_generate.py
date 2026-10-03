@@ -30,6 +30,10 @@ STYLE = ("flat vector game icon, bold clean outlines, bright saturated colours, 
 KEYED = "on a perfectly flat solid pure magenta (#FF00FF) background"
 KEY_COLOUR = "0xFF00FF"
 
+# Inventory-slot tile each keyed icon is composited onto: (top colour, bottom colour, border colour).
+TILES = {"weapons": ("0x4a6a9c", "0x1c2b4a", "0x9bb8e8"), "ammo": ("0x9c6a2e", "0x4a2e12", "0xf0c070"),
+         "items": ("0x3f8a52", "0x16361f", "0x9be0a8")}
+
 # name -> dict(prompt, size, group, key=True removes the magenta background, dest=override path)
 ASSETS = {}
 
@@ -202,6 +206,29 @@ def convert(raw, spec, dest):
     os.unlink(tmp)
 
 
+def has_background(path):
+    """True when the PNG's corner pixel is opaque (a tile is already behind the icon)."""
+    out = subprocess.run(["ffmpeg", "-loglevel", "error", "-i", path, "-vf", "crop=1:1:0:0,format=rgba",
+                          "-f", "rawvideo", "-"], capture_output=True, check=True).stdout
+    return len(out) == 4 and out[3] > 200
+
+
+def add_background(path, group):
+    """Composite a keyed (transparent) icon onto a gradient inventory tile, in place."""
+    top, bottom, border = TILES[group]
+    n = int(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=width", "-of", "csv=p=0", path],
+                           capture_output=True, text=True, check=True).stdout.split()[0])
+    inner, b = int(n * 0.84) // 2 * 2, max(2, n // 40)
+    graph = ("gradients=s=%dx%d:c0=%s:c1=%s:x0=0:y0=0:x1=0:y1=%d:type=linear,format=rgba,"
+             "drawbox=0:0:%d:%d:color=%s:t=%d[bg];[0:v]format=rgba,scale=%d:%d:flags=lanczos[fg];"
+             "[bg][fg]overlay=(W-w)/2:(H-h)/2:format=auto"
+             % (n, n, top, bottom, n, n, n, border, b, inner, inner))
+    tmp = path + ".tmp.png"
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", path, "-filter_complex", graph, "-frames:v", "1", tmp],
+                   check=True)
+    os.replace(tmp, path)
+
+
 def dest_of(name):
     return ASSETS[name]["dest"] or os.path.join(OUT, name + ".png")
 
@@ -232,6 +259,8 @@ def main():
     ap.add_argument("--force", action="store_true", help="overwrite files that already exist")
     ap.add_argument("--max", type=int, default=12, help="refuse to generate more than this many images per run")
     ap.add_argument("--dry-run", action="store_true", help="print prompts and the plan, spend nothing")
+    ap.add_argument("--add-bg", action="store_true",
+                    help="put the inventory tile behind already-generated transparent icons (no API call)")
     ap.add_argument("--wire-export", action="store_true", help="point export_presets.cfg at the launcher icons")
     a = ap.parse_args()
 
@@ -241,6 +270,13 @@ def main():
         return
     if a.wire_export:
         wire_export()
+        return
+    if a.add_bg:
+        for n, spec in ASSETS.items():
+            path = dest_of(n)
+            if spec["group"] in TILES and os.path.exists(path) and not has_background(path):
+                add_background(path, spec["group"])
+                print("added background to", n)
         return
     if a.models:
         print("%-48s %-12s %-12s %s" % ("model", "est $/image", "outputs", "name"))
@@ -283,6 +319,8 @@ def main():
         print("[%d/%d] %s via %s" % (i, len(todo), n, model))
         raw, cost = generate(model, ASSETS[n]["prompt"], key)
         convert(raw, ASSETS[n], dest_of(n))
+        if ASSETS[n]["group"] in TILES:
+            add_background(dest_of(n), ASSETS[n]["group"])
         spent += cost or 0.0
         print("  wrote %s (cost %s)" % (dest_of(n), "unknown" if cost is None else "$%.4f" % cost))
     print("spent $%.4f on %d image(s)." % (spent, len(todo)))
