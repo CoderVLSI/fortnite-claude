@@ -20,6 +20,9 @@ func _ready() -> void:
 	var color := Items.color_of(item)
 	if item.kind == "material":
 		_model = _material_sprite()
+	elif item.kind == "consumable" and Items.CONSUMABLES[item.id].has("gadget"):
+		_model = preload("res://scripts/Gadgets.gd").build(Items.CONSUMABLES[item.id].gadget)
+		_model.scale = Vector3(1.7, 1.7, 1.7)
 	elif item.kind == "consumable" and Items.CONSUMABLES[item.id].get("rift", false):
 		_model = preload("res://scripts/Rift.gd").build_visual(0.5)
 	else:

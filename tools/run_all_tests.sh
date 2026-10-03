@@ -31,5 +31,6 @@ run edit_test --no-bus --skip-menu
 run vending_test --no-bus --skip-menu
 run sprite_test --no-bus --skip-menu
 run structure_test --no-bus --skip-menu
+run gadget_test --no-bus --skip-menu
 run menu_test
 exit $fail

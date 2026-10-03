@@ -29,6 +29,9 @@ const WEAPONS := {
 		"pellets": 1, "auto": true, "ammo": "medium", "range": 160.0, "head": 1.8},
 	"shotgun": {"name": "Pump Shotgun", "damage": 11.0, "interval": 0.95, "mag": 5, "reload": 3.0, "spread": 4.5,
 		"pellets": 9, "auto": false, "ammo": "shells", "range": 42.0, "head": 1.5},
+	# Hold fire to charge (about 1.8 s): up to 50% more damage per pellet and a tighter spread. Release to shoot.
+	"charge_shotgun": {"name": "Charge Shotgun", "damage": 10.0, "interval": 1.05, "mag": 3, "reload": 3.2, "spread": 4.2,
+		"pellets": 9, "auto": false, "ammo": "shells", "range": 46.0, "head": 1.5, "charge": 1.8, "model": "shotgun"},
 	"sniper": {"name": "Bolt Sniper", "damage": 85.0, "interval": 1.50, "mag": 1, "reload": 2.6, "spread": 0.0,
 		"pellets": 1, "auto": false, "ammo": "heavy", "range": 260.0, "head": 2.5},
 }
@@ -40,6 +43,7 @@ const SCOPES := {
 	"smg": {"kind": "reddot", "fov": 56.0, "spread": 0.55, "move": 0.80, "sens": 0.70, "dist": 1.9, "hip": "cross_wide"},
 	"assault": {"kind": "holo", "fov": 50.0, "spread": 0.35, "move": 0.75, "sens": 0.62, "dist": 1.9, "hip": "cross"},
 	"shotgun": {"kind": "bead", "fov": 58.0, "spread": 0.70, "move": 0.80, "sens": 0.75, "dist": 1.9, "hip": "ring"},
+	"charge_shotgun": {"kind": "bead", "fov": 58.0, "spread": 0.60, "move": 0.80, "sens": 0.75, "dist": 1.9, "hip": "ring"},
 	"sniper": {"kind": "scope", "fov": 14.0, "spread": 0.0, "move": 0.50, "sens": 0.22, "dist": 0.2, "hip": "cross_far",
 		"hip_spread": 2.2},
 }
@@ -74,6 +78,18 @@ const CONSUMABLES := {
 		"time": 10.0, "stack": 1, "rarity": 4},
 	"grenade": {"name": "Grenade", "heal": 0.0, "heal_cap": 0.0, "shield": 0.0, "shield_cap": 0.0,
 		"time": 0.0, "stack": 6, "rarity": 1, "throw": true},
+	# Shockwave Grenade: no damage, but everyone nearby (you too) is flung away and upward.
+	"shockwave_grenade": {"name": "Shockwave Grenade", "heal": 0.0, "heal_cap": 0.0, "shield": 0.0, "shield_cap": 0.0,
+		"time": 0.0, "stack": 4, "rarity": 2, "throw": true, "shock": true, "model": "grenade", "color": Color(0.35, 0.75, 1.0)},
+	# Junk Rift: a rift opens in the sky over where it lands and something very heavy falls through.
+	"junk_rift": {"name": "Junk Rift", "heal": 0.0, "heal_cap": 0.0, "shield": 0.0, "shield_cap": 0.0,
+		"time": 0.0, "stack": 4, "rarity": 3, "throw": true, "junk": true, "model": "grenade", "color": Color(0.75, 0.4, 1.0)},
+	# Jetpack: equip it, then hold jump to climb. The fuel refills on the ground.
+	"jetpack": {"name": "Jetpack", "heal": 0.0, "heal_cap": 0.0, "shield": 0.0, "shield_cap": 0.0,
+		"time": 0.0, "stack": 1, "rarity": 3, "gadget": "jetpack", "color": Color(1.0, 0.45, 0.25)},
+	# Skateboard: equip it and press fire to hop on or off; much faster on the ground, with a lazy carve.
+	"skateboard": {"name": "Skateboard", "heal": 0.0, "heal_cap": 0.0, "shield": 0.0, "shield_cap": 0.0,
+		"time": 0.0, "stack": 1, "rarity": 2, "gadget": "skateboard", "color": Color(0.25, 0.8, 1.0)},
 	# Rift-to-Go: a portable rift. Using it flings you into the sky; the rift stays open for a few seconds for friends.
 	"rift_to_go": {"name": "Rift-to-Go", "heal": 0.0, "heal_cap": 0.0, "shield": 0.0, "shield_cap": 0.0,
 		"time": 0.0, "stack": 2, "rarity": 3, "throw": true, "rift": true, "color": Color(0.7, 0.35, 1.0)},
@@ -163,12 +179,12 @@ static func name_of(item: Dictionary) -> String:
 
 static func model_of(item: Dictionary) -> String:
 	if item.kind == "weapon":
-		var base: String = "rifle" if item.id == "assault" else item.id
+		var base: String = "rifle" if item.id == "assault" else WEAPONS[item.id].get("model", item.id)
 		if item.rarity == MYTHIC and ResourceLoader.exists(MODEL_DIR + base + "_mythic.glb"):
 			return MODEL_DIR + base + "_mythic.glb"       # mythics have their own bespoke models
 		return MODEL_DIR + base + ".glb"
 	if item.kind == "consumable":
-		return MODEL_DIR + item.id + ".glb"
+		return MODEL_DIR + CONSUMABLES[item.id].get("model", item.id) + ".glb"
 	if item.kind == "ammo":
 		return MODEL_DIR + "ammo_pickup.glb"
 	if item.kind == "gold":
@@ -220,12 +236,12 @@ static func roll_rarity(rng: RandomNumberGenerator, bonus: int = 0) -> int:
 
 
 static func random_weapon(rng: RandomNumberGenerator, bonus: int = 0) -> Dictionary:
-	var table := ["assault", "assault", "assault", "smg", "smg", "shotgun", "shotgun", "pistol", "pistol", "sniper"]
+	var table := ["assault", "assault", "assault", "smg", "smg", "shotgun", "shotgun", "charge_shotgun", "pistol", "pistol", "sniper"]
 	return make_weapon(table[rng.randi() % table.size()], roll_rarity(rng, bonus))
 
 
 static func random_consumable(rng: RandomNumberGenerator) -> Dictionary:
-	var table := ["bandage", "bandage", "bandage", "mini_shield", "mini_shield", "medkit", "shield_potion", "slurp_juice", "grenade", "grenade", "rift_to_go"]
+	var table := ["bandage", "bandage", "bandage", "mini_shield", "mini_shield", "medkit", "shield_potion", "slurp_juice", "grenade", "grenade", "rift_to_go", "shockwave_grenade", "junk_rift", "jetpack", "skateboard"]
 	var id: String = table[rng.randi() % table.size()]
 	var count := 1
 	if id == "bandage":

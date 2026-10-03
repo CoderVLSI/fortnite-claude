@@ -220,7 +220,7 @@ func _draw_gun(id: String, c: Vector2, steel: Color, dark: Color, wood: Color) -
 			draw_rect(Rect2(c + Vector2(14, -6), Vector2(13, 4)), steel)
 			draw_rect(Rect2(c + Vector2(-28, -7), Vector2(9, 10)), wood)
 			draw_rect(Rect2(c + Vector2(-6, 2), Vector2(7, 15)), dark)
-		"shotgun":
+		"shotgun", "charge_shotgun":
 			draw_rect(Rect2(c + Vector2(-22, -6), Vector2(44, 6)), steel)
 			draw_rect(Rect2(c + Vector2(-30, -5), Vector2(11, 10)), wood)
 			draw_rect(Rect2(c + Vector2(2, -1), Vector2(14, 6)), wood)
@@ -254,6 +254,23 @@ func _draw_consumable(id: String, c: Vector2) -> void:
 			draw_rect(Rect2(c + Vector2(-4, -12), Vector2(8, 7)), Color(0.6, 0.62, 0.66))
 			draw_line(c + Vector2(2, -12), c + Vector2(14, -8), Color(0.7, 0.72, 0.76), 3.0)
 			draw_circle(c + Vector2(-8, -10), 4.0, Color(0.9, 0.75, 0.2))
+		"shockwave_grenade":
+			draw_circle(c + Vector2(0, 5), 13.0, Color(0.25, 0.5, 0.8))
+			draw_rect(Rect2(c + Vector2(-4, -12), Vector2(8, 7)), Color(0.6, 0.62, 0.66))
+			draw_arc(c + Vector2(0, 5), 18.0, 0.0, TAU, 20, Color(0.5, 0.85, 1.0), 2.0)
+		"junk_rift":
+			draw_arc(c + Vector2(0, -8), 12.0, 0.0, TAU, 20, Color(0.75, 0.4, 1.0), 3.0)
+			draw_rect(Rect2(c + Vector2(-10, 2), Vector2(20, 7)), Color(0.35, 0.36, 0.42))
+			draw_rect(Rect2(c + Vector2(-6, 9), Vector2(12, 6)), Color(0.35, 0.36, 0.42))
+		"jetpack":
+			draw_rect(Rect2(c + Vector2(-13, -14), Vector2(10, 26)), Color(0.8, 0.22, 0.2))
+			draw_rect(Rect2(c + Vector2(3, -14), Vector2(10, 26)), Color(0.8, 0.22, 0.2))
+			draw_rect(Rect2(c + Vector2(-11, 12), Vector2(6, 5)), Color(1.0, 0.7, 0.2))
+			draw_rect(Rect2(c + Vector2(5, 12), Vector2(6, 5)), Color(1.0, 0.7, 0.2))
+		"skateboard":
+			draw_rect(Rect2(c + Vector2(-17, -3), Vector2(34, 7)), Color(0.2, 0.7, 0.95))
+			draw_circle(c + Vector2(-10, 8), 4.0, Color(0.95, 0.85, 0.2))
+			draw_circle(c + Vector2(10, 8), 4.0, Color(0.95, 0.85, 0.2))
 		"rift_to_go":
 			draw_arc(c, 13.0, 0.0, TAU, 24, Color(0.75, 0.4, 1.0), 4.0)
 			draw_circle(c, 9.0, Color(0.4, 0.12, 0.8, 0.7))

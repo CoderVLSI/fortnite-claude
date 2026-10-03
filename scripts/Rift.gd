@@ -105,7 +105,8 @@ func _physics_process(_delta: float) -> void:
 		var o: Vector3 = p.global_transform.origin + Vector3(0, 1.0, 0)
 		if Vector2(o.x - c.x, o.z - c.z).length() < 1.5 and abs(o.y - c.y) < 2.4:
 			p.rift_launch()
-			Audio.play3d("glider_open", c, 0.0, 0.7)
+			Audio.play3d("rift_enter", c, 0.0)
+			Audio.play3d("glider_open", c, -5.0, 0.7)
 			if lifetime <= 0.0:
 				used = true
 			return

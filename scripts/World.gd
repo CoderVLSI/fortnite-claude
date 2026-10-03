@@ -307,7 +307,7 @@ func _collapse(root: Spatial) -> void:
 	var pos := root.global_transform.origin
 	_strip_colliders(root)
 	Audio.play3d("explosion", pos + Vector3(0, 2, 0), -4.0, 0.6)
-	Audio.play3d("build_destroy" if false else "build_place", pos, 0.0, 0.5)
+	Audio.play3d("building_collapse", pos, 2.0)
 	var dust := preload("res://scripts/SpriteCreature.gd").particles(Color(0.72, 0.68, 0.6, 0.8), 70, 1.8, 6.0, 80.0, 3.0, 4.0)
 	dust.one_shot = true
 	dust.explosiveness = 0.85

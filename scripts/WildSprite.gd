@@ -65,7 +65,8 @@ func interact(by) -> void:
 		return
 	var old: Dictionary = by.equip_sprite(data.id, data.variant, data.level, data.xp)
 	by.emit_signal("picked_up", "Equipped " + Sprites.title(data.id, data.variant))
-	Audio.play2d("loot_pickup", -3.0)
+	Audio.play2d("sprite_equip", -3.0)
+	Audio.play2d("loot_pickup", -8.0)
 	if not old.empty():
 		for w in get_tree().get_nodes_in_group("world"):
 			w.add_wild_sprite(old, global_transform.origin + Vector3(1.4, 0, 0))

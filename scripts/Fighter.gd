@@ -25,6 +25,8 @@ enum Mode { GROUND, BUS, FREEFALL, GLIDE, SWIM, MANTLE, VEHICLE }
 const MODEL_PATH := "res://assets/models/player.glb"
 const Grenade = preload("res://scripts/Grenade.gd")
 const Rift = preload("res://scripts/Rift.gd")
+const JunkRift = preload("res://scripts/JunkRift.gd")
+const Gadgets = preload("res://scripts/Gadgets.gd")
 const Sprites = preload("res://scripts/Sprites.gd")
 const SpriteCreature = preload("res://scripts/SpriteCreature.gd")
 const FALL_SAFE_SPEED := 19.0          # landing faster than this hurts (about a 7 m drop)
@@ -65,6 +67,16 @@ var reserves := {"light": 0, "medium": 0, "shells": 0, "heavy": 0}
 var materials := {"wood": 0, "stone": 0, "metal": 0}
 var gold := 0                     # gold bars: spent at vending machines
 var sprite := {}                  # the equipped Sprite: {id, variant, level, xp} (empty = none)
+var charge := 0.0                 # Charge Shotgun: 0..1 while the fire button is held
+var charge_used := 0.0            # the charge of the shot being fired right now
+var jet_fuel := 100.0             # Jetpack fuel
+var jet_active := false           # set by the controller each frame: thrust (jetpack equipped, jump held)
+var board_on := false             # riding the Skateboard
+var _knock_t := 0.0
+var _gadget_snd_t := 0.0
+var _board_node: Spatial
+var _jet_node: Spatial
+var _jet_flame: CPUParticles
 var cloak_t := 0.0                # Ghost Sprite: seconds of cloak left (bots lose you beyond arm's length)
 var unlimited_t := 0.0            # Punk Sprite: seconds of unlimited ammo left
 var bubble_t := 0.0               # Aegis Sprite: seconds of protective bubble left
@@ -280,6 +292,7 @@ func cycle_slot(direction: int) -> void:
 
 
 func _apply_selected() -> void:
+	charge = 0.0
 	_reload_left = 0.0
 	_use_left = 0.0
 	pellets = 1
@@ -501,9 +514,16 @@ func throw_grenade(aim_from: Vector3, aim_dir: Vector3, slot: int = -1, damage_m
 		get_parent().add_child(rift)
 		rift.global_transform.origin = global_transform.origin
 		rift_launch()
+	elif def.get("junk", false):
+		var jr := JunkRift.new()
+		jr.thrower = self
+		get_parent().add_child(jr)
+		jr.global_transform.origin = hand
+		jr.linear_velocity = aim_dir * 17.0 + Vector3(0, 4.0, 0) + Vector3(velocity.x, 0, velocity.z) * 0.6
 	else:
 		var g := Grenade.new()
 		g.thrower = self
+		g.shock = def.get("shock", false)
 		g.damage_mult = damage_mult
 		get_parent().add_child(g)
 		g.global_transform.origin = hand
@@ -528,14 +548,39 @@ func cancel_use() -> void:
 
 # ------------------------------------------------------------------ movement
 
+func knockback(v: Vector3) -> void:
+	velocity = v
+	_knock_t = 0.6
+	if mode == Mode.SWIM:
+		mode = Mode.GROUND
+
+
 func move_body(delta: float, wish: Vector3, speed: float, want_jump: bool) -> void:
 	var on_floor := is_on_floor()
+	var jetting := jet_active and jet_fuel > 0.0 and not is_dead
+	var launched := _knock_t > 0.0 and velocity.y > 0.5
+	_knock_t = max(0.0, _knock_t - delta)
+	if board_on:
+		speed *= 1.75
 	var accel := 16.0 if on_floor else 4.0
+	if board_on and on_floor:
+		accel = 4.5                              # a lazy carve
+	if _knock_t > 0.0:
+		accel = 0.5
+	elif jetting:
+		accel = 7.0
 	var k: float = clamp(accel * delta, 0.0, 1.0)
 	velocity.x = lerp(velocity.x, wish.x * speed, k)
 	velocity.z = lerp(velocity.z, wish.z * speed, k)
 	var snap := Vector3(0, -0.45, 0)
-	if on_floor:
+	if jetting:
+		velocity.y = min(velocity.y + 42.0 * delta, 10.0)
+		jet_fuel = max(0.0, jet_fuel - 26.0 * delta)
+		snap = Vector3.ZERO
+	elif launched:
+		velocity.y -= _gravity * delta
+		snap = Vector3.ZERO
+	elif on_floor:
 		velocity.y = 0.0                     # the snap keeps us glued to slopes, ramps and stairs
 		if want_jump:
 			velocity.y = jump_speed
@@ -917,8 +962,62 @@ func footstep(speed: float) -> void:
 	Audio.play3d(snd, o, vol, rand_range(0.9, 1.12))
 
 
+func gadget_selected(g: String) -> bool:
+	var it = selected_item()
+	return it != null and it.kind == "consumable" and Items.CONSUMABLES[it.id].get("gadget", "") == g
+
+
+func toggle_board() -> void:
+	if board_on:
+		board_on = false
+	elif mode == Mode.GROUND and not is_dead:
+		board_on = true
+		Audio.play3d("board_mount", global_transform.origin, -4.0)
+		emit_signal("picked_up", "Skateboard: fire again to hop off")
+
+
+# Jetpack on the back, skateboard under the feet, jetpack refuel.
+func tick_gadgets(delta: float) -> void:
+	if board_on and (not gadget_selected("skateboard") or mode != Mode.GROUND or is_dead):
+		board_on = false
+	if board_on and _board_node == null:
+		_board_node = Gadgets.skateboard()
+		_board_node.scale = Vector3(1.3, 1.3, 1.3)
+		add_child(_board_node)
+	if _board_node != null:
+		_board_node.visible = board_on
+	if board_on and is_on_floor() and Vector2(velocity.x, velocity.z).length() > 3.0:
+		_gadget_snd_t -= delta
+		if _gadget_snd_t <= 0.0:
+			_gadget_snd_t = 0.45
+			Audio.play3d("board_roll", global_transform.origin, -10.0, rand_range(0.95, 1.05))
+	var jet_sel := gadget_selected("jetpack") and not is_dead
+	if jet_sel and _jet_node == null:
+		_jet_node = Gadgets.jetpack()
+		_jet_node.translation = Vector3(0, 0.75, 0.3)
+		_jet_node.scale = Vector3(0.95, 0.95, 0.95)
+		add_child(_jet_node)
+		_jet_flame = preload("res://scripts/SpriteCreature.gd").particles(Color(1.0, 0.65, 0.2, 0.9), 40, 0.35, 5.0, 12.0, 0.0, 0.05)
+		_jet_flame.direction = Vector3(0, -1, 0)
+		_jet_flame.emitting = false
+		_jet_flame.translation = Vector3(0, 0.0, 0)
+		_jet_node.add_child(_jet_flame)
+	if _jet_node != null:
+		_jet_node.visible = jet_sel
+		var thrusting := jet_active and jet_fuel > 0.0 and jet_sel
+		if _jet_flame != null:
+			_jet_flame.emitting = thrusting
+		_gadget_snd_t -= delta
+		if thrusting and _gadget_snd_t <= 0.0:
+			_gadget_snd_t = 0.33
+			Audio.play3d("jetpack_thrust", global_transform.origin, -6.0, rand_range(0.95, 1.05))
+	if not jet_active and is_on_floor():
+		jet_fuel = min(100.0, jet_fuel + 35.0 * delta)
+
+
 func tick_weapon(delta: float) -> void:
 	tick_sprite(delta)
+	tick_gadgets(delta)
 	_mantle_cd = max(0.0, _mantle_cd - delta)
 	_hurt_cd = max(0.0, _hurt_cd - delta)
 	_fire_cd = max(0.0, _fire_cd - delta)
@@ -974,6 +1073,8 @@ func try_fire(aim_from: Vector3, aim_dir: Vector3) -> bool:
 	if unlimited_t <= 0.0:
 		item.mag -= 1
 	var snd := "shot_" + ("rifle" if item.id == "assault" else item.id)
+	if not ResourceLoader.exists("res://assets/audio/%s.wav" % snd):
+		snd = "shot_" + str(Items.WEAPONS[item.id].get("model", item.id))      # e.g. the Charge Shotgun borrows the pump shotgun's report
 	if item.rarity == Items.MYTHIC:     # each mythic has its own report; the sniper keeps the original mythic shot
 		snd = "shot_mythic" if item.id == "sniper" else "shot_mythic_" + item.id
 	Audio.play3d(snd, muzzle_position(), -2.0 if is_in_group("player") else -6.0, rand_range(0.96, 1.04))
@@ -998,7 +1099,7 @@ func _fire_ray(aim_from: Vector3, aim_dir: Vector3, show_tracer: bool) -> void:
 			var head: bool = hit.position.y > target.global_transform.origin.y + 1.42
 			var was_alive: bool = not target.is_dead
 			var falloff: float = 1.0 - 0.35 * clamp(aim_from.distance_to(hit.position) / weapon_range, 0.0, 1.0)
-			var dealt: float = gun_damage * falloff * (head_mult if head else 1.0)
+			var dealt: float = gun_damage * falloff * (head_mult if head else 1.0) * (1.0 + 0.5 * charge_used)
 			target.take_damage(dealt, self)
 			emit_signal("hit_landed", target, was_alive and target.is_dead, head)
 			emit_signal("damage_dealt", hit.position, dealt, head, was_alive and target.is_dead)
@@ -1037,6 +1138,7 @@ func _spread(dir: Vector3) -> Vector3:
 			deg *= 0.7                                                          # crouching steadies the shot
 	if deg <= 0.0:
 		return dir
+	deg *= 1.0 - 0.55 * charge_used
 	var s := deg2rad(deg)
 	var b := Basis(Vector3.UP, rand_range(-s, s)) * Basis(Vector3.RIGHT, rand_range(-s, s))
 	return b.xform(dir).normalized()
@@ -1165,7 +1267,7 @@ func sprite_gain_xp(amount: float) -> void:
 	while sprite.level < Sprites.MAX_LEVEL and sprite.xp >= Sprites.xp_to_next(sprite.level):
 		sprite.level += 1
 		emit_signal("picked_up", "%s reached level %d!" % [Sprites.LIST[sprite.id].name, sprite.level])
-		Audio.play2d("rarity_3", -8.0)
+		Audio.play2d("sprite_levelup", -6.0)
 		if sprite.id == "dream":
 			_dream_reward()
 	emit_signal("sprite_changed")

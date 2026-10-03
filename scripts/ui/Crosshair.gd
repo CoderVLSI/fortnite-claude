@@ -59,6 +59,8 @@ func _draw() -> void:
 		_draw_sight(c, sc.kind)
 	else:
 		_draw_hip(c, sc.hip, spread, white)
+	if item != null and item.kind == "weapon" and Items.WEAPONS[item.id].has("charge"):
+		_draw_charge(c)
 	_draw_hit(c)
 
 
@@ -102,6 +104,30 @@ func _draw_sight(c: Vector2, kind: String) -> void:
 			_ring(c, 34.0, Color(1, 1, 1, 0.65), 1.5)
 			draw_circle(c, 3.0, Color(0, 0, 0, 0.5))
 			draw_circle(c, 2.2, Color(1.0, 0.85, 0.3, 1.0))
+
+
+# Charge Shotgun: a bar under the crosshair that fills as you hold fire, with FULL CHARGE when it is ready.
+func _draw_charge(c: Vector2) -> void:
+	var ch: float = clamp(player.charge, 0.0, 1.0) if player != null else 0.0
+	var bar := Rect2(c + Vector2(-70, 52), Vector2(140, 12))
+	draw_rect(bar.grow(2.0), Color(0, 0, 0, 0.7))
+	draw_rect(bar, Color(0.12, 0.14, 0.2, 0.85))
+	var col: Color = Color(1.0, 0.85, 0.3).linear_interpolate(Color(1.0, 0.3, 0.15), clamp((ch - 0.5) * 2.0, 0.0, 1.0))
+	draw_rect(Rect2(bar.position, Vector2(bar.size.x * ch, bar.size.y)), col)
+	draw_rect(bar, Color(1, 1, 1, 0.75), false, 1.5)
+	for i in range(1, 4):                                         # quarter marks
+		var x := bar.position.x + bar.size.x * float(i) / 4.0
+		draw_line(Vector2(x, bar.position.y), Vector2(x, bar.end.y), Color(0, 0, 0, 0.5), 1.0)
+	var font := get_font("font", "Label")
+	var text := "CHARGE"
+	var tc := Color(1, 1, 1, 0.75)
+	if ch >= 1.0:
+		text = "FULL CHARGE"
+		tc = Color(1.0, 0.35 + 0.35 * abs(sin(OS.get_ticks_msec() * 0.012)), 0.2)
+	elif ch > 0.0:
+		text = "CHARGE %d%%" % int(ch * 100.0)
+	var w := font.get_string_size(text).x
+	draw_string(font, c + Vector2(-w / 2.0, 82), text, tc)
 
 
 func _draw_hit(c: Vector2) -> void:

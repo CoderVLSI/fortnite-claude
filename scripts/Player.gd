@@ -179,6 +179,11 @@ func _ground_process(delta: float) -> void:
 	_update_stance(delta, move, want_jump)
 	if emoting:
 		move = Vector2.ZERO
+	if gadget_selected("jetpack") and input_enabled and mode == Mode.GROUND and Input.is_action_pressed("jump"):
+		_jet_hold += delta
+	else:
+		_jet_hold = 0.0
+	jet_active = _jet_hold > 0.2                   # a tap is a normal jump; holding lights the jetpack
 	var wish := b.x * move.x + b.z * move.y    # move.y > 0 is backwards, and basis.z points backwards
 	var speed := sprint_speed if sprinting else walk_speed
 	if sliding:                                # momentum: a fixed direction, losing speed as the slide ends
@@ -188,6 +193,8 @@ func _ground_process(delta: float) -> void:
 		speed *= 0.5
 	if is_using():
 		speed *= 0.5
+	if charge > 0.0:
+		speed *= 0.75                              # bracing the charge slows you
 	if aiming:
 		speed *= Items.scope_of(selected_item().id).move
 	move_body(delta, wish, speed, want_jump)
@@ -257,6 +264,9 @@ func is_scoped() -> bool:
 	return aiming and Items.scope_of(selected_item().id).kind == "scope"
 
 
+var _jet_hold := 0.0
+
+
 func _fire_input(delta: float) -> void:
 	if Controls.edit_aim:             # the build editor owns the fire button (it selects tiles)
 		cancel_use()
@@ -267,11 +277,18 @@ func _fire_input(delta: float) -> void:
 		cancel_use()
 		return
 	var item = selected_item()
+	if item != null and item.kind == "weapon" and Items.WEAPONS[item.id].has("charge"):
+		_charge_input(delta, item)
+		return
 	var firing := Input.is_action_pressed("fire") and _can_aim()
 	if item == null or not firing:
 		cancel_use()
 		return
 	if item.kind == "consumable":
+		if Items.CONSUMABLES[item.id].has("gadget"):          # jetpack: hold jump; skateboard: fire hops on / off
+			if Input.is_action_just_pressed("fire") and Items.CONSUMABLES[item.id].gadget == "skateboard":
+				toggle_board()
+			return
 		if is_throwable_selected():
 			if Input.is_action_just_pressed("fire"):
 				var a := aim_origin_and_dir()
@@ -283,6 +300,28 @@ func _fire_input(delta: float) -> void:
 		if fire_at_crosshair() and item.kind == "weapon":
 			pitch += rand_range(0.0, 0.006) * (3.0 if pellets > 1 or item.id == "sniper" else 1.0)
 			rotation.y += rand_range(-0.003, 0.003)
+
+
+# Charge Shotgun: hold fire to charge (up to 50% more damage, tighter spread), release to shoot.
+func _charge_input(delta: float, item) -> void:
+	var def: Dictionary = Items.WEAPONS[item.id]
+	var holding := Input.is_action_pressed("fire") and _can_aim()
+	var ready: bool = mode == Mode.GROUND and _fire_cd <= 0.0 and _reload_left <= 0.0 and _use_left <= 0.0 and item.mag > 0
+	if holding and ready:
+		var before := charge
+		charge = min(1.0, charge + delta / float(def.charge))
+		if before == 0.0:
+			Audio.play2d("charge_start", -8.0)
+		if before < 1.0 and charge >= 1.0:
+			Audio.play2d("charge_full", -5.0)
+	elif charge > 0.0:
+		if ready and not holding:
+			charge_used = charge
+			fire_at_crosshair()
+			charge_used = 0.0
+		charge = 0.0
+	elif Input.is_action_just_pressed("fire") and item.mag <= 0:
+		fire_at_crosshair()                         # empty: clicks, then reloads
 
 
 func _interact_input(delta: float) -> void:

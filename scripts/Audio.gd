@@ -73,7 +73,7 @@ func apply_volumes() -> void:
 func _stream(name: String):
 	if _cache.has(name):
 		return _cache[name]
-	var st = load(DIR + name + ".wav")
+	var st = load(DIR + name + ".wav") if ResourceLoader.exists(DIR + name + ".wav") else null     # new sounds may not exist yet: stay silent
 	if st != null and (name.ends_with("_loop") or (name.begins_with("music_") and not name.ends_with("victory") and not name.ends_with("defeat"))):
 		st.loop_mode = AudioStreamSample.LOOP_FORWARD
 		st.loop_begin = 0

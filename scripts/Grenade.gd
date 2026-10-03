@@ -6,10 +6,12 @@ extends RigidBody
 const Items = preload("res://scripts/Items.gd")
 
 const RADIUS := 8.0
+const SHOCK_RADIUS := 9.0
 const MAX_DAMAGE := 115.0
 const PIECE_DAMAGE := 300.0
 
 var thrower = null
+var shock := false                   # Shockwave Grenade: no damage, flings everyone nearby
 var damage_mult := 1.0               # bots throw weaker grenades than the player's
 var fuse := 2.4
 var _mat: SpatialMaterial
@@ -46,7 +48,7 @@ func _ready() -> void:
 	add_child(model)
 	_mat = SpatialMaterial.new()
 	_mat.flags_unshaded = true
-	_mat.albedo_color = Color(1, 0.2, 0.1, 0.0)
+	_mat.albedo_color = Color(0.3, 0.7, 1.0, 0.0) if shock else Color(1, 0.2, 0.1, 0.0)
 	_mat.flags_transparent = true
 	var glow := MeshInstance.new()                         # a red light on top that blinks faster and faster
 	var sph := SphereMesh.new()
@@ -77,7 +79,52 @@ func _physics_process(delta: float) -> void:
 		_explode()
 
 
+func _shockwave() -> void:
+	_done = true
+	var pos := global_transform.origin
+	Audio.play3d("shockwave_boom", pos + Vector3(0, 0.5, 0), 0.0)
+	Audio.play3d("explosion", pos + Vector3(0, 0.5, 0), -6.0, 1.8)
+	for f in get_tree().get_nodes_in_group("fighters"):
+		if f.is_dead:
+			continue
+		var chest: Vector3 = f.global_transform.origin + Vector3(0, 1.0, 0)
+		var d: float = chest.distance_to(pos)
+		if d >= SHOCK_RADIUS:
+			continue
+		var dir: Vector3 = (chest - pos)
+		dir.y = max(dir.y, 0.0) * 0.5
+		dir = dir.normalized() if dir.length() > 0.05 else Vector3.UP
+		var power: float = 1.0 - 0.55 * d / SHOCK_RADIUS
+		f.knockback(dir * 20.0 * power + Vector3(0, 13.0 * power, 0))
+	var parent := get_parent()
+	var ring := MeshInstance.new()
+	var sph := SphereMesh.new()
+	sph.radius = 1.0
+	sph.height = 2.0
+	sph.radial_segments = 16
+	sph.rings = 8
+	var mat := SpatialMaterial.new()
+	mat.flags_unshaded = true
+	mat.flags_transparent = true
+	mat.params_cull_mode = SpatialMaterial.CULL_DISABLED
+	mat.albedo_color = Color(0.4, 0.8, 1.0, 0.45)
+	ring.mesh = sph
+	ring.material_override = mat
+	parent.add_child(ring)
+	ring.global_transform.origin = pos + Vector3(0, 0.4, 0)
+	var tw := Tween.new()
+	ring.add_child(tw)
+	tw.interpolate_property(ring, "scale", Vector3(0.3, 0.3, 0.3), Vector3(SHOCK_RADIUS, SHOCK_RADIUS, SHOCK_RADIUS), 0.4, Tween.TRANS_QUAD, Tween.EASE_OUT)
+	tw.interpolate_property(mat, "albedo_color:a", 0.45, 0.0, 0.45)
+	tw.start()
+	ring.get_tree().create_timer(0.55).connect("timeout", ring, "queue_free")
+	queue_free()
+
+
 func _explode() -> void:
+	if shock:
+		_shockwave()
+		return
 	_done = true
 	var pos := global_transform.origin
 	Audio.play3d("explosion", pos + Vector3(0, 0.5, 0), 3.0)

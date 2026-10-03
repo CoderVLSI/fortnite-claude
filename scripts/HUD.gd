@@ -761,7 +761,12 @@ func _ammo_text() -> String:
 				return "RELOADING..."
 			return "%d  |  %d" % [item.mag, player.get_reserve()]
 		"consumable":
-			return Items.CONSUMABLES[item.id].name.to_upper()
+			var cd: Dictionary = Items.CONSUMABLES[item.id]
+			if cd.get("gadget", "") == "jetpack":
+				return "JETPACK  FUEL %d%%" % int(player.jet_fuel)
+			if cd.get("gadget", "") == "skateboard":
+				return "SKATEBOARD  " + ("RIDING" if player.board_on else "FIRE TO RIDE")
+			return cd.name.to_upper()
 	return "PICKAXE"
 
 

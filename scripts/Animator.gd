@@ -246,7 +246,7 @@ func _pose_weapon(f, item, sprinting: bool, run: float, w: float, s: float) -> v
 	_to("ElbowR", low_er.linear_interpolate(ready_er, a))
 	_to("ShoulderL", low_l.linear_interpolate(ready_l, a))
 	_to("ElbowL", low_el.linear_interpolate(ready_el, a))
-	var is_long: bool = item.id == "assault" or item.id == "sniper" or item.id == "shotgun"
+	var is_long: bool = item.id == "assault" or item.id == "sniper" or item.id == "shotgun" or item.id == "charge_shotgun"
 	if not is_long:                       # pistols / SMGs are held a bit higher, with one hand relaxed
 		if item.id == "pistol":
 			_to("ShoulderL", Vector3(0.12 - s * 0.45 * w, 0, -0.06).linear_interpolate(Vector3(1.0, -0.4, 0), a * 0.0))
