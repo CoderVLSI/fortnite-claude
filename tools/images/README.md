@@ -4,9 +4,8 @@
 icon) with whichever image model on [OpenRouter](https://openrouter.ai) is cheapest. Models and
 sounds are separate: 3D models come from Blender scripts, audio from `tools/audio/`.
 
-> **Status: untested against the live API.** It was written in a sandbox that could not reach
-> openrouter.ai. The image-processing half (crop, resize, background removal) *was* tested offline.
-> Expect to fix a small thing on the first real run, which is why `--test` exists.
+> **Status:** run against the live API with `openai/gpt-image-2` (via the `/images` endpoint; chat-style
+> models like Gemini use `/chat/completions`). The script prints the real cost of each image.
 
 ## One-time setup
 
@@ -52,7 +51,9 @@ python3 tools/images/openrouter_generate.py --list                       # every
 | `items` | `assets/icons/heal_*.png`, `assets/icons/material_*.png` | 128 |
 | `app` | `icon.png` (512) + `assets/icons/launcher_*` for Android | 512 / 192 / 432 |
 
-Item icons are generated on a flat magenta background that ffmpeg turns transparent. Cheap models do
+Item icons are generated on a flat magenta background that ffmpeg turns transparent, then composited onto a
+gradient inventory tile (blue weapons, orange ammo, green items; see `TILES`). `--add-bg` adds the tile to
+already-generated transparent icons for free; it skips icons that already have one. Cheap models do
 not follow "flat background" perfectly, so a pink fringe is possible: re-run that one asset with `--force`.
 Icons are **not committed automatically**: check them, then `git add assets/icons icon.png`.
 
