@@ -35,7 +35,7 @@ func icon_name_of(item: Dictionary) -> String:
 		"pickaxe":
 			return "weapon_pickaxe"
 		"weapon":
-			var mythic := "weapon_%s_mythic" % item.id
+			var mythic: String = "weapon_%s_mythic" % item.id
 			if item.rarity == Items.MYTHIC and ResourceLoader.exists(ICON_DIR + mythic + ".png"):
 				return mythic
 			return "weapon_" + str(item.id)
