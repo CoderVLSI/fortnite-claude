@@ -12,6 +12,7 @@ const HOTBAR_HALF := 167.0       # half the hotbar width: the pickup ring and re
 
 signal map_pressed
 signal bag_pressed
+signal edit_pressed
 signal piece_pressed(index)
 signal material_pressed(name)
 
@@ -50,6 +51,7 @@ func _layout() -> void:
 		"reload": {"center": Vector2(w / 2.0 + HOTBAR_HALF + 235.0, h - 64), "radius": 40.0, "icon": "reload", "action": "reload"},
 		"interact": {"center": Vector2(w / 2.0 - HOTBAR_HALF - 72.0, h - 78), "radius": 58.0, "label": "PICK UP", "action": "interact", "hidden": true},
 	}
+	_buttons["edit"] = {"center": Vector2(w - 46, 486.0), "radius": 34.0, "icon": "edit", "edit": true}
 	for i in range(4):
 		_buttons["piece%d" % i] = {"center": Vector2(w - 46, 150.0 + i * 84.0), "radius": 36.0, "icon": "piece%d" % i, "piece": i}
 	for b in _buttons.values():
@@ -124,6 +126,8 @@ func _down(index: int, pos: Vector2) -> void:
 				emit_signal("piece_pressed", b["piece"])
 			elif b.get("bag", false):
 				emit_signal("bag_pressed")
+			elif b.get("edit", false):
+				emit_signal("edit_pressed")
 			elif b.get("aim", false):
 				Controls.touch_aim = not Controls.touch_aim       # tap to scope in, tap again to scope out
 			elif b.get("toggle", false):
@@ -282,6 +286,14 @@ func _draw_icon(icon: String, c: Vector2, r: float, col: Color, chosen: bool) ->
 		"sprint":    # three chevrons pointing right with speed lines
 			for off in [-16.0, 2.0, 20.0]:
 				draw_polyline(PoolVector2Array([c + Vector2(off - 6, -18) * k, c + Vector2(off + 12, 0) * k, c + Vector2(off - 6, 18) * k]), col, 5.0 * max(k, 0.8))
+		"edit":      # pencil over a grid
+			draw_rect(Rect2(c + Vector2(-17, -17), Vector2(34, 34)), Color(1, 1, 1, 0.22))
+			draw_line(c + Vector2(-17, -6), c + Vector2(17, -6), Color(1, 1, 1, 0.5), 1.5)
+			draw_line(c + Vector2(-17, 6), c + Vector2(17, 6), Color(1, 1, 1, 0.5), 1.5)
+			draw_line(c + Vector2(-6, -17), c + Vector2(-6, 17), Color(1, 1, 1, 0.5), 1.5)
+			draw_line(c + Vector2(6, -17), c + Vector2(6, 17), Color(1, 1, 1, 0.5), 1.5)
+			draw_line(c + Vector2(-12, 14), c + Vector2(12, -10), col, 5.0)
+			draw_colored_polygon(PoolVector2Array([c + Vector2(-16, 18), c + Vector2(-13, 9), c + Vector2(-8, 14)]), col)
 		"bag":       # backpack: rounded body, flap line and straps
 			draw_rect(Rect2(c + Vector2(-14, -10), Vector2(28, 26)), Color(1, 1, 1, 0.92))
 			draw_rect(Rect2(c + Vector2(-14, -10), Vector2(28, 26)), Color(0.1, 0.12, 0.2, 0.6), false, 2.0)

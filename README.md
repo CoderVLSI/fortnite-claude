@@ -24,7 +24,7 @@ storm closes in. Last one standing wins.
 | **Boss** | *The Warden* guards Iron Bunker (300 hp + shield) with a Mythic weapon |
 | **Movement** | Sprint, jump, **crouch** and **slide** (crouch while sprinting), **mantling** ledges, **swimming** (floating, strokes, ripples), freefall dive, glider, hard landings hurt (fall damage), a dance **emote** (B) |
 | **Vehicles** | Buggy (2 seats), quad bike, motor boat; run-over and crash damage, explosions, horn |
-| **Building** | Walls, floors, ramps and roofs in wood / stone / metal on a 4 m grid, destructible, harvested from trees / rocks / structures with the pickaxe, with a draining health bar over whatever you are hitting |
+| **Building** | Walls, floors, ramps and roofs in wood / stone / metal on a 4 m grid, destructible, **editable** (G: cut doors, windows and holes in walls and floors on a 3x3 grid), harvested from trees / rocks / structures with the pickaxe, with a draining health bar over whatever you are hitting |
 | **Animation** | Jointed rig: idle breathing, walk / run / sprint cycles, landing squash, aim + recoil, reload, pickaxe wind-up, drinking, swimming strokes, mantle, vehicle seat, skydive, glide |
 | **Audio** | 71 synthesised sound effects (per-weapon shots, footsteps per surface, water, chests, rarity chimes, storm, engines...) and 6 music tracks (menu, bus, ambient, combat, victory, defeat) with crossfades |
 | **Platforms** | Keyboard + mouse, gamepad, and full touch controls; mobile quality profile |

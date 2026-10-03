@@ -758,6 +758,10 @@ func _input(event: InputEvent) -> void:
 			world.hud.close_inventory()                 # Esc closes the inventory screen before it pauses the game
 			get_tree().set_input_as_handled()
 			return
+		if world != null and world.hud != null and world.hud.editor.visible:
+			world.hud.editor.cancel()                   # ... and the build editor
+			get_tree().set_input_as_handled()
+			return
 		toggle_pause()
 		get_tree().set_input_as_handled()
 	elif event is InputEventKey and event.pressed and event.scancode == KEY_ENTER and state == "title":

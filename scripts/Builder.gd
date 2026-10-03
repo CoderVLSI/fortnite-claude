@@ -68,6 +68,20 @@ func cycle_material(direction: int) -> void:
 	emit_signal("changed")
 
 
+const EDIT_REACH := 11.0
+
+
+# The editable build piece under the crosshair (walls and floors), or null.
+func looked_at_piece():
+	if player == null:
+		return null
+	var a: Array = player.aim_origin_and_dir()
+	var hit: Dictionary = player.get_world().direct_space_state.intersect_ray(a[0], a[0] + a[1] * EDIT_REACH, [player], 1)
+	if hit and hit.collider != null and hit.collider.has_method("apply_mask") and hit.collider.editable():
+		return hit.collider
+	return null
+
+
 func set_material(name: String) -> void:
 	if name in MATERIALS and name != material:
 		material = name

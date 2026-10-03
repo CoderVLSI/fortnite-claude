@@ -12,6 +12,7 @@ const ScopeOverlay = preload("res://scripts/ui/ScopeOverlay.gd")
 const Minimap = preload("res://scripts/ui/Minimap.gd")
 const Materials = preload("res://scripts/ui/Materials.gd")
 const InventoryScreen = preload("res://scripts/ui/InventoryScreen.gd")
+const BuildEditor = preload("res://scripts/ui/BuildEditor.gd")
 const TouchControls = preload("res://scripts/ui/TouchControls.gd")
 const FONT_PATH := "res://assets/fonts/DejaVuSans-Bold.ttf"
 
@@ -30,6 +31,7 @@ var minimap: Control
 var hotbar: Control
 var materials: Control
 var inventory: Control
+var editor: Control
 var compass: Control
 var prompt_label: Label
 var bus_label: Label
@@ -286,6 +288,9 @@ func _build() -> void:
 	inventory = InventoryScreen.new()
 	inventory.connect("closed", self, "close_inventory")
 	root.add_child(inventory)
+	editor = BuildEditor.new()
+	editor.connect("finished", self, "_on_edit_finished")
+	root.add_child(editor)
 
 	touch = TouchControls.new()
 	touch.visible = Controls.touch_mode
@@ -294,6 +299,7 @@ func _build() -> void:
 	touch.materials = materials
 	touch.connect("map_pressed", self, "toggle_map")
 	touch.connect("bag_pressed", self, "toggle_inventory")
+	touch.connect("edit_pressed", self, "try_edit")
 	touch.connect("piece_pressed", self, "_on_piece_pressed")
 	touch.connect("material_pressed", self, "_on_material_pressed")
 	root.add_child(touch)
@@ -474,6 +480,35 @@ func _fit_map() -> void:
 	var side: float = min(root.rect_size.x, root.rect_size.y) - 28.0     # the island map fills the screen
 	_place(map_screen, 0.5, 0.5, Vector2(-side / 2.0, -side / 2.0), Vector2(side, side))
 	map_screen.mouse_filter = Control.MOUSE_FILTER_STOP
+
+
+# Edit the wall / floor under the crosshair (G, or the pencil button): opens the 3x3 cell editor.
+func try_edit() -> void:
+	if player == null or player.is_dead or world == null or world.match_over or editor.visible or inventory.visible:
+		return
+	if world.menu != null and world.menu.state != "hidden":
+		return
+	var piece = player.builder.looked_at_piece()
+	if piece == null:
+		show_toast("Look at a wall or floor to edit it")
+		return
+	editor.open(piece)
+	player.input_enabled = false
+	for a in ["fire", "aim", "sprint", "jump", "reload", "interact"]:
+		Input.action_release(a)
+	if touch:
+		touch.visible = false
+	Controls.capture_mouse(false)
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+
+
+func _on_edit_finished(_confirmed: bool) -> void:
+	if player != null:
+		player.input_enabled = true
+	if touch:
+		touch.visible = Controls.touch_mode and not end_panel.visible
+	if not Controls.touch_mode and not ("--no-capture" in OS.get_cmdline_args()) and not end_panel.visible:
+		Controls.capture_mouse(true)
 
 
 func toggle_map() -> void:
@@ -662,6 +697,10 @@ func _process(delta: float) -> void:
 		toggle_map()
 	if Input.is_action_just_pressed("inventory") and not end_panel.visible:
 		toggle_inventory()
+	if Input.is_action_just_pressed("edit") and not editor.visible:
+		try_edit()
+	if editor.visible and (player.is_dead or world.match_over):
+		editor.cancel()
 	if inventory.visible and (player.is_dead or world.match_over):
 		close_inventory()
 	_update_prompts()
@@ -690,7 +729,7 @@ func _process(delta: float) -> void:
 	else:
 		toast_label.text = ""
 
-	hint_label.visible = (not Controls.touch_mode) and (not end_panel.visible) and (not inventory.visible) \
+	hint_label.visible = (not Controls.touch_mode) and (not end_panel.visible) and (not inventory.visible) and (not editor.visible) \
 		and Input.get_mouse_mode() != Input.MOUSE_MODE_CAPTURED
 
 

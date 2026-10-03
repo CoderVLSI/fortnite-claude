@@ -12,6 +12,9 @@ var is_dead := false
 var key := ""
 var registry: Dictionary
 var _mesh_node: MeshInstance
+var _full_shape: CollisionShape
+var _cells := []                    # per-cell meshes and collision shapes once the piece has been edited
+var mask := [true, true, true, true, true, true, true, true, true]   # 3x3: index = row * 3 + col (wall: row 0 is the bottom)
 var _flash := 0.0
 
 
@@ -74,6 +77,67 @@ func _ready() -> void:
 	var cs := CollisionShape.new()
 	cs.shape = shape
 	add_child(cs)
+	_full_shape = cs
+
+
+# Walls and floors can be edited: each of the nine cells is kept or cut away (doors, windows, holes).
+func editable() -> bool:
+	return kind == "wall" or kind == "floor"
+
+
+func get_mask() -> Array:
+	return mask.duplicate()
+
+
+func is_full() -> bool:
+	for c in mask:
+		if not c:
+			return false
+	return true
+
+
+# Apply a new cell mask. At least one cell must remain. Returns false if the mask was rejected.
+func apply_mask(new_mask: Array) -> bool:
+	if not editable() or new_mask.size() != 9 or is_dead:
+		return false
+	var any := false
+	for c in new_mask:
+		any = any or c
+	if not any:
+		return false
+	mask = new_mask.duplicate()
+	for n in _cells:
+		remove_child(n)                  # gone right away (queue_free alone would leave them until the frame ends)
+		n.queue_free()
+	_cells.clear()
+	var full := is_full()
+	_mesh_node.visible = full
+	_full_shape.disabled = not full         # the whole-piece collider is only used while no cell is cut away
+	if full:
+		return true
+	var full_size: Vector3 = (_mesh_node.mesh as CubeMesh).size
+	var cell := Vector3(full_size.x / 3.0, full_size.y / 3.0, full_size.z) if kind == "wall" else Vector3(full_size.x / 3.0, full_size.y, full_size.z / 3.0)
+	var cm := CubeMesh.new()
+	cm.size = cell
+	var box := BoxShape.new()
+	box.extents = cell / 2.0
+	for row in range(3):
+		for col in range(3):
+			if not mask[row * 3 + col]:
+				continue
+			var center := Vector3((col - 1) * cell.x, (row - 1) * cell.y, 0.0) if kind == "wall" else Vector3((col - 1) * cell.x, 0.0, (row - 1) * cell.z)
+			var mi := MeshInstance.new()
+			mi.mesh = cm
+			mi.material_override = _mesh_node.material_override      # shared, so the hit flash colours every cell
+			mi.translation = center
+			add_child(mi)
+			var cs := CollisionShape.new()
+			cs.shape = box
+			cs.translation = center
+			add_child(cs)
+			_cells.append(mi)
+			_cells.append(cs)
+	return true
 
 
 func take_damage(amount: float, _source = null) -> void:
