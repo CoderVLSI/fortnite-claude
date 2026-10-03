@@ -147,13 +147,26 @@ def pick_cheapest():
     return rows[0][1]
 
 
+def generate_via_images(model, prompt, key):
+    """Image-only models (GPT Image, FLUX, ...) use POST /images, not chat/completions."""
+    resp = http("POST", API + "/images", key, {"model": model, "prompt": prompt, "n": 1})
+    try:
+        raw = base64.b64decode(resp["data"][0]["b64_json"])
+    except (KeyError, IndexError, TypeError):
+        sys.exit("no image in response: %s" % json.dumps(resp)[:400])
+    return raw, (resp.get("usage") or {}).get("cost")
+
+
 def generate(model, prompt, key):
-    """Returns (png_bytes, cost_usd_or_None). Image-only models reject modalities with 'text': retry once."""
+    """Returns (image_bytes, cost_usd_or_None). Tries chat/completions, which Gemini-style models use;
+    switches to /images when the API says the model needs it, and retries once with modalities=[image]."""
     payload = {"model": model, "usage": {"include": True},
                "messages": [{"role": "user", "content": prompt}]}
     try:
         resp = http("POST", API + "/chat/completions", key, dict(payload, modalities=["image", "text"]))
     except ApiError as e:
+        if "/images" in e.body:
+            return generate_via_images(model, prompt, key)
         if e.code not in (400, 404, 422):
             sys.exit(str(e))
         print("  first request failed (%s); retrying with modalities=[image]" % e.body[:160].replace("\n", " "))
