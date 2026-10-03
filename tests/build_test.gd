@@ -149,11 +149,25 @@ func _run() -> void:
 			wall = world.build_slots[k]
 	check(wall != null and wall.health == 300.0 and p.materials["stone"] == 90, "stone walls are tougher (hp %.0f)" % (wall.health if wall else -1.0))
 
-	# affordability
-	b.cycle_material(1)
-	check(b.material == "metal", "metal selected")
+	# running out of a material routes straight to the next one that has enough
+	var saved: Dictionary = p.materials.duplicate()
+	b.material = "wood"
+	p.materials = {"wood": 0, "stone": 30, "metal": 50}
+	b.auto_route()
+	check(b.material == "stone", "out of wood -> stone (%s)" % b.material)
+	p.materials = {"wood": 0, "stone": 5, "metal": 50}
+	b.auto_route()
+	check(b.material == "metal", "too little stone -> metal (%s)" % b.material)
+	p.materials = {"wood": 0, "stone": 0, "metal": 0}
+	b.auto_route()
+	check(b.material == "metal", "with nothing at all the selection stays put")
+	b.material = "wood"
+	p.materials = {"wood": 10, "stone": 100, "metal": 100}
 	yield(_frames(4), "completed")
-	check(not b.place(), "no metal means no building")
+	b.set_piece(1)
+	b.place()
+	check(b.material == "stone" and p.materials.wood == 0 or not b._target.valid, "spending the last wood moves the selection on (%s)" % b.material)
+	p.materials = saved
 
 	# roof
 	b.material = "wood"

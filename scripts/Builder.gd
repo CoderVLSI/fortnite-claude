@@ -49,6 +49,8 @@ func set_active(on: bool) -> void:
 	if on == active:
 		return
 	active = on
+	if on:
+		auto_route()
 	_ghost.visible = false
 	Audio.play2d("build_toggle", -4.0)
 	emit_signal("changed")
@@ -87,6 +89,19 @@ func set_material(name: String) -> void:
 		material = name
 		Audio.play2d("ui_slot", -8.0)
 		emit_signal("changed")
+
+
+# Out of the selected material? Jump straight to the next one that has enough (wood -> brick -> metal), no menu.
+func auto_route() -> void:
+	if player == null or player.materials[material] >= COST:
+		return
+	for i in range(1, MATERIALS.size()):
+		var m: String = MATERIALS[int(posmod(MATERIALS.find(material) + i, MATERIALS.size()))]
+		if player.materials[m] >= COST:
+			material = m
+			Audio.play2d("ui_slot", -8.0)
+			emit_signal("changed")
+			return
 
 
 func can_afford() -> bool:
@@ -148,6 +163,7 @@ func _process(_delta: float) -> void:
 			active = false
 			emit_signal("changed")
 		return
+	auto_route()
 	_target = compute_target()
 	if _ghost.mesh == null:
 		_ghost.mesh = BuildPiece.make_mesh(PIECES[piece])
@@ -160,6 +176,7 @@ func _process(_delta: float) -> void:
 func place() -> bool:
 	if not active:
 		return false
+	auto_route()
 	_target = compute_target()          # never place from a stale ghost
 	if not _target.valid:
 		Audio.play2d("ui_error", -6.0)
@@ -170,6 +187,7 @@ func place() -> bool:
 		return false
 	var node: StaticBody = world.spawn_build(_target.kind, material, _target.key, _target.pos, _target.yaw)
 	player.materials[material] -= COST
+	auto_route()
 	Audio.play3d("build_place", _target.pos, 0.0, rand_range(0.95, 1.05))
 	emit_signal("changed")
 	return node != null

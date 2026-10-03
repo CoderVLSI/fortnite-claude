@@ -32,6 +32,23 @@ func raw_height(x: float, z: float) -> float:
 	return h
 
 
+# Biome wedges around the island centre: (snow, lava, desert) weights 0..1. The borders wobble with noise and
+# everything near the town stays grassland.
+const BIOMES := [[315.0, 44.0], [232.0, 30.0], [62.0, 42.0]]    # centre angle, half-width (degrees)
+
+
+func biome_weights(x: float, z: float) -> Vector3:
+	var radial := smoothstep(0.24, 0.44, Vector2(x, z).length() / half)
+	if radial <= 0.0:
+		return Vector3.ZERO
+	var ang := rad2deg(atan2(z, x)) + detail.get_noise_2d(x * 0.6, z * 0.6) * 14.0
+	var w := []
+	for b in BIOMES:
+		var d: float = abs(fposmod(ang - b[0] + 180.0, 360.0) - 180.0)
+		w.append((1.0 - smoothstep(b[1] * 0.55, b[1], d)) * radial)
+	return Vector3(w[0], w[1], w[2])
+
+
 func add_zone(x: float, z: float, radius: float) -> void:
 	_zones.append(Vector3(x, z, radius))
 	_zone_h.append(raw_height(x, z))
@@ -141,6 +158,21 @@ func _vertex(heights: Array, i: int, j: int, n: int) -> Array:
 		col = col.linear_interpolate(Color(0.42, 0.55, 0.22), 0.5)
 	if slope > 0.22:
 		col = col.linear_interpolate(Color(0.48, 0.45, 0.40), clamp((slope - 0.22) * 5.0, 0.0, 1.0))
+	var bw := biome_weights(x, z)
+	if bw.x > 0.0:      # snow
+		col = col.linear_interpolate(Color(0.78, 0.88, 0.96) if h < 1.4 else Color(0.93 + tint, 0.96 + tint, 1.0), bw.x)
+	if bw.y > 0.0:      # lava field: dark basalt cut by glowing cracks
+		var lava := Color(0.17 + tint, 0.13, 0.12)
+		var crack: float = abs(detail.get_noise_2d(x * 1.3 + 40.0, z * 1.3 - 17.0))
+		if crack < 0.07 and h > 1.4:
+			lava = Color(1.0, 0.38 + crack * 4.0, 0.04)
+		col = col.linear_interpolate(lava, bw.y)
+	if bw.z > 0.0:      # desert
+		col = col.linear_interpolate(Color(0.86 + tint, 0.68 + tint, 0.38), bw.z)
+	if slope > 0.22:
+		var rock := Color(0.48, 0.45, 0.40)
+		rock = rock.linear_interpolate(Color(0.85, 0.9, 0.96), bw.x).linear_interpolate(Color(0.10, 0.08, 0.08), bw.y).linear_interpolate(Color(0.62, 0.38, 0.22), bw.z)
+		col = col.linear_interpolate(rock, clamp((slope - 0.22) * 5.0, 0.0, 1.0) * max(bw.x, max(bw.y, bw.z)))
 	var zw := zone_weight(x, z)
 	if zw > 0.0 and h > 1.4:
 		col = col.linear_interpolate(Color(0.50, 0.47, 0.33), zw * 0.65)   # packed dirt around buildings
