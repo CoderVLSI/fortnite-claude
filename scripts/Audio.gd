@@ -65,6 +65,12 @@ func _setup_buses() -> void:
 			AudioServer.set_bus_send(idx, "Master")
 
 
+func _exit_tree() -> void:
+	for k in ["emote_streams", "anim_clips"]:         # cached resources held outside the tree: release them before shutdown
+		if Engine.has_meta(k):
+			Engine.remove_meta(k)
+
+
 func apply_volumes() -> void:
 	AudioServer.set_bus_volume_db(AudioServer.get_bus_index("SFX"), linear2db(max(Settings.sfx_volume, 0.0001)))
 	AudioServer.set_bus_volume_db(AudioServer.get_bus_index("Music"), linear2db(max(Settings.music_volume, 0.0001)))

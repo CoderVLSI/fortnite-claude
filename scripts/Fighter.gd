@@ -1085,6 +1085,12 @@ func animate(delta: float) -> void:
 	animator.update(self, delta)
 
 
+func _exit_tree() -> void:
+	if _emote_player != null and is_instance_valid(_emote_player):
+		_emote_player.stop()                  # let go of the cached music stream before the engine shuts down
+		_emote_player.stream = null
+
+
 # Dance music plays from the dancer for everyone nearby, and stops when the emote does.
 func _emote_audio() -> void:
 	var want := Emotes.music_name(emote_id) if emoting and not is_dead and Emotes.SONGS.has(emote_id) and not Audio.muted else ""
