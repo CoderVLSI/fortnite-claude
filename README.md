@@ -27,6 +27,13 @@ storm closes in. Last one standing wins.
 | **Building** | Walls, floors, ramps and roofs in wood / stone / metal on a 4 m grid, destructible, **editable** (G: cut doors, windows and holes in walls and floors on a 3x3 grid), harvested from trees / rocks / structures with the pickaxe, with a draining health bar over whatever you are hitting |
 | **Animation** | Jointed rig: idle breathing, walk / run / sprint cycles, landing squash, aim + recoil, reload, pickaxe wind-up, drinking, swimming strokes, mantle, vehicle seat, skydive, glide |
 | **Audio** | 71 synthesised sound effects (per-weapon shots, footsteps per surface, water, chests, rarity chimes, storm, engines...) and 6 music tracks (menu, bus, ambient, combat, victory, defeat) with crossfades |
+| **Biomes & terrain** | Snow, lava and desert wedges, mountain ranges with snow caps; the minimap and the big map show the biomes |
+| **Buildings** | Every building has a pickaxe health bar and comes down when destroyed; doors open by themselves; nothing opens through a wall; **Skyline Heights**, a city of walkable high-rises with stairs, loot on every few floors and a roof |
+| **Sprites** | Equip one companion in your backpack for a passive power (Earth, Fire, Water, Duck, Ghost, Demon, King, Dream, Punk, Aegis, Lucky), level it up, find Gold / Galaxy variants; wild sprites roam the island |
+| **Rifts** | Single-use sky portals around the island, and the **Rift-to-Go** item |
+| **Gear** | Charge Shotgun (hold to charge), Jetpack (hold jump), Skateboard, Shockwave Grenade, Junk Rift |
+| **Skins** | Eight character skins picked in the lobby (Ranger, Shadow Ninja, Astro, Silver Knight, Unit 7, Captain Jolly, Dusty Rider, Rex Hoodie) |
+| **Editing** | Fortnite style: hold Edit on a piece, aim at tiles and click / drag, release to confirm, Reset Edit (bindable, wheel too) restores the piece |
 | **Platforms** | Keyboard + mouse, gamepad, and full touch controls; mobile quality profile |
 
 ![pois](docs/pois.png)
@@ -83,7 +90,7 @@ Headless: `tools/import_assets.sh` imports assets without a display.
 
 ## Tests
 
-`tools/run_all_tests.sh` runs seven headless suites under Xvfb (`SHOTS=1` also writes screenshots to `tests/out/`):
+`tools/run_all_tests.sh` runs these headless suites under Xvfb (`SHOTS=1` also writes screenshots to `tests/out/`):
 
 | suite | covers |
 |---|---|
@@ -93,7 +100,13 @@ Headless: `tools/import_assets.sh` imports assets without a display.
 | `vehicle_test` | buggy / quad / boat, passengers, run-over, destruction |
 | `build_test` | build mode, costs, tiers, ramps, destroying pieces |
 | `poi_test` | all POIs, boss, vault, mythic drop |
-| `menu_test` | title, settings persistence, pause / resume |
+| `menu_test` | splash, title, settings persistence, key rebinding, pause / resume |
+| `edit_test` | in-world build editing, reset, confirm / cancel |
+| `sprite_test` | sprites, their powers and levels, rifts |
+| `structure_test` | doors, destructible buildings, no opening through walls, biomes, mountains |
+| `gadget_test` | charge shotgun, jetpack, skateboard, shockwave grenade, junk rift |
+| `highrise_test` | Skyline Heights and its stairs |
+| `skin_test` | skins and the lobby picker |
 
 `tests/anim_test.gd` and `tests/gallery_test.gd` render pose / model galleries; `tools/contact_sheet.py` stitches screenshots.
 
