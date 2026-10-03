@@ -106,7 +106,10 @@ static func name_of(item: Dictionary) -> String:
 
 static func model_of(item: Dictionary) -> String:
 	if item.kind == "weapon":
-		return MODEL_DIR + ("rifle" if item.id == "assault" else item.id) + ".glb"
+		var base: String = "rifle" if item.id == "assault" else item.id
+		if item.rarity == MYTHIC and ResourceLoader.exists(MODEL_DIR + base + "_mythic.glb"):
+			return MODEL_DIR + base + "_mythic.glb"       # mythics have their own bespoke models
+		return MODEL_DIR + base + ".glb"
 	if item.kind == "consumable":
 		return MODEL_DIR + item.id + ".glb"
 	if item.kind == "ammo":

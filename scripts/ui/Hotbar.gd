@@ -9,6 +9,9 @@ const SLOT := 62.0
 const GAP := 6.0
 const TOP := 76.0               # room above the slots for materials and the name popup
 
+const ICON_DIR := "res://assets/icons/"
+
+var _icons := {}                # name -> Texture or null (the drawn shapes below are the fallback)
 var player
 var builder
 var show_materials := true      # the touch HUD draws materials in its own widget (Materials.gd)
@@ -19,6 +22,26 @@ var _pop_color := Color.white
 
 static func wanted_size() -> Vector2:
 	return Vector2(Items.SLOT_COUNT * SLOT + (Items.SLOT_COUNT - 1) * GAP, TOP + SLOT + 10.0)
+
+
+func icon(name: String):
+	if not _icons.has(name):
+		_icons[name] = load(ICON_DIR + name + ".png")
+	return _icons[name]
+
+
+func icon_name_of(item: Dictionary) -> String:
+	match item.kind:
+		"pickaxe":
+			return "weapon_pickaxe"
+		"weapon":
+			var mythic := "weapon_%s_mythic" % item.id
+			if item.rarity == Items.MYTHIC and ResourceLoader.exists(ICON_DIR + mythic + ".png"):
+				return mythic
+			return "weapon_" + str(item.id)
+		"consumable":
+			return "heal_" + str(item.id)
+	return ""
 
 
 func set_player(p) -> void:
@@ -83,9 +106,13 @@ func _draw_materials(font: Font) -> void:
 	var x := 0.0
 	for k in kinds:
 		draw_rect(Rect2(Vector2(x, 0), Vector2(78, 28)), Color(0, 0, 0, 0.5))
-		draw_rect(Rect2(Vector2(x + 5, 6), Vector2(16, 16)), k[1])
+		var tex = icon("material_" + k[0])
+		if tex != null:
+			draw_texture_rect(tex, Rect2(Vector2(x + 2, 1), Vector2(26, 26)), false)
+		else:
+			draw_rect(Rect2(Vector2(x + 5, 6), Vector2(16, 16)), k[1])
+			draw_rect(Rect2(Vector2(x + 5, 6), Vector2(16, 16)), Color(1, 1, 1, 0.5), false, 1.5)
 		var chosen: bool = builder != null and builder.active and builder.material == k[0]
-		draw_rect(Rect2(Vector2(x + 5, 6), Vector2(16, 16)), Color(1, 1, 1, 0.5), false, 1.5)
 		if chosen:
 			draw_rect(Rect2(Vector2(x, 0), Vector2(78, 28)), Color(1.0, 0.9, 0.3), false, 3.0)
 		draw_string(font, Vector2(x + 28, 21), str(player.materials[k[0]]), Color.white)
@@ -101,7 +128,13 @@ func _draw_slot(i: int, font: Font) -> void:
 		var col := Items.color_of(item)
 		draw_rect(Rect2(r.position + Vector2(0, SLOT - 6), Vector2(SLOT, 6)), Color(col.r, col.g, col.b, 0.9))
 		draw_rect(r, Color(col.r, col.g, col.b, 0.35 if not selected else 0.55), false, 2.0)
-		_draw_icon(item, r.position + Vector2(SLOT / 2.0, SLOT / 2.0 - 3.0))
+		var tex = icon(icon_name_of(item))
+		if tex != null:
+			draw_texture_rect(tex, r, false)
+			draw_rect(Rect2(r.position + Vector2(0, SLOT - 6), Vector2(SLOT, 6)), Color(col.r, col.g, col.b, 0.9))
+			draw_rect(r, Color(col.r, col.g, col.b, 0.6 if not selected else 0.9), false, 2.0)
+		else:
+			_draw_icon(item, r.position + Vector2(SLOT / 2.0, SLOT / 2.0 - 3.0))
 		var count := ""
 		if item.kind == "weapon":
 			count = str(player.reserves[Items.WEAPONS[item.id].ammo])
@@ -109,7 +142,8 @@ func _draw_slot(i: int, font: Font) -> void:
 			count = str(item.count)
 		if count != "":
 			var w := font.get_string_size(count).x
-			draw_string(font, r.position + Vector2(SLOT - w - 4, SLOT - 10), count, Color.white)
+			draw_rect(Rect2(r.position + Vector2(SLOT - w - 8, SLOT - 30), Vector2(w + 6, 22)), Color(0, 0, 0, 0.55))
+			draw_string(font, r.position + Vector2(SLOT - w - 5, SLOT - 12), count, Color.white)
 	if selected:
 		draw_rect(r.grow(2.0), Color(1, 1, 1, 0.95), false, 3.0)
 	draw_string(font, r.position + Vector2(5, 17), str(i + 1), Color(1, 1, 1, 0.75))

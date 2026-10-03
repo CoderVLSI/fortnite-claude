@@ -8,6 +8,7 @@ const GAP := 6.0
 
 var player
 var builder
+var _icons := {}                # keeps the icon textures alive (a texture with no reference is freed and draws white)
 
 
 static func wanted_size() -> Vector2:
@@ -41,8 +42,14 @@ func _draw() -> void:
 		var r := Rect2(Vector2(i * (BOX.x + GAP), 0), BOX)
 		var chosen: bool = builder != null and builder.active and builder.material == k[0]
 		draw_rect(r, Color(0.05, 0.07, 0.12, 0.62))
-		draw_rect(Rect2(r.position + Vector2(8, 11), Vector2(18, 18)), k[1])
-		draw_rect(Rect2(r.position + Vector2(8, 11), Vector2(18, 18)), Color(1, 1, 1, 0.55), false, 1.5)
-		draw_string(font, r.position + Vector2(34, 28), str(player.materials[k[0]]), Color.white)
+		if not _icons.has(k[0]):
+			_icons[k[0]] = load("res://assets/icons/material_%s.png" % k[0])
+		var tex = _icons[k[0]]
+		if tex != null:
+			draw_texture_rect(tex, Rect2(r.position + Vector2(4, 4), Vector2(32, 32)), false)
+		else:
+			draw_rect(Rect2(r.position + Vector2(8, 11), Vector2(18, 18)), k[1])
+			draw_rect(Rect2(r.position + Vector2(8, 11), Vector2(18, 18)), Color(1, 1, 1, 0.55), false, 1.5)
+		draw_string(font, r.position + Vector2(40, 28), str(player.materials[k[0]]), Color.white)
 		if chosen:
 			draw_rect(r, Color(0.45, 0.75, 1.0), false, 3.0)

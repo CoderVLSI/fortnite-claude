@@ -355,18 +355,33 @@ def make_player():
 # ------------------------------------------------------------- weapons (detailed)
 # Origin = the grip (where the right hand holds it), barrel points +Y (Godot -Z).
 # Surfaces using the "accent" material get tinted with the item's rarity colour in game.
+# Every model is built mirror-symmetric about its centre plane (x = 0, or z = 0 for the pickaxe
+# head) via sbox(): anything off-centre is created on both sides. The designs follow the generated
+# 2D icons in assets/icons (olive AR, desert SMG, grey slide pistol, wood pump shotgun, olive
+# scoped bolt rifle, curved double-ended pickaxe).
 
 
 def _gun_mats():
     return dict(
         dark=material("gun_dark", (0.10, 0.10, 0.12), rough=0.45),
         steel=material("gun_steel", (0.34, 0.35, 0.38), rough=0.30),
-        wood=material("gun_wood", (0.36, 0.20, 0.09)),
+        wood=material("gun_wood", (0.45, 0.24, 0.09)),
         poly=material("gun_poly", (0.20, 0.21, 0.23), rough=0.6),
         accent=material("accent", (0.60, 0.60, 0.65), rough=0.35),
         glass=material("scope_glass", (0.25, 0.55, 0.95), rough=0.1, emit=(0.1, 0.3, 0.8), emit_strength=0.6),
         brass=material("gun_brass", (0.85, 0.65, 0.2), rough=0.3),
+        olive=material("gun_olive", (0.30, 0.36, 0.14), rough=0.7),
+        tan=material("gun_tan", (0.66, 0.52, 0.22), rough=0.7),
+        slide=material("gun_slide", (0.55, 0.57, 0.60), rough=0.3),
+        orange=material("gun_orange", (0.78, 0.38, 0.10), rough=0.8),
     )
+
+
+def sbox(g, x, y, z, size, mat, rot=(0.0, 0.0, 0.0)):
+    """Box at +x and mirrored at -x (a single centred box when x == 0)."""
+    g.box((x, y, z), size, mat, rot=rot)
+    if abs(x) > 1e-6:
+        g.box((-x, y, z), size, mat, rot=(rot[0], -rot[1], -rot[2]))
 
 
 def _trigger_guard(g, m, y=0.04, z=-0.075):
@@ -378,127 +393,308 @@ def _trigger_guard(g, m, y=0.04, z=-0.075):
 def make_assault():
     m = _gun_mats()
     g = Part("Rifle")
-    g.box((0, 0.17, 0.03), (0.075, 0.44, 0.105), m["dark"])                      # receiver
-    g.box((0, 0.17, 0.095), (0.04, 0.40, 0.016), m["steel"])                     # top rail
-    g.box((0.039, 0.18, 0.035), (0.006, 0.22, 0.03), m["accent"])                # rarity strip
-    g.box((-0.039, 0.18, 0.035), (0.006, 0.22, 0.03), m["accent"])
-    g.box((0, 0.56, 0.02), (0.082, 0.30, 0.09), m["poly"])                       # handguard
-    g.box((0, 0.56, 0.075), (0.036, 0.28, 0.012), m["steel"])                    # handguard rail
-    g.cone((0, 0.86, 0.025), 0.016, 0.016, 0.34, m["steel"], segments=8, axis="Y")  # barrel
-    g.cone((0, 1.05, 0.025), 0.024, 0.024, 0.07, m["dark"], segments=8, axis="Y")   # muzzle brake
-    g.box((0, 0.97, 0.062), (0.012, 0.012, 0.035), m["steel"])                   # front sight post
-    g.cone((0, 0.58, 0.075), 0.011, 0.011, 0.26, m["steel"], segments=6, axis="Y")  # gas tube
-    g.box((0, 0.12, 0.125), (0.055, 0.09, 0.05), m["dark"])                      # red-dot housing
-    g.box((0, 0.165, 0.125), (0.04, 0.008, 0.04), m["glass"])
-    g.box((0, -0.19, 0.01), (0.06, 0.34, 0.10), m["wood"])                       # stock
-    g.box((0, -0.36, -0.005), (0.065, 0.03, 0.13), m["dark"])                    # butt plate
-    g.box((0, -0.06, -0.085), (0.05, 0.07, 0.16), m["poly"], rot=(0.25, 0, 0))   # pistol grip
-    g.box((0, 0.20, -0.125), (0.052, 0.085, 0.17), m["dark"], rot=(-0.12, 0, 0))     # magazine (curved: 2 pieces)
-    g.box((0, 0.225, -0.255), (0.052, 0.085, 0.10), m["dark"], rot=(-0.32, 0, 0))
-    g.box((0.045, 0.14, 0.055), (0.012, 0.05, 0.02), m["steel"])                 # charging handle
+    g.box((0, 0.04, -0.005), (0.07, 0.30, 0.10), m["dark"])                       # lower receiver
+    g.box((0, 0.19, 0.055), (0.07, 0.42, 0.075), m["dark"])                       # upper receiver
+    g.box((0, 0.19, 0.098), (0.04, 0.40, 0.012), m["steel"])                      # top rail
+    sbox(g, 0.037, 0.19, 0.055, (0.006, 0.22, 0.03), m["accent"])                 # rarity strip
+    g.box((0, 0.015, 0.135), (0.026, 0.05, 0.05), m["dark"])                      # rear sight tower
+    g.box((0, 0.16, 0.152), (0.022, 0.30, 0.016), m["dark"])                      # carry handle
+    g.box((0, 0.31, 0.135), (0.026, 0.035, 0.05), m["dark"])                      # handle front post
+    g.box((0, 0.56, 0.03), (0.082, 0.30, 0.085), m["olive"])                      # handguard
+    g.box((0, 0.56, 0.082), (0.036, 0.28, 0.012), m["steel"])                     # handguard rail
+    for yy in (0.46, 0.53, 0.60, 0.67):                                           # M-LOK slots
+        sbox(g, 0.042, yy, 0.03, (0.004, 0.035, 0.028), m["dark"])
+    g.cone((0, 0.86, 0.03), 0.014, 0.014, 0.28, m["steel"], segments=8, axis="Y")   # barrel
+    g.box((0, 0.74, 0.088), (0.014, 0.03, 0.07), m["dark"])                       # front sight post
+    g.cone((0, 1.02, 0.03), 0.022, 0.022, 0.08, m["dark"], segments=8, axis="Y")    # flash hider
+    g.cone((0, -0.12, 0.03), 0.026, 0.026, 0.14, m["dark"], segments=8, axis="Y")   # buffer tube
+    g.box((0, -0.25, 0.015), (0.055, 0.17, 0.095), m["olive"])                    # stock
+    g.box((0, -0.34, 0.0), (0.06, 0.025, 0.12), m["dark"])                        # butt pad
+    g.box((0, -0.05, -0.085), (0.048, 0.07, 0.15), m["olive"], rot=(0.3, 0, 0))   # pistol grip
+    g.box((0, 0.17, -0.125), (0.05, 0.085, 0.17), m["dark"], rot=(-0.12, 0, 0))   # magazine (curved: 2 pieces)
+    g.box((0, 0.195, -0.255), (0.05, 0.085, 0.10), m["dark"], rot=(-0.32, 0, 0))
+    sbox(g, 0.045, 0.12, 0.06, (0.012, 0.05, 0.02), m["steel"])                   # charging handle + opposite lug
     _trigger_guard(g, m)
-    export("rifle", [g.build(), empty("Muzzle", (0, 1.10, 0.025))])
+    export("rifle", [g.build(), empty("Muzzle", (0, 1.07, 0.03))])
 
 
 def make_smg():
     m = _gun_mats()
     g = Part("Smg")
-    g.box((0, 0.14, 0.03), (0.07, 0.34, 0.10), m["dark"])                        # body
-    g.box((0, 0.14, 0.088), (0.04, 0.30, 0.014), m["steel"])                     # rail
-    g.box((0.036, 0.15, 0.035), (0.006, 0.18, 0.03), m["accent"])
-    g.box((-0.036, 0.15, 0.035), (0.006, 0.18, 0.03), m["accent"])
-    g.box((0, 0.40, 0.03), (0.06, 0.20, 0.07), m["poly"])                        # shroud
-    g.cone((0, 0.62, 0.03), 0.026, 0.026, 0.22, m["dark"], segments=8, axis="Y")     # suppressor
-    g.box((0, 0.08, 0.115), (0.04, 0.07, 0.04), m["dark"])                       # red dot
+    g.box((0, 0.12, 0.03), (0.07, 0.32, 0.10), m["dark"])                         # body
+    g.box((0, 0.12, 0.088), (0.04, 0.30, 0.014), m["steel"])                      # rail
+    sbox(g, 0.036, 0.12, 0.035, (0.006, 0.18, 0.03), m["accent"])
+    g.box((0, 0.40, 0.03), (0.08, 0.26, 0.085), m["tan"])                         # handguard
+    for yy in (0.32, 0.38, 0.44, 0.50):                                           # vents
+        sbox(g, 0.041, yy, 0.03, (0.004, 0.03, 0.04), m["dark"])
+    g.box((0, 0.40, 0.082), (0.036, 0.24, 0.012), m["steel"])
+    g.cone((0, 0.60, 0.03), 0.016, 0.016, 0.16, m["steel"], segments=8, axis="Y")   # barrel
+    g.cone((0, 0.69, 0.03), 0.022, 0.022, 0.05, m["dark"], segments=8, axis="Y")    # muzzle device
+    g.box((0, 0.08, 0.115), (0.04, 0.07, 0.04), m["dark"])                        # red dot
     g.box((0, 0.112, 0.115), (0.03, 0.008, 0.03), m["glass"])
-    g.box((0, -0.10, 0.04), (0.012, 0.22, 0.012), m["steel"])                    # folded stock wire
-    g.box((0, -0.21, 0.04), (0.05, 0.02, 0.07), m["dark"])
-    g.box((0, -0.05, -0.085), (0.05, 0.065, 0.15), m["poly"], rot=(0.3, 0, 0))   # grip
-    g.box((0, 0.20, -0.17), (0.045, 0.07, 0.29), m["dark"])                      # long straight mag
-    g.box((0, 0.20, -0.32), (0.05, 0.075, 0.025), m["steel"])
-    g.box((0, 0.42, -0.045), (0.035, 0.05, 0.08), m["poly"])                     # foregrip
+    g.box((0, -0.08, 0.04), (0.02, 0.10, 0.03), m["dark"])                        # stock hinge
+    sbox(g, 0.026, -0.17, 0.04, (0.012, 0.20, 0.02), m["tan"])                    # twin folding stock struts
+    g.box((0, -0.27, 0.035), (0.05, 0.022, 0.09), m["tan"])
+    g.box((0, -0.05, -0.085), (0.05, 0.065, 0.15), m["tan"], rot=(0.3, 0, 0))     # grip
+    g.box((0, 0.20, -0.17), (0.045, 0.07, 0.29), m["dark"], rot=(0.05, 0, 0))     # long magazine
+    g.box((0, 0.21, -0.32), (0.05, 0.075, 0.025), m["steel"])
+    g.box((0, 0.42, -0.045), (0.035, 0.05, 0.08), m["poly"])                      # foregrip
     _trigger_guard(g, m)
-    export("smg", [g.build(), empty("Muzzle", (0, 0.74, 0.03))])
+    export("smg", [g.build(), empty("Muzzle", (0, 0.72, 0.03))])
 
 
 def make_shotgun():
     m = _gun_mats()
     g = Part("Shotgun")
-    g.box((0, 0.14, 0.03), (0.075, 0.36, 0.10), m["dark"])                       # receiver
-    g.box((0.039, 0.14, 0.035), (0.006, 0.18, 0.03), m["accent"])
-    g.box((-0.039, 0.14, 0.035), (0.006, 0.18, 0.03), m["accent"])
-    g.cone((0, 0.66, 0.045), 0.02, 0.02, 0.70, m["steel"], segments=8, axis="Y")     # barrel
-    g.cone((0, 0.62, -0.005), 0.025, 0.025, 0.58, m["dark"], segments=8, axis="Y")  # magazine tube
-    g.box((0, 0.58, -0.005), (0.07, 0.24, 0.07), m["wood"])                      # pump
-    g.box((0, 1.02, 0.07), (0.012, 0.012, 0.025), m["brass"])                    # bead sight
+    g.box((0, 0.14, 0.03), (0.075, 0.36, 0.10), m["dark"])                        # receiver
+    sbox(g, 0.039, 0.14, 0.035, (0.006, 0.18, 0.03), m["accent"])
+    g.cone((0, 0.68, 0.045), 0.019, 0.019, 0.72, m["steel"], segments=8, axis="Y")     # barrel
+    g.cone((0, 0.62, -0.005), 0.024, 0.024, 0.58, m["dark"], segments=8, axis="Y")    # magazine tube
+    g.box((0, 0.58, -0.005), (0.07, 0.24, 0.07), m["wood"])                       # pump forend
+    for yy in (0.50, 0.545, 0.59, 0.635, 0.68):                                   # grip ribs
+        g.box((0, yy, -0.005), (0.076, 0.016, 0.076), m["orange"])
+    g.box((0, 1.04, 0.07), (0.012, 0.012, 0.025), m["brass"])                     # bead sight
     g.box((0, 0.10, 0.092), (0.03, 0.10, 0.012), m["steel"])
-    g.box((0, -0.18, 0.0), (0.062, 0.34, 0.12), m["wood"], rot=(-0.06, 0, 0))    # stock
+    g.box((0, -0.18, 0.0), (0.062, 0.34, 0.12), m["wood"], rot=(-0.06, 0, 0))     # stock
     g.box((0, -0.36, -0.01), (0.07, 0.03, 0.15), m["dark"])
     g.box((0, -0.04, -0.075), (0.045, 0.06, 0.12), m["wood"], rot=(0.25, 0, 0))
     _trigger_guard(g, m, y=0.03)
-    export("shotgun", [g.build(), empty("Muzzle", (0, 1.02, 0.045))])
+    export("shotgun", [g.build(), empty("Muzzle", (0, 1.04, 0.045))])
 
 
 def make_sniper():
     m = _gun_mats()
     g = Part("Sniper")
-    g.box((0, 0.20, 0.03), (0.07, 0.48, 0.10), m["dark"])                        # receiver
-    g.box((0.037, 0.2, 0.035), (0.006, 0.26, 0.03), m["accent"])
-    g.box((-0.037, 0.2, 0.035), (0.006, 0.26, 0.03), m["accent"])
-    g.cone((0, 0.88, 0.035), 0.017, 0.017, 0.80, m["steel"], segments=8, axis="Y")   # long barrel
-    g.cone((0, 1.30, 0.035), 0.028, 0.028, 0.10, m["dark"], segments=8, axis="Y")    # muzzle brake
-    g.box((0, 0.58, -0.005), (0.07, 0.30, 0.07), m["poly"])                      # forend
-    g.box((0.055, 0.12, 0.05), (0.012, 0.09, 0.012), m["steel"])                 # bolt handle
-    g.box((0.07, 0.12, 0.05), (0.03, 0.02, 0.03), m["dark"])                     # bolt knob
-    # scope
-    g.cone((0, 0.26, 0.135), 0.032, 0.032, 0.34, m["dark"], segments=10, axis="Y")
-    g.cone((0, 0.12, 0.135), 0.042, 0.042, 0.08, m["dark"], segments=10, axis="Y")
-    g.cone((0, 0.43, 0.135), 0.048, 0.048, 0.10, m["dark"], segments=10, axis="Y")
-    g.box((0, 0.435, 0.135), (0.07, 0.005, 0.07), m["glass"])
-    g.box((0, 0.20, 0.09), (0.02, 0.03, 0.05), m["steel"])
+    g.box((0, 0.20, 0.03), (0.07, 0.48, 0.10), m["dark"])                         # receiver
+    sbox(g, 0.037, 0.2, 0.035, (0.006, 0.26, 0.03), m["accent"])
+    g.cone((0, 0.90, 0.035), 0.016, 0.016, 0.82, m["steel"], segments=8, axis="Y")   # long barrel
+    g.cone((0, 1.32, 0.035), 0.027, 0.027, 0.10, m["dark"], segments=8, axis="Y")    # muzzle brake
+    sbox(g, 0.03, 1.32, 0.035, (0.012, 0.03, 0.02), m["steel"])                      # brake ports
+    g.box((0, 0.58, -0.005), (0.07, 0.30, 0.07), m["olive"])                      # forend
+    g.box((0.055, 0.12, 0.05), (0.012, 0.09, 0.012), m["steel"])                  # bolt handle (right side)
+    g.box((0.07, 0.12, 0.05), (0.03, 0.02, 0.03), m["dark"])
+    # scope: tube, objective bell, ocular, windage / elevation turrets
+    g.cone((0, 0.26, 0.14), 0.030, 0.030, 0.36, m["dark"], segments=10, axis="Y")
+    g.cone((0, 0.11, 0.14), 0.038, 0.038, 0.08, m["dark"], segments=10, axis="Y")
+    g.cone((0, 0.44, 0.14), 0.050, 0.044, 0.12, m["dark"], segments=10, axis="Y")
+    g.box((0, 0.50, 0.14), (0.07, 0.005, 0.07), m["glass"])
+    sbox(g, 0.04, 0.26, 0.14, (0.03, 0.03, 0.03), m["steel"])
+    g.box((0, 0.26, 0.185), (0.03, 0.03, 0.03), m["steel"])
+    sbox(g, 0.0, 0.20, 0.09, (0.02, 0.03, 0.05), m["steel"])
     g.box((0, 0.33, 0.09), (0.02, 0.03, 0.05), m["steel"])
-    g.box((0, -0.22, 0.015), (0.065, 0.40, 0.11), m["wood"], rot=(-0.04, 0, 0))   # stock with cheek riser
-    g.box((0, -0.15, 0.085), (0.05, 0.16, 0.03), m["wood"])
+    g.box((0, -0.22, 0.015), (0.065, 0.40, 0.11), m["olive"], rot=(-0.04, 0, 0))  # chassis stock
+    g.box((0, -0.15, 0.085), (0.05, 0.16, 0.03), m["olive"])                      # cheek riser
     g.box((0, -0.42, -0.005), (0.07, 0.03, 0.14), m["dark"])
-    g.box((0, -0.06, -0.08), (0.045, 0.065, 0.14), m["wood"], rot=(0.25, 0, 0))
-    g.box((0, 0.22, -0.10), (0.045, 0.08, 0.10), m["dark"])                      # magazine
-    g.box((-0.03, 0.78, -0.03), (0.01, 0.22, 0.01), m["steel"], rot=(0, 0, -0.5))   # folded bipod
-    g.box((0.03, 0.78, -0.03), (0.01, 0.22, 0.01), m["steel"], rot=(0, 0, 0.5))
+    g.box((0, -0.06, -0.08), (0.045, 0.065, 0.14), m["olive"], rot=(0.25, 0, 0))
+    g.box((0, 0.22, -0.10), (0.045, 0.08, 0.10), m["dark"])                       # magazine
+    sbox(g, 0.03, 0.78, -0.03, (0.01, 0.22, 0.01), m["steel"], rot=(0, 0, 0.5))     # folded bipod legs
     _trigger_guard(g, m)
-    export("sniper", [g.build(), empty("Muzzle", (0, 1.36, 0.035))])
+    export("sniper", [g.build(), empty("Muzzle", (0, 1.38, 0.035))])
 
 
 def make_pistol():
     m = _gun_mats()
     g = Part("Pistol")
-    g.box((0, 0.10, 0.05), (0.04, 0.30, 0.055), m["steel"])                      # slide
-    g.box((0, 0.10, 0.012), (0.035, 0.26, 0.03), m["dark"])                      # frame
-    g.box((0.022, 0.10, 0.05), (0.004, 0.12, 0.02), m["accent"])
-    g.box((-0.022, 0.10, 0.05), (0.004, 0.12, 0.02), m["accent"])
-    g.cone((0, 0.27, 0.05), 0.011, 0.011, 0.05, m["dark"], segments=8, axis="Y")     # barrel tip
-    g.box((0, -0.03, -0.05), (0.04, 0.07, 0.14), m["poly"], rot=(0.22, 0, 0))    # grip
-    g.box((0, 0.24, 0.083), (0.012, 0.012, 0.015), m["steel"])                   # front sight
-    g.box((0, -0.04, 0.083), (0.03, 0.012, 0.015), m["steel"])                   # rear sight
-    g.box((0, 0.17, -0.025), (0.03, 0.10, 0.025), m["dark"])                     # rail under the barrel
+    g.box((0, 0.10, 0.05), (0.04, 0.30, 0.055), m["slide"])                       # slide
+    for yy in (-0.02, 0.005, 0.03):                                               # rear serrations
+        sbox(g, 0.0205, yy, 0.05, (0.003, 0.008, 0.04), m["dark"])
+    g.box((0, 0.10, 0.012), (0.036, 0.26, 0.03), m["dark"])                       # frame
+    sbox(g, 0.022, 0.12, 0.05, (0.004, 0.10, 0.02), m["accent"])
+    g.cone((0, 0.27, 0.05), 0.011, 0.011, 0.05, m["dark"], segments=8, axis="Y")      # barrel tip
+    g.box((0, -0.03, -0.05), (0.04, 0.07, 0.14), m["poly"], rot=(0.22, 0, 0))     # grip
+    g.box((0, 0.24, 0.083), (0.012, 0.012, 0.015), m["steel"])                    # front sight
+    sbox(g, 0.01, -0.04, 0.083, (0.01, 0.012, 0.015), m["steel"])                 # rear sight (two posts)
+    g.box((0, 0.17, -0.025), (0.03, 0.10, 0.025), m["dark"])                      # accessory rail
     _trigger_guard(g, m, y=0.06, z=-0.03)
     export("pistol", [g.build(), empty("Muzzle", (0, 0.30, 0.05))])
 
 
 def make_pickaxe():
     wood = material("pick_wood", (0.45, 0.28, 0.12))
-    steel = material("pick_steel", (0.66, 0.68, 0.72), rough=0.3)
-    dark = material("pick_dark", (0.15, 0.15, 0.18))
+    wrap = material("pick_wrap", (0.30, 0.17, 0.08))
+    steel = material("pick_steel", (0.55, 0.57, 0.62), rough=0.3)
+    dark = material("pick_dark", (0.17, 0.18, 0.21), rough=0.4)
     accent = material("accent", (0.60, 0.60, 0.65), rough=0.35)
     p = Part("Pickaxe")
-    p.box((0, 0.30, 0), (0.045, 0.80, 0.045), wood)
-    p.box((0, -0.12, 0), (0.05, 0.05, 0.05), dark)
-    p.box((0, 0.68, 0), (0.06, 0.09, 0.09), dark)                                 # head socket
+    p.box((0, 0.30, 0), (0.042, 0.80, 0.042), wood)                               # handle
+    for i in range(5):                                                            # leather wrap bands
+        p.box((0, 0.10 + i * 0.07, 0), (0.05, 0.035, 0.05), wrap)
+    p.box((0, -0.12, 0), (0.06, 0.06, 0.06), dark)                                # pommel
+    p.box((0, 0.68, 0), (0.07, 0.12, 0.08), steel)                                # collar
+    p.box((0, 0.68, 0), (0.075, 0.03, 0.085), dark)
+    p.box((0, 0.74, 0), (0.06, 0.07, 0.07), dark)                                 # head socket
+    # double-ended curved head, mirrored in z: segments follow an arc that bends down at the tips
     for sgn in (-1, 1):
-        p.box((0, 0.70, sgn * 0.12), (0.045, 0.07, 0.20), steel, rot=(sgn * 0.25, 0, 0))
-        p.box((0, 0.70, sgn * 0.27), (0.04, 0.06, 0.14), steel, rot=(sgn * 0.7, 0, 0))
-        p.box((0, 0.71, sgn * 0.34), (0.03, 0.04, 0.08), steel, rot=(sgn * 1.0, 0, 0))
-    p.box((0.026, 0.46, 0), (0.008, 0.20, 0.03), accent)
+        p.box((0, 0.76, sgn * 0.10), (0.04, 0.06, 0.16), dark, rot=(sgn * 0.12, 0, 0))
+        p.box((0, 0.755, sgn * 0.23), (0.034, 0.05, 0.16), steel, rot=(sgn * 0.42, 0, 0))
+        p.box((0, 0.725, sgn * 0.35), (0.028, 0.04, 0.12), steel, rot=(sgn * 0.85, 0, 0))
+        p.box((0, 0.685, sgn * 0.42), (0.02, 0.03, 0.08), steel, rot=(sgn * 1.2, 0, 0))   # pointed tip
+    sbox(p, 0.026, 0.46, 0, (0.008, 0.20, 0.03), accent)
     export("pickaxe", [p.build()])
+
+
+# ------------------------------------------------------------- mythic weapons
+# One bespoke model per weapon, following the generated Mythic icons: gold Hand Cannon revolver,
+# hazard-striped Hornet SMG, purple Stormcaller AR, red-and-gold Dragonbreath shotgun and the
+# teal Eclipse scoped rifle. Same grip origin / barrel axis / Muzzle empty as the base models, mirror-symmetric
+# via sbox(), and the "accent" material is still tinted by the rarity colour in game.
+
+
+def _mythic_mats():
+    m = _gun_mats()
+    m.update(
+        gold=material("myth_gold", (0.92, 0.68, 0.18), rough=0.25),
+        brass=material("myth_brass", (0.70, 0.45, 0.14), rough=0.3),
+        teal=material("myth_teal", (0.05, 0.38, 0.42), rough=0.35),
+        black=material("myth_black", (0.04, 0.04, 0.05), rough=0.5),
+        yellow=material("myth_yellow", (0.98, 0.80, 0.05), rough=0.5),
+        purple=material("myth_purple", (0.40, 0.20, 0.65), rough=0.4),
+        gunmetal=material("myth_gunmetal", (0.16, 0.16, 0.21), rough=0.35),
+        violet=material("myth_violet", (0.65, 0.35, 1.0), rough=0.2, emit=(0.5, 0.2, 1.0), emit_strength=1.2),
+        red=material("myth_red", (0.62, 0.07, 0.07), rough=0.45),
+        flame=material("myth_flame", (1.0, 0.45, 0.08), rough=0.3, emit=(1.0, 0.35, 0.05), emit_strength=1.4),
+        cyan=material("myth_cyan", (0.30, 0.95, 1.0), rough=0.15, emit=(0.1, 0.8, 1.0), emit_strength=1.6),
+    )
+    return m
+
+
+def make_pistol_mythic():
+    m = _mythic_mats()
+    g = Part("HandCannon")
+    g.box((0, 0.06, 0.03), (0.05, 0.20, 0.09), m["gold"])                         # frame
+    g.box((0, 0.20, 0.06), (0.036, 0.12, 0.05), m["brass"])                       # shroud under the rib
+    g.cone((0, 0.11, 0.045), 0.062, 0.062, 0.13, m["brass"], segments=6, axis="Y")    # fluted cylinder
+    for k in range(6):                                                            # chamber mouths (6-fold, mirror-safe)
+        a = math.radians(30 + 60 * k)
+        g.box((math.cos(a) * 0.036, 0.178, 0.045 + math.sin(a) * 0.036), (0.016, 0.006, 0.016), m["black"])
+    g.cone((0, 0.30, 0.05), 0.021, 0.021, 0.20, m["gold"], segments=8, axis="Y")      # barrel
+    g.box((0, 0.30, 0.088), (0.018, 0.22, 0.014), m["gold"])                      # top rib
+    for yy in (0.24, 0.31):                                                       # ornamental bands
+        g.cone((0, yy, 0.05), 0.030, 0.030, 0.018, m["teal"], segments=8, axis="Y")
+    g.cone((0, 0.40, 0.05), 0.03, 0.026, 0.035, m["teal"], segments=8, axis="Y")      # muzzle crown
+    g.box((0, -0.045, 0.092), (0.014, 0.045, 0.05), m["dark"], rot=(-0.45, 0, 0)) # hammer
+    sbox(g, 0.028, 0.06, 0.035, (0.004, 0.13, 0.035), m["accent"])                # rarity glow
+    g.box((0, -0.045, -0.05), (0.046, 0.08, 0.15), m["teal"], rot=(0.22, 0, 0))   # grip
+    sbox(g, 0.025, -0.045, -0.05, (0.006, 0.05, 0.10), m["gold"], rot=(0.22, 0, 0))   # grip inlays
+    g.box((0, 0.27, 0.09), (0.012, 0.012, 0.02), m["gold"])                       # front sight
+    _trigger_guard(g, m, y=0.05, z=-0.03)
+    export("pistol_mythic", [g.build(), empty("Muzzle", (0, 0.42, 0.05))])
+
+
+def make_smg_mythic():
+    m = _mythic_mats()
+    g = Part("HornetSmg")
+    g.box((0, 0.12, 0.03), (0.07, 0.32, 0.10), m["black"])                        # body
+    g.box((0, 0.12, 0.088), (0.04, 0.30, 0.014), m["gunmetal"])                   # rail
+    sbox(g, 0.036, 0.12, 0.035, (0.006, 0.18, 0.03), m["accent"])
+    g.box((0, 0.40, 0.03), (0.08, 0.26, 0.085), m["black"])                       # handguard core
+    for i in range(6):                                                            # hazard stripes
+        if i % 2 == 0:
+            g.box((0, 0.30 + i * 0.045, 0.03), (0.088, 0.024, 0.092), m["yellow"])
+    g.cone((0, 0.62, 0.03), 0.017, 0.017, 0.18, m["gunmetal"], segments=8, axis="Y")  # barrel
+    g.cone((0, 0.69, 0.03), 0.028, 0.028, 0.07, m["black"], segments=8, axis="Y")     # fat suppressor
+    g.cone((0, 0.725, 0.03), 0.030, 0.030, 0.012, m["yellow"], segments=8, axis="Y")  # warning ring
+    g.box((0, 0.08, 0.115), (0.04, 0.07, 0.04), m["black"])                       # sight
+    g.box((0, 0.112, 0.115), (0.03, 0.008, 0.03), m["flame"])                     # amber lens
+    g.box((0, -0.08, 0.04), (0.02, 0.10, 0.03), m["black"])
+    sbox(g, 0.026, -0.17, 0.04, (0.012, 0.20, 0.02), m["gunmetal"])
+    g.box((0, -0.27, 0.035), (0.05, 0.022, 0.09), m["yellow"])                    # stock plate
+    g.box((0, -0.05, -0.085), (0.05, 0.065, 0.15), m["black"], rot=(0.3, 0, 0))   # grip
+    g.box((0, 0.20, -0.12), (0.045, 0.07, 0.17), m["black"], rot=(0.04, 0, 0))    # curved magazine, 2 stripes
+    g.box((0, 0.225, -0.27), (0.045, 0.07, 0.15), m["black"], rot=(0.22, 0, 0))
+    g.box((0, 0.205, -0.15), (0.05, 0.075, 0.025), m["yellow"])
+    g.box((0, 0.215, -0.22), (0.05, 0.075, 0.025), m["yellow"])
+    g.box((0, 0.42, -0.045), (0.035, 0.05, 0.08), m["gunmetal"])
+    _trigger_guard(g, m)
+    export("smg_mythic", [g.build(), empty("Muzzle", (0, 0.74, 0.03))])
+
+
+def make_assault_mythic():
+    m = _mythic_mats()
+    g = Part("StormcallerRifle")
+    g.box((0, 0.04, -0.005), (0.07, 0.30, 0.10), m["gunmetal"])                   # lower receiver
+    g.box((0, 0.19, 0.055), (0.07, 0.42, 0.075), m["gunmetal"])                   # upper receiver
+    g.box((0, 0.19, 0.098), (0.04, 0.40, 0.012), m["violet"])                     # glowing top rail
+    sbox(g, 0.037, 0.19, 0.055, (0.006, 0.22, 0.03), m["accent"])
+    g.box((0, 0.015, 0.135), (0.026, 0.05, 0.05), m["dark"])
+    g.box((0, 0.16, 0.152), (0.022, 0.30, 0.016), m["dark"])                      # carry handle
+    g.box((0, 0.31, 0.135), (0.026, 0.035, 0.05), m["dark"])
+    g.box((0, 0.56, 0.03), (0.082, 0.30, 0.085), m["purple"])                     # handguard
+    for i in range(5):                                                            # lightning zig-zag, both sides
+        sbox(g, 0.043, 0.45 + i * 0.055, 0.03 + (0.025 if i % 2 == 0 else -0.025), (0.004, 0.06, 0.012), m["violet"],
+             rot=(0.7 if i % 2 == 0 else -0.7, 0, 0))
+    g.cone((0, 0.86, 0.03), 0.014, 0.014, 0.28, m["steel"], segments=8, axis="Y")
+    g.box((0, 0.74, 0.088), (0.014, 0.03, 0.07), m["dark"])
+    g.cone((0, 1.0, 0.03), 0.016, 0.016, 0.07, m["dark"], segments=8, axis="Y")       # forked flash hider
+    sbox(g, 0.022, 1.045, 0.03, (0.01, 0.07, 0.02), m["violet"])
+    g.cone((0, -0.12, 0.03), 0.026, 0.026, 0.14, m["dark"], segments=8, axis="Y")
+    g.box((0, -0.25, 0.015), (0.055, 0.17, 0.095), m["purple"])                   # stock
+    g.box((0, -0.34, 0.0), (0.06, 0.025, 0.12), m["violet"])
+    g.box((0, -0.05, -0.085), (0.048, 0.07, 0.15), m["purple"], rot=(0.3, 0, 0))
+    g.box((0, 0.17, -0.125), (0.05, 0.085, 0.17), m["dark"], rot=(-0.12, 0, 0))
+    g.box((0, 0.195, -0.255), (0.05, 0.085, 0.10), m["dark"], rot=(-0.32, 0, 0))
+    g.box((0, 0.178, -0.17), (0.056, 0.09, 0.025), m["violet"], rot=(-0.12, 0, 0))   # glowing magazine band
+    sbox(g, 0.045, 0.12, 0.06, (0.012, 0.05, 0.02), m["steel"])
+    _trigger_guard(g, m)
+    export("rifle_mythic", [g.build(), empty("Muzzle", (0, 1.08, 0.03))])
+
+
+def make_shotgun_mythic():
+    m = _mythic_mats()
+    g = Part("DragonbreathShotgun")
+    g.box((0, 0.14, 0.03), (0.075, 0.36, 0.10), m["red"])                         # receiver
+    sbox(g, 0.039, 0.14, 0.035, (0.006, 0.20, 0.03), m["accent"])
+    g.box((0, -0.01, 0.03), (0.08, 0.02, 0.105), m["gold"])                       # gold receiver rings
+    g.box((0, 0.29, 0.03), (0.08, 0.02, 0.105), m["gold"])
+    g.cone((0, 0.66, 0.045), 0.020, 0.020, 0.66, m["gunmetal"], segments=8, axis="Y") # barrel
+    g.cone((0, 1.02, 0.045), 0.020, 0.048, 0.08, m["gold"], segments=8, axis="Y")     # flared dragon-mouth muzzle
+    g.cone((0, 0.62, -0.005), 0.025, 0.025, 0.56, m["dark"], segments=8, axis="Y")
+    for yy in (0.40, 0.55, 0.70, 0.85):                                           # gold barrel bands
+        g.cone((0, yy, 0.045), 0.027, 0.027, 0.02, m["gold"], segments=8, axis="Y")
+    g.box((0, 0.58, -0.005), (0.07, 0.24, 0.07), m["red"])                        # pump
+    for yy in (0.50, 0.545, 0.59, 0.635, 0.68):
+        g.box((0, yy, -0.005), (0.076, 0.016, 0.076), m["gold"])
+    sbox(g, 0.034, -0.14, 0.03, (0.006, 0.22, 0.05), m["flame"], rot=(0, 0, 0))   # flame inlay on the stock
+    g.box((0, -0.18, 0.0), (0.062, 0.34, 0.12), m["red"], rot=(-0.06, 0, 0))      # stock
+    g.box((0, -0.36, -0.01), (0.07, 0.03, 0.15), m["gold"])
+    g.box((0, -0.04, -0.075), (0.045, 0.06, 0.12), m["red"], rot=(0.25, 0, 0))
+    g.box((0, 1.0, 0.085), (0.012, 0.012, 0.025), m["flame"])                     # ember bead sight
+    _trigger_guard(g, m, y=0.03)
+    export("shotgun_mythic", [g.build(), empty("Muzzle", (0, 1.07, 0.045))])
+
+
+def make_sniper_mythic():
+    m = _mythic_mats()
+    g = Part("EclipseRifle")
+    g.box((0, 0.20, 0.03), (0.07, 0.48, 0.10), m["black"])                        # receiver
+    sbox(g, 0.037, 0.2, 0.035, (0.006, 0.26, 0.03), m["accent"])
+    g.box((0, 0.2, 0.082), (0.03, 0.46, 0.012), m["cyan"])                        # glowing spine
+    g.cone((0, 0.90, 0.035), 0.016, 0.016, 0.82, m["gunmetal"], segments=8, axis="Y")
+    for i in range(6):                                                            # heat-sink rings
+        g.cone((0, 0.62 + i * 0.09, 0.035), 0.026, 0.026, 0.022, m["teal"], segments=8, axis="Y")
+    g.cone((0, 1.32, 0.035), 0.027, 0.027, 0.10, m["black"], segments=8, axis="Y")
+    sbox(g, 0.03, 1.32, 0.035, (0.012, 0.03, 0.02), m["cyan"])
+    g.box((0, 0.58, -0.005), (0.07, 0.30, 0.07), m["teal"])
+    g.box((0.055, 0.12, 0.05), (0.012, 0.09, 0.012), m["steel"])
+    g.box((0.07, 0.12, 0.05), (0.03, 0.02, 0.03), m["cyan"])
+    g.cone((0, 0.26, 0.14), 0.032, 0.032, 0.36, m["black"], segments=10, axis="Y")    # scope
+    g.cone((0, 0.11, 0.14), 0.040, 0.040, 0.08, m["black"], segments=10, axis="Y")
+    g.cone((0, 0.44, 0.14), 0.054, 0.046, 0.12, m["black"], segments=10, axis="Y")
+    g.cone((0, 0.505, 0.14), 0.056, 0.056, 0.012, m["cyan"], segments=12, axis="Y")   # glowing lens ring
+    g.box((0, 0.512, 0.14), (0.07, 0.005, 0.07), m["glass"])
+    sbox(g, 0.04, 0.26, 0.14, (0.03, 0.03, 0.03), m["teal"])
+    g.box((0, 0.26, 0.185), (0.03, 0.03, 0.03), m["teal"])
+    g.box((0, 0.20, 0.09), (0.02, 0.03, 0.05), m["steel"])
+    g.box((0, 0.33, 0.09), (0.02, 0.03, 0.05), m["steel"])
+    g.box((0, -0.22, 0.015), (0.065, 0.40, 0.11), m["teal"], rot=(-0.04, 0, 0))
+    g.box((0, -0.15, 0.085), (0.05, 0.16, 0.03), m["black"])
+    sbox(g, 0.034, -0.22, 0.02, (0.006, 0.30, 0.02), m["cyan"])
+    g.box((0, -0.42, -0.005), (0.07, 0.03, 0.14), m["black"])
+    g.box((0, -0.06, -0.08), (0.045, 0.065, 0.14), m["black"], rot=(0.25, 0, 0))
+    g.box((0, 0.22, -0.10), (0.045, 0.08, 0.10), m["black"])
+    sbox(g, 0.03, 0.78, -0.03, (0.01, 0.22, 0.01), m["steel"], rot=(0, 0, 0.5))
+    _trigger_guard(g, m)
+    export("sniper_mythic", [g.build(), empty("Muzzle", (0, 1.38, 0.035))])
 
 
 # ------------------------------------------------------------- weapons & items
@@ -508,20 +704,33 @@ def make_pickaxe():
 def make_bandage():
     white = material("bandage_white", (0.95, 0.95, 0.92))
     red = material("bandage_red", (0.85, 0.15, 0.15))
+    cream = material("bandage_cream", (0.88, 0.86, 0.78))
     b = Part("Bandage")
-    b.cone((0, 0, 0.12), 0.16, 0.16, 0.24, white, segments=10)
-    b.box((0, 0, 0.12), (0.30, 0.06, 0.22), red)
+    b.cone((0, 0, 0.12), 0.16, 0.16, 0.24, white, segments=12)
+    b.cone((0, 0, 0.245), 0.10, 0.10, 0.02, cream, segments=12)                  # rolled-up top
+    b.cone((0, 0, 0.255), 0.05, 0.05, 0.02, white, segments=10)
+    for sgn in (-1, 1):                                                          # red cross label, both faces
+        b.box((0, sgn * 0.155, 0.12), (0.10, 0.012, 0.03), red)
+        b.box((0, sgn * 0.155, 0.12), (0.03, 0.012, 0.10), red)
     export("bandage", [b.build()])
 
 
 def make_medkit():
     white = material("medkit_white", (0.95, 0.95, 0.95))
     red = material("medkit_red", (0.85, 0.12, 0.12))
+    grey = material("medkit_grey", (0.4, 0.4, 0.42))
     m = Part("Medkit")
     m.box((0, 0, 0.15), (0.42, 0.18, 0.30), white)
-    m.box((0, -0.095, 0.15), (0.28, 0.02, 0.08), red)
-    m.box((0, -0.095, 0.15), (0.08, 0.02, 0.28), red)
-    m.box((0, 0, 0.33), (0.18, 0.05, 0.06), material("medkit_grey", (0.4, 0.4, 0.42)))
+    m.box((0, 0, 0.19), (0.43, 0.185, 0.02), grey)                               # lid seam
+    for sgn in (-1, 1):                                                          # cross on both faces
+        m.box((0, sgn * 0.095, 0.15), (0.14, 0.02, 0.05), red)
+        m.box((0, sgn * 0.095, 0.15), (0.05, 0.02, 0.14), red)
+    for sx in (-0.13, 0.13):                                                     # latches (mirrored)
+        for sgn in (-1, 1):
+            m.box((sx, sgn * 0.097, 0.19), (0.05, 0.02, 0.06), grey)
+    m.box((0, 0, 0.345), (0.20, 0.03, 0.03), red)                                # carry handle
+    for sx in (-0.10, 0.10):
+        m.box((sx, 0, 0.32), (0.03, 0.03, 0.05), red)
     export("medkit", [m.build()])
 
 
@@ -997,7 +1206,8 @@ def main():
     make_house("house_b", 10.0, 8.0, 3.4, (0.55, 0.65, 0.78), (0.22, 0.26, 0.34), (0.90, 0.90, 0.92), 1.6, [-3.0, 0.0, 3.0])
     reset_scene()
     make_tower()
-    for fn in (make_pistol, make_smg, make_shotgun, make_sniper, make_pickaxe, make_bandage, make_medkit,
+    for fn in (make_pistol, make_smg, make_shotgun, make_sniper, make_pickaxe, make_pistol_mythic, make_smg_mythic,
+               make_assault_mythic, make_shotgun_mythic, make_sniper_mythic, make_bandage, make_medkit,
                make_ammo_pickup, make_chest, make_ammo_box, make_supply, make_bus, make_glider):
         reset_scene()
         fn()

@@ -104,8 +104,8 @@ func _build_character() -> void:
 			_cur[n] = Vector3.ZERO
 	if nodes.has("Hips"):
 		rest_hips = nodes["Hips"].translation
-	if nodes.has("HandR"):       # a legendary rifle held low, like a lobby idle pose
-		var item := Items.make_weapon("assault", 4)
+	if nodes.has("HandR"):       # the mythic Stormcaller held low, like a lobby idle pose
+		var item := Items.make_weapon("assault", Items.MYTHIC)
 		var gun = load(Items.model_of(item))
 		if gun != null:
 			var held: Spatial = gun.instance()
