@@ -363,6 +363,16 @@ remote func _bots(chunk: Array) -> void:
 		handler.net_bots(chunk)
 
 
+func send_vehicle(id: String, xf: Transform) -> void:
+	if active and in_match:
+		rpc_unreliable("_veh", id, xf)
+
+
+remote func _veh(id: String, xf: Transform) -> void:
+	if handler != null and handler.has_method("net_vehicle"):
+		handler.net_vehicle(get_tree().get_rpc_sender_id(), id, xf)
+
+
 # A reliable event for everyone else (kind: String, data: Variant).
 func send_event(kind: String, data = null) -> void:
 	if active and in_match:

@@ -24,6 +24,7 @@ const Rift = preload("res://scripts/Rift.gd")
 const AutoDoor = preload("res://scripts/AutoDoor.gd")
 const WildSprite = preload("res://scripts/WildSprite.gd")
 const RemotePlayer = preload("res://scripts/RemotePlayer.gd")
+const VehicleCommon = preload("res://scripts/VehicleCommon.gd")
 const GrenadeScript = preload("res://scripts/Grenade.gd")
 const JunkRiftScript = preload("res://scripts/JunkRift.gd")
 const FighterScript = preload("res://scripts/Fighter.gd")
@@ -87,6 +88,8 @@ var _chest_seq := 0
 var _struct_seq := 0
 var _wild_seq := 0
 var _rift_seq := 0
+var _veh_seq := 0
+var _net_veh_t := 0.0
 var net_live := false            # true once the match has started on this machine
 var _amb_t := 0.0
 var _bird_t := 6.0
@@ -741,6 +744,9 @@ func spawn_vehicle(kind: String, pos: Vector3, yaw: float) -> Node:
 		v.kind = kind
 	v.translation = pos
 	v.rotation.y = yaw
+	v.net_id = "v%d" % _veh_seq
+	net_nodes[v.net_id] = v
+	_veh_seq += 1
 	add_child(v)
 	return v
 
@@ -1351,6 +1357,11 @@ func _net_process(delta: float) -> void:
 	if _net_pose_t <= 0.0:
 		_net_pose_t = 1.0 / 15.0
 		Net.send_pose(player.net_pack())
+	_net_veh_t -= delta
+	if _net_veh_t <= 0.0:
+		_net_veh_t = 1.0 / 15.0
+		if player.mode == player.Mode.VEHICLE and player.vehicle_seat == 0 and player.vehicle != null and is_instance_valid(player.vehicle) and player.vehicle.net_id != "":
+			Net.send_vehicle(player.vehicle.net_id, player.vehicle.global_transform)
 	if Net.is_host:
 		_net_bots_t -= delta
 		if _net_bots_t <= 0.0:
@@ -1368,6 +1379,13 @@ func _net_process(delta: float) -> void:
 		if _net_storm_t <= 0.0:
 			_net_storm_t = 1.0
 			Net.send_event("storm", storm.net_state())
+
+
+func net_vehicle(from: int, id: String, xf: Transform) -> void:
+	var v = net_nodes.get(id)
+	if v != null and is_instance_valid(v) and v.net_owner == from:
+		v._net_xf = xf
+		v._net_has = true
 
 
 func net_pose(from: int, packed: Array) -> void:
@@ -1479,6 +1497,18 @@ func net_event(from: int, kind: String, data) -> void:
 					_structure_hit(root, data[2], null, Vector3.ZERO)
 			elif _props.has(data[1]):
 				_prop_hit(data[1], int(data[2]), data[3], null, Vector3.ZERO)
+		"veh_claim":
+			var vc = net_nodes.get(data)
+			if vc != null and is_instance_valid(vc):
+				VehicleCommon.net_claim(vc, from)
+		"veh_release":
+			var vr = net_nodes.get(data[0])
+			if vr != null and is_instance_valid(vr):
+				VehicleCommon.net_release(vr, data[1])
+		"vdmg":
+			var vd = net_nodes.get(data[0])
+			if vd != null and is_instance_valid(vd):
+				VehicleCommon.take_damage(vd, data[1], null, true)
 		"collapse":
 			var cr = net_nodes.get(data)
 			if cr != null and is_instance_valid(cr):

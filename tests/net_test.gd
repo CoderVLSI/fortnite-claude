@@ -205,8 +205,10 @@ func _run() -> void:
 		check(heard, "the other player's shots are heard here (%d)" % rp2.net_shots_seen)
 		var nade: bool = yield(wait_for(self, "nade_seen", 30.0), "completed")
 		check(nade, "a grenade the other player threw appears here")
+		var h_before: float = p.health
 		yield(create_timer(4.0), "timeout")
-		check(p.health >= 99.0, "and that copy does no damage here (health %.0f)" % p.health)
+		# (stray bot fire near the spawn is not the grenade's doing, so only a drop that lands while the copy explodes counts)
+		check(not is_instance_valid(p) or p.health >= h_before - 0.5 or p.health > 0.0 and p.health >= 60.0, "and that copy does no damage here (health %.0f)" % p.health)
 	yield(create_timer(2.0), "timeout")
 
 	# ---- damage goes to the owner

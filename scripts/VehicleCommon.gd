@@ -15,7 +15,7 @@ static func free_seat(v) -> int:
 
 
 static func can_interact(v) -> bool:
-	return not v.exploded and free_seat(v) >= 0 and v.linear_velocity.length() < 5.0
+	return not v.exploded and v.net_owner == 0 and free_seat(v) >= 0 and v.linear_velocity.length() < 5.0
 
 
 static func prompt(v) -> String:
@@ -29,6 +29,8 @@ static func interact(v, by) -> void:
 		return
 	v.occupants[seat] = by
 	by.enter_vehicle(v, seat)
+	if seat == 0 and by.net_owner == 0 and v.net_id != "" and Net.active and Net.in_match:
+		Net.send_event("veh_claim", v.net_id)          # the driver's machine runs the vehicle; the others follow it
 
 
 static func seat_position(v, seat: int) -> Vector3:
@@ -48,20 +50,48 @@ static func exit_position(v, seat: int) -> Vector3:
 
 static func release(v, seat: int) -> void:
 	if seat >= 0 and seat < v.occupants.size():
+		var was = v.occupants[seat]
 		v.occupants[seat] = null
+		if seat == 0 and was != null and is_instance_valid(was) and was.net_owner == 0 and v.net_id != "" and Net.active and Net.in_match:
+			Net.send_event("veh_release", [v.net_id, v.global_transform])
 
 
-static func take_damage(v, amount: float, source) -> void:
+# Network: another machine is driving this vehicle.
+static func net_claim(v, owner_id: int) -> void:
+	v.net_owner = owner_id
+	v.mode = RigidBody.MODE_KINEMATIC
+	v._net_has = false
+
+
+static func net_release(v, xf: Transform) -> void:
+	v.net_owner = 0
+	v.mode = RigidBody.MODE_RIGID
+	v.global_transform = xf
+	v.linear_velocity = Vector3.ZERO
+	v.angular_velocity = Vector3.ZERO
+
+
+static func net_follow(v, delta: float) -> void:
+	if not v._net_has:
+		return
+	var cur: Transform = v.global_transform
+	var t: float = clamp(12.0 * delta, 0.0, 1.0)
+	v.global_transform = Transform(cur.basis.slerp(v._net_xf.basis, t), cur.origin.linear_interpolate(v._net_xf.origin, t))
+
+
+static func take_damage(v, amount: float, source, from_net: bool = false) -> void:
 	if v.exploded:
 		return
 	v.health -= amount
 	if source != null:
 		v.last_attacker = source
+	if not from_net and source != null and "net_owner" in source and source.net_owner == 0 and v.net_id != "" and Net.active and Net.in_match:
+		Net.send_event("vdmg", [v.net_id, amount])        # the others apply the same damage
 	if v.health <= 0.0:
-		explode(v)
+		explode(v, from_net)
 
 
-static func explode(v) -> void:
+static func explode(v, from_net: bool = false) -> void:
 	if v.exploded:
 		return
 	v.exploded = true
@@ -73,7 +103,7 @@ static func explode(v) -> void:
 		if o != null and is_instance_valid(o):
 			o.exit_vehicle(true)
 	for f in v.get_tree().get_nodes_in_group("fighters"):
-		if f.is_dead:
+		if f.is_dead or from_net:            # the machine that caused the blast hurts people; here it is only a show
 			continue
 		var d: float = f.global_transform.origin.distance_to(pos)
 		if d < 9.0:

@@ -21,6 +21,10 @@ var boost := false
 var top_speed := 20.0
 var steering := 0.0
 var model: Spatial
+var net_id := ""
+var net_owner := 0                 # another machine is driving: we only follow it
+var _net_xf := Transform()
+var _net_has := false
 
 var _engine_snd: AudioStreamPlayer3D
 var _prev_speed := 0.0
@@ -86,6 +90,9 @@ func forward_speed() -> float:
 
 
 func _physics_process(delta: float) -> void:
+	if net_owner != 0:
+		Common.net_follow(self, delta)
+		return
 	var driver = occupants[0]
 	var driven: bool = driver != null and is_instance_valid(driver) and not exploded
 	var t := global_transform

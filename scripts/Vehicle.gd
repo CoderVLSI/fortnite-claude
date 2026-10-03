@@ -24,6 +24,10 @@ var top_speed := 28.0
 var max_engine := 2600.0
 var max_steer := 0.5
 var model: Spatial
+var net_id := ""
+var net_owner := 0                 # another machine is driving: we only follow it
+var _net_xf := Transform()
+var _net_has := false
 var steer_visual := 0.0
 
 var _engine_snd: AudioStreamPlayer3D
@@ -144,6 +148,9 @@ func forward_speed() -> float:
 # --- driving -------------------------------------------------------------------
 
 func _physics_process(delta: float) -> void:
+	if net_owner != 0:
+		Common.net_follow(self, delta)
+		return
 	var speed := linear_velocity.length()
 	var driver = occupants[0]
 	var driven: bool = driver != null and is_instance_valid(driver) and not exploded
