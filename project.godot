@@ -13,6 +13,8 @@ config_version=4
 config/name="Storm Island"
 config/description="Third-person battle royale prototype for PC and Android."
 run/main_scene="res://scenes/Main.tscn"
+boot_splash/image="res://assets/ui/splash.png"
+boot_splash/bg_color=Color( 0.02, 0.03, 0.08, 1 )
 config/icon="res://icon.png"
 
 [autoload]

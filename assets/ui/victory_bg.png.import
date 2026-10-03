@@ -2,11 +2,16 @@
 
 importer="texture"
 type="StreamTexture"
-valid=false
+path="res://.import/victory_bg.png-17b2fb48d63b5c054d98c99aa2dd82c0.stex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
-source_file="res://assets/ui/lobby_bg.jpg"
+source_file="res://assets/ui/victory_bg.png"
+dest_files=[ "res://.import/victory_bg.png-17b2fb48d63b5c054d98c99aa2dd82c0.stex" ]
+
 [params]
 
 compress/mode=0

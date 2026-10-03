@@ -2,11 +2,16 @@
 
 importer="texture"
 type="StreamTexture"
-valid=false
+path="res://.import/scopes.png-3e7a559c09d459bde1767352908feb49.stex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
-source_file="res://assets/ui/loading_bg.jpg"
+source_file="res://docs/scopes.png"
+dest_files=[ "res://.import/scopes.png-3e7a559c09d459bde1767352908feb49.stex" ]
+
 [params]
 
 compress/mode=0

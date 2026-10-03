@@ -44,7 +44,7 @@ storm closes in. Last one standing wins.
 | Reload / horn | R | X | reload button beside the ammo readout |
 | Pick up, open, enter / exit vehicle | E | Y | PICK UP / EXIT (appears when relevant) |
 | Hotbar | 1-5 / wheel | L1 / R1 | tap the slots |
-| Build mode | Q (then 1-4 piece, wheel material) | | the four piece buttons down the right edge (tap again to leave); tap a materials box to pick wood / stone / metal |
+| Build mode | Q, or Z X C V for wall / floor / ramp / roof (wheel: material) | | the four piece buttons down the right edge (tap again to leave); tap a materials box to pick wood / stone / metal |
 | Map | M | | tap the minimap |
 | Pause | Esc | | II button / Back |
 

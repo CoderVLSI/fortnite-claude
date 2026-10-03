@@ -52,6 +52,10 @@ var feed_box: VBoxContainer
 var flash_rect: ColorRect
 var storm_rect: ColorRect
 var end_panel: Panel
+var end_bg: TextureRect
+var badge: TextureRect
+var _badge_name := ""
+var _icons := {}                # icon / backdrop textures kept alive (an unreferenced texture is freed and draws blank)
 var end_title: Label
 var end_stats: Label
 
@@ -199,6 +203,13 @@ func _build() -> void:
 	bus_label.visible = false
 	root.add_child(bus_label)
 
+	badge = TextureRect.new()                   # what you are riding: bus, glider, buggy, quad or boat
+	badge.expand = true
+	badge.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_place(badge, 0.5, 0.5, Vector2(-34, -236), Vector2(68, 68))
+	badge.visible = false
+	root.add_child(badge)
+
 	use_bar = Bar.new()
 	use_bar.fill_color = Color(1.0, 0.85, 0.3)
 	use_bar.max_value = 1.0
@@ -255,7 +266,20 @@ func _build() -> void:
 	_build_end_panel()
 
 
+func _tex(path: String):
+	if not _icons.has(path):
+		_icons[path] = load(path) if ResourceLoader.exists(path) else null
+	return _icons[path]
+
+
 func _build_end_panel() -> void:
+	end_bg = TextureRect.new()                 # generated victory / eliminated painting behind the result panel
+	end_bg.expand = true
+	end_bg.stretch_mode = TextureRect.STRETCH_SCALE
+	end_bg.set_anchors_and_margins_preset(Control.PRESET_WIDE)
+	end_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	end_bg.visible = false
+	root.add_child(end_bg)
 	end_panel = Panel.new()
 	_place(end_panel, 0.5, 0.5, Vector2(-250, -150), Vector2(500, 300))
 	end_panel.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -300,6 +324,7 @@ func bind(world_node) -> void:
 func _layout() -> void:
 	var size: Vector2 = Hotbar.wanted_size()
 	hotbar.show_materials = not Controls.touch_mode
+	hotbar.show_build_row = not Controls.touch_mode
 	if Controls.touch_mode:
 		var map_px := 168.0
 		_place(minimap, 0.0, 0.0, Vector2(20, 12), Vector2(map_px, map_px))
@@ -340,15 +365,8 @@ func toggle_map() -> void:
 
 
 func _on_piece_pressed(index: int) -> void:
-	if player == null or player.is_dead:
-		return
-	var b = player.builder
-	if b.active and b.piece == index:
-		b.set_active(false)         # tapping the chosen piece again leaves build mode
-		return
-	b.set_active(true)
-	if b.active:
-		b.set_piece(index)
+	if player != null:
+		player.press_piece(index)
 
 
 func _on_material_pressed(kind: String) -> void:
@@ -359,17 +377,9 @@ func _on_material_pressed(kind: String) -> void:
 func _on_slot_pressed(index: int) -> void:
 	if player == null:
 		return
-	if Controls.touch_mode:
-		if player.builder.active:
-			player.builder.set_active(false)
-		player.select_slot(index)
-	elif player.builder.active:
-		if index < 4:
-			player.builder.set_piece(index)
-		else:
-			player.builder.cycle_material(1)
-	else:
-		player.select_slot(index)
+	if player.builder.active:
+		player.builder.set_active(false)       # picking an item leaves build mode
+	player.select_slot(index)
 
 
 func _on_pause_pressed() -> void:
@@ -419,6 +429,9 @@ func show_end(victory: bool, placement: int, kills: int) -> void:
 	end_title.text = "LAST ONE STANDING!" if victory else "ELIMINATED"
 	end_title.add_color_override("font_color", Color(1.0, 0.85, 0.3) if victory else Color(1.0, 0.45, 0.4))
 	end_stats.text = "Placed #%d\nEliminations: %d" % [placement, kills]
+	end_bg.texture = _tex("res://assets/ui/victory_bg.png" if victory else "res://assets/ui/eliminated_bg.png")
+	end_bg.visible = end_bg.texture != null
+	end_bg.modulate = Color(1, 1, 1, 0)
 	end_panel.visible = true
 	if touch:
 		touch.visible = false
@@ -446,6 +459,8 @@ func _process(delta: float) -> void:
 	var outside: bool = world.storm.active and not player.is_dead and not world.storm.is_inside(player.global_transform.origin)
 	warn_label.visible = outside
 	storm_rect.color.a = (0.16 + sin(_t * 5.0) * 0.04) if outside else 0.0
+	if end_bg.visible and end_bg.modulate.a < 1.0:
+		end_bg.modulate.a = min(1.0, end_bg.modulate.a + delta * 1.2)
 	_flash = max(0.0, _flash - delta * 2.5)
 	flash_rect.color.a = _flash * 0.40
 
@@ -502,6 +517,23 @@ func _update_poi(delta: float) -> void:
 		boss_bar.value = b.health + b.shield
 
 
+func _update_badge() -> void:
+	var want := ""
+	if not player.builder.active:
+		match player.mode:
+			MODE_BUS:
+				want = "vehicle_bus"
+			MODE_GLIDE:
+				want = "vehicle_glider"
+			MODE_VEHICLE:
+				if player.vehicle != null and is_instance_valid(player.vehicle):
+					want = "vehicle_" + str(player.vehicle.kind)
+	if want != _badge_name:
+		_badge_name = want
+		badge.texture = _tex("res://assets/icons/%s.png" % want) if want != "" else null
+	badge.visible = badge.texture != null
+
+
 func _update_prompts() -> void:
 	# interact prompt for the nearest loot / chest
 	var target = player.interact_target
@@ -517,9 +549,10 @@ func _update_prompts() -> void:
 	if use_bar.visible:
 		use_bar.value = player.use_progress()
 	# bus / freefall / glider hints
+	_update_badge()
 	var jump_key := "JUMP" if Controls.touch_mode else "SPACE"
 	if player.builder.active:
-		bus_label.text = "BUILD  click: place   1-4: piece   wheel: material   Q: exit" if not Controls.touch_mode else "BUILD   pick a piece, FIRE places"
+		bus_label.text = "BUILD  click: place   Z X C V: piece   wheel: material   Q: exit" if not Controls.touch_mode else "BUILD   pick a piece, FIRE places"
 		bus_label.visible = true
 		return
 	match player.mode:

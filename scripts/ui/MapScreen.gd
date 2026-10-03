@@ -6,6 +6,7 @@ const N := 96
 
 var world
 var _tex: ImageTexture
+var _icons := {}                # keeps the generated vehicle icons alive between draws
 
 
 func _build_texture() -> void:
@@ -33,6 +34,13 @@ func _build_texture() -> void:
 	img.unlock()
 	_tex = ImageTexture.new()
 	_tex.create_from_image(img, 0)
+
+
+func _icon(name: String):
+	if not _icons.has(name):
+		var path := "res://assets/icons/%s.png" % name
+		_icons[name] = load(path) if ResourceLoader.exists(path) else null
+	return _icons[name]
 
 
 func _process(_delta: float) -> void:
@@ -76,12 +84,20 @@ func _draw() -> void:
 	for v in get_tree().get_nodes_in_group("vehicles"):
 		if is_instance_valid(v):
 			var vp := Vector2(v.global_transform.origin.x, v.global_transform.origin.z)
-			draw_rect(Rect2(mid + vp * s - Vector2(3, 3), Vector2(6, 6)), Color(0.4, 0.9, 1.0))
+			var vt = _icon("vehicle_" + str(v.kind))
+			if vt != null:
+				draw_texture_rect(vt, Rect2(mid + vp * s - Vector2(15, 15), Vector2(30, 30)), false)
+			else:
+				draw_rect(Rect2(mid + vp * s - Vector2(3, 3), Vector2(6, 6)), Color(0.4, 0.9, 1.0))
 	if world.bus != null and is_instance_valid(world.bus):
 		var bus_p := Vector2(world.bus.global_transform.origin.x, world.bus.global_transform.origin.z)
 		var bd := Vector2(world.bus.direction.x, world.bus.direction.z)
 		draw_line(mid + (bus_p - bd * world.BUS_LENGTH) * s, mid + (bus_p + bd * world.BUS_LENGTH) * s, Color(1.0, 0.7, 0.2, 0.5), 2.0)
-		draw_circle(mid + bus_p * s, 6.0, Color(1.0, 0.8, 0.3))
+		var bt = _icon("vehicle_bus")
+		if bt != null:
+			draw_texture_rect(bt, Rect2(mid + bus_p * s - Vector2(20, 20), Vector2(40, 40)), false)
+		else:
+			draw_circle(mid + bus_p * s, 6.0, Color(1.0, 0.8, 0.3))
 
 	var p = world.player
 	var pp := Vector2(p.global_transform.origin.x, p.global_transform.origin.z)

@@ -8,6 +8,7 @@ const Builder = preload("res://scripts/Builder.gd")
 const SHOULDER_OFFSET := Vector3(0.65, 1.55, 0.0)
 const CAMERA_DISTANCE := 3.6
 const INTERACT_RANGE := 3.2
+const BUILD_ACTIONS := ["build_wall", "build_floor", "build_ramp", "build_roof"]
 
 var input_enabled := true
 var pitch := -0.12
@@ -146,15 +147,14 @@ func _ground_process(delta: float) -> void:
 			start_reload()
 		if Input.is_action_just_pressed("build_toggle"):
 			builder.toggle()
+		for i in range(BUILD_ACTIONS.size()):
+			if Input.is_action_just_pressed(BUILD_ACTIONS[i]):
+				press_piece(i)
 		for i in range(Items.SLOT_COUNT):
 			if Input.is_action_just_pressed("slot_%d" % (i + 1)):
 				if builder.active:
-					if i < 4:
-						builder.set_piece(i)
-					else:
-						builder.cycle_material(1)
-				else:
-					select_slot(i)
+					builder.set_active(false)          # picking an item leaves build mode
+				select_slot(i)
 		_fire_input(delta)
 		_interact_input(delta)
 	var b := global_transform.basis
@@ -178,6 +178,18 @@ func _ground_process(delta: float) -> void:
 
 # Right mouse / L2 (hold) or the touch scope button (toggle) aims the equipped gun. Aiming cancels sprinting and
 # pauses while reloading or using an item.
+# A build piece key / button: enter build mode with that piece; pressing the chosen piece again leaves build mode.
+func press_piece(index: int) -> void:
+	if is_dead or mode != Mode.GROUND:
+		return
+	if builder.active and builder.piece == index:
+		builder.set_active(false)
+		return
+	builder.set_active(true)
+	if builder.active:
+		builder.set_piece(index)
+
+
 func _update_aim() -> void:
 	var item = selected_item()
 	var gun: bool = item != null and item.kind == "weapon" and not builder.active

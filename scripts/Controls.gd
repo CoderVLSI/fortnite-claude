@@ -41,6 +41,10 @@ func _register_actions() -> void:
 	_key("map", KEY_M)
 	_key("build_toggle", KEY_Q)
 	_key("build_toggle", KEY_F)
+	_key("build_wall", KEY_Z)
+	_key("build_floor", KEY_X)
+	_key("build_ramp", KEY_C)
+	_key("build_roof", KEY_V)
 	for i in range(5):
 		_key("slot_%d" % (i + 1), KEY_1 + i)
 	_mouse("fire", BUTTON_LEFT)

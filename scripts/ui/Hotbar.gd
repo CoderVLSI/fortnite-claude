@@ -7,13 +7,15 @@ signal slot_pressed(index)
 const Items = preload("res://scripts/Items.gd")
 const SLOT := 62.0
 const GAP := 6.0
-const TOP := 76.0               # room above the slots for materials and the name popup
+const BUILD_ROW := 90.0         # PC: the always-visible build pieces sit in their own row above the slots
+const TOP := 76.0 + BUILD_ROW   # room above the slots for materials, the build row and the name popup
 
 const ICON_DIR := "res://assets/icons/"
 
 var _icons := {}                # name -> Texture or null (the drawn shapes below are the fallback)
 var player
 var builder
+var show_build_row := true
 var show_materials := true      # the touch HUD draws materials in its own widget (Materials.gd)
 var _pop := 0.0
 var _pop_text := ""
@@ -93,10 +95,8 @@ func _draw() -> void:
 		var w := font.get_string_size(_pop_text).x
 		var c := Color(_pop_color.r, _pop_color.g, _pop_color.b, clamp(_pop, 0.0, 1.0))
 		draw_string(font, Vector2(rect_size.x - w, TOP - 10.0), _pop_text, c)
-	if builder != null and builder.active and not Controls.touch_mode:   # touch builds from the piece buttons
-		for i in range(Items.SLOT_COUNT):
-			_draw_build_slot(i, font)
-		return
+	if show_build_row:
+		_draw_build_row(font)
 	for i in range(Items.SLOT_COUNT):
 		_draw_slot(i, font)
 
@@ -149,33 +149,33 @@ func _draw_slot(i: int, font: Font) -> void:
 	draw_string(font, r.position + Vector2(5, 17), str(i + 1), Color(1, 1, 1, 0.75))
 
 
-func _draw_build_slot(i: int, font: Font) -> void:
-	var r := slot_rect(i)
-	var selected: bool = i == builder.piece and i < 4
-	r.position.y += (8.0 if (player != null and i == player.selected) else 0.0)   # undo the item-slot lift
-	draw_rect(r, Color(0.05, 0.07, 0.12, 0.72 if selected else 0.55))
-	var c := r.position + Vector2(SLOT / 2.0, SLOT / 2.0 - 3.0)
-	var col := Color(0.62, 0.42, 0.22) if builder.material == "wood" else (Color(0.62, 0.64, 0.68) if builder.material == "stone" else Color(0.45, 0.62, 0.85))
-	if i < 4:
-		match i:
-			0:
-				draw_rect(Rect2(c + Vector2(-5, -18), Vector2(10, 36)), col)
-			1:
-				draw_colored_polygon(PoolVector2Array([c + Vector2(-20, 6), c + Vector2(-10, -4), c + Vector2(20, -4), c + Vector2(10, 6)]), col)
-				draw_rect(Rect2(c + Vector2(-20, 6), Vector2(30, 5)), col.darkened(0.3))
-			2:
-				draw_colored_polygon(PoolVector2Array([c + Vector2(-20, 16), c + Vector2(20, 16), c + Vector2(20, -16)]), col)
-			3:
-				draw_colored_polygon(PoolVector2Array([c + Vector2(-22, 14), c + Vector2(22, 14), c + Vector2(0, -16)]), col)
-		var afford: bool = player.materials[builder.material] >= builder.COST
-		draw_string(font, r.position + Vector2(SLOT - 28, SLOT - 10), str(builder.COST), Color.white if afford else Color(1.0, 0.4, 0.3))
-	else:
-		draw_rect(Rect2(c + Vector2(-16, -16), Vector2(32, 32)), col)
-		draw_rect(Rect2(c + Vector2(-16, -16), Vector2(32, 32)), Color(1, 1, 1, 0.7), false, 2.0)
-		draw_string(font, r.position + Vector2(6, SLOT - 10), builder.material.substr(0, 1).to_upper(), Color.white)
-	if selected:
-		draw_rect(r.grow(2.0), Color(1, 1, 1, 0.95), false, 3.0)
-	draw_string(font, r.position + Vector2(5, 17), str(i + 1), Color(1, 1, 1, 0.75))
+# Fortnite-style build row: [Q build mode] [wall Z] [floor X] [ramp C] [roof V], right-aligned over the item slots.
+func _draw_build_row(font: Font) -> void:
+	var active: bool = builder != null and builder.active
+	var y := TOP - 40.0 - SLOT
+	var tint := Color(1, 1, 1)
+	if builder != null:
+		tint = Color(1, 1, 1) if builder.material == "wood" else (Color(0.82, 0.86, 0.95) if builder.material == "stone" else Color(0.7, 0.85, 1.0))
+	# cell 0: build-mode key
+	var q := Rect2(Vector2(0, y), Vector2(SLOT, SLOT))
+	draw_rect(q, Color(0.05, 0.07, 0.12, 0.62 if not active else 0.8))
+	draw_rect(q, Color(0.45, 0.78, 1.0, 0.95) if active else Color(1, 1, 1, 0.35), false, 3.0 if active else 2.0)
+	var qw := font.get_string_size("Q").x
+	draw_string(font, q.position + Vector2((SLOT - qw) / 2.0, SLOT / 2.0 + 8.0), "Q", Color.white)
+	for i in range(4):
+		var r := Rect2(Vector2((i + 1) * (SLOT + GAP), y), Vector2(SLOT, SLOT))
+		var chosen: bool = active and builder.piece == i
+		if chosen:
+			draw_rect(r.grow(5.0), Color(0.3, 0.7, 1.0, 0.35))             # blue glow on the chosen piece
+		draw_rect(r, Color(0.05, 0.07, 0.12, 0.72 if chosen else 0.55))
+		var tex = icon("build_" + builder.PIECES[i]) if builder != null else null
+		if tex != null:
+			draw_texture_rect(tex, r, false, tint)
+		var afford: bool = player != null and builder != null and player.materials[builder.material] >= builder.COST
+		draw_rect(Rect2(r.position + Vector2(SLOT - 30, SLOT - 24), Vector2(28, 20)), Color(0, 0, 0, 0.55))
+		draw_string(font, r.position + Vector2(SLOT - 27, SLOT - 8), str(builder.COST) if builder != null else "10", Color.white if afford else Color(1.0, 0.4, 0.3))
+		draw_rect(r, Color(0.45, 0.78, 1.0, 1.0) if chosen else Color(1, 1, 1, 0.35), false, 3.0 if chosen else 2.0)
+		draw_string(font, r.position + Vector2(5, 17), ["Z", "X", "C", "V"][i], Color(1, 1, 1, 0.9))
 
 
 func _draw_icon(item: Dictionary, c: Vector2) -> void:

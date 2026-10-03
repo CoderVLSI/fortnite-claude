@@ -103,7 +103,7 @@ add("launcher_bg_432", "app", "abstract seamless dark purple to blue night-sky g
 add("lobby_bg", "bg", "wide cinematic 16:9 game background illustration, a stylized colourful battle-royale island "
     "seen from the sky at sunset, a glowing purple storm wall closing in on the horizon with lightning, a flying "
     "battle bus in the distance, bright saturated colours, painterly, calm uncluttered centre, no text, no "
-    "characters, no logo", size=1280, height=720, key=False, dest=os.path.join(ROOT, "assets", "ui", "lobby_bg.jpg"))
+    "characters, no logo", size=1280, height=720, key=False, dest=os.path.join(ROOT, "assets", "ui", "lobby_bg.png"))
 
 # More icons: vehicles (Vehicle/Boat/Bus/glider) and build pieces (Builder.gd), on their own tiles.
 for _n, _d in [
@@ -122,8 +122,8 @@ for _n, _d in [
 ]:
     add("build_" + _n, "build", "%sisometric view of %s, %s" % (STYLE, _d, KEYED))
 
-# Full-screen backdrops (16:9, JPEG) and the logo (transparent). Text and buttons are drawn by code on top.
-_UI = lambda n, ext="jpg": os.path.join(ROOT, "assets", "ui", n + "." + ext)
+# Full-screen backdrops (16:9, PNG: the distro Godot build cannot import JPEG) and the logo (transparent). Text and buttons are drawn by code on top.
+_UI = lambda n, ext="png": os.path.join(ROOT, "assets", "ui", n + "." + ext)
 _BG = ("wide cinematic 16:9 game background illustration, %s, painterly, saturated colours, no text, no "
        "characters, no logo")
 add("victory_bg", "bg", _BG % "a triumphant golden sunrise over a stylized battle-royale island, glowing light "

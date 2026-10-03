@@ -5,7 +5,7 @@ extends CanvasLayer
 # character, a player card, the mode card with the big PLAY button and a tab bar.
 
 const FONT_PATH := "res://assets/fonts/DejaVuSans-Bold.ttf"
-const HELP_PC := "Move: WASD        Look: mouse        Fire: left click        Aim / scope: right click\nJump / handbrake: Space        Sprint: Shift        Reload / horn: R\nPick up / open / enter vehicle: E        Build mode: Q  (1-4 pieces, wheel = material)\nHotbar: 1-5 or wheel        Map: M        Pause: Esc"
+const HELP_PC := "Move: WASD        Look: mouse        Fire: left click        Aim / scope: right click\nJump / handbrake: Space        Sprint: Shift        Reload / horn: R\nPick up / open / enter vehicle: E        Build: Q toggles, Z X C V = wall / floor / ramp / roof, wheel = material\nHotbar: 1-5 or wheel        Map: M        Pause: Esc"
 const HELP_TOUCH := "Left thumb: move    Right side: look    FIRE / JUMP / SPRINT buttons, scope button to aim down sights\nPICK UP appears next to loot, chests and vehicles    BUILD toggles building\nTap the hotbar to switch items    Tap the minimap for the island map"
 const HELP_GOAL := "Ride the Sky Ferry, jump, glide down and loot.  Fight bots, stay inside the shrinking storm,\ndrive vehicles, swim, climb ledges, take on the Warden at Iron Bunker for Mythic loot.\nBe the last one standing."
 
@@ -62,6 +62,8 @@ func _ready() -> void:
 	orbit_cam = Camera.new()
 	orbit_cam.far = 900.0
 	orbit_cam.fov = 42.0
+	if lobby != null and lobby.env != null:
+		orbit_cam.environment = lobby.env
 	add_child(orbit_cam)
 
 
@@ -204,9 +206,20 @@ func _build_title() -> Control:
 	bar.margin_bottom = 66
 	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	p.add_child(bar)
-	var logo := _label("STORM ISLAND", 30, gold)
-	logo.rect_position = Vector2(26, 15)
-	p.add_child(logo)
+	var logo_tex = load("res://assets/ui/logo.png")
+	if logo_tex != null:
+		var logo := TextureRect.new()
+		logo.texture = logo_tex
+		logo.expand = true
+		logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		logo.rect_position = Vector2(10, -2)
+		logo.rect_size = Vector2(130, 74)
+		logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		p.add_child(logo)
+	else:
+		var logo := _label("STORM ISLAND", 30, gold)
+		logo.rect_position = Vector2(26, 15)
+		p.add_child(logo)
 	var tabs := HBoxContainer.new()
 	tabs.add_constant_override("separation", 6)
 	_place(tabs, 0.5, 0.0, Vector2(-230, 8), Vector2(460, 50))
@@ -432,6 +445,8 @@ func show_title() -> void:
 	Controls.capture_mouse(false)
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	orbit_cam.make_current()
+	if lobby != null:
+		lobby.set_active(true)
 	Audio.music("music_menu", 1.0)
 	root.mouse_filter = Control.MOUSE_FILTER_PASS
 
@@ -442,6 +457,8 @@ func start_game() -> void:
 	get_tree().paused = false
 	if world != null and world.player != null:
 		world.player.camera.make_current()
+	if lobby != null:
+		lobby.set_active(false)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	Audio.set_paused(false)
 	if world != null:

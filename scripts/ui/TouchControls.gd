@@ -23,6 +23,7 @@ var _stick_origin := Vector2.ZERO
 var _stick_pos := Vector2.ZERO
 var _look_id := -1
 var _buttons := {}
+var _icons := {}
 var _sprint_toggle := false
 var _stick_sprint := false
 
@@ -203,6 +204,29 @@ func _process(_delta: float) -> void:
 
 # ------------------------------------------------------------------ drawing
 
+func _icon(name: String):
+	if not _icons.has(name):
+		var path := "res://assets/icons/%s.png" % name
+		_icons[name] = load(path) if ResourceLoader.exists(path) else null
+	return _icons[name]
+
+
+func _draw_piece_tile(b: Dictionary, chosen: bool, active: bool) -> bool:
+	var tex = _icon("build_" + ["wall", "floor", "ramp", "roof"][b["piece"]])
+	if tex == null:
+		return false
+	var r: float = b["radius"]
+	var rect := Rect2(b["center"] - Vector2(r, r), Vector2(r, r) * 2.0)
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.12, 0.3, 0.6, 0.6) if chosen else Color(0.05, 0.07, 0.12, 0.35)
+	sb.border_color = Color(0.45, 0.78, 1.0, 1.0) if chosen else Color(1, 1, 1, 0.6)
+	sb.set_border_width_all(4 if chosen else 2)
+	sb.set_corner_radius_all(14)
+	draw_style_box(sb, rect)
+	draw_texture_rect(tex, rect.grow(-5.0), false, Color(1, 1, 1, 0.55 if (not chosen and not active) else 1.0))
+	return true
+
+
 func _draw() -> void:
 	var font := get_font("font", "Label")
 	var home := _stick_origin if _stick_id != -1 else _stick_home()
@@ -229,6 +253,8 @@ func _draw() -> void:
 			fill = Color(0.12, 0.3, 0.6, 0.55)
 		if active:
 			fill = Color(1, 1, 1, 0.34)
+		if b.has("piece") and _draw_piece_tile(b, chosen, active):
+			continue
 		draw_circle(c, r, fill)
 		draw_arc(c, r, 0, TAU, 40, ring, 2.5 if not chosen else 4.0)
 		if b.has("icon"):
