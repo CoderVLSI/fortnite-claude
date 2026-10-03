@@ -98,7 +98,7 @@ func _open(touch: bool) -> void:
 	Controls.wheel_open = true
 	Controls.wheel_delta = Vector2.ZERO
 	mouse_filter = Control.MOUSE_FILTER_STOP if touch else Control.MOUSE_FILTER_IGNORE
-	Audio.play2d("ui_click", -8.0)
+	Audio.play2d("emote_wheel_open" if ResourceLoader.exists("res://assets/audio/emote_wheel_open.wav") else "ui_click", -6.0)
 	update()
 
 
