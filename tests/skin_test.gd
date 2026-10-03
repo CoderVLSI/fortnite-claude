@@ -59,7 +59,7 @@ func _run() -> void:
 	settings.loadout = Cosmetics.DEFAULT_LOADOUT.duplicate()
 	menu._on_button("locker")
 	check(menu.locker_panel.visible, "the Locker tab opens the locker")
-	check(menu.locker_tabs.size() == 5, "it has five categories (skin, pickaxe, back bling, contrail, glider)")
+	check(menu.locker_tabs.size() == 6 and menu.locker_tabs.has("emote"), "it has six tabs (skin, pickaxe, back bling, contrail, glider, emotes)")
 	menu.locker_select("skin", "ninja")
 	check(settings.loadout.skin == "ninja", "picking a skin equips it")
 	var lobby_torso: MeshInstance = menu.lobby.character.find_node("TorsoMesh", true, false)

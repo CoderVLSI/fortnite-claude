@@ -74,24 +74,24 @@ func _run() -> void:
 	check(wheel._slot_at(Vector2(10, 5)) == -1, "the centre cancels")
 
 	var controls = root.get_node("Controls")
-	Input.action_press("emote")
+	_emote(true)
 	yield(create_timer(0.4), "timeout")
 	check(wheel.open and controls.wheel_open, "holding the emote key opens the wheel")
 	controls.wheel_delta = Vector2(150, 0)
-	yield(_frames(3), "completed")
-	Input.action_release("emote")
-	yield(_frames(4), "completed")
+	yield(create_timer(0.2), "timeout")
+	_emote(false)
+	yield(create_timer(0.4), "timeout")
 	check(not wheel.open and p.emoting and p.emote_id == wheel.wheel()[2], "flicking right and releasing plays %s (%s)" % [wheel.wheel()[2], p.emote_id])
 	check(settings.last_emote == p.emote_id, "it is remembered as the last emote")
-	Input.action_press("emote")
-	yield(_frames(3), "completed")
-	Input.action_release("emote")
-	yield(_frames(4), "completed")
+	_emote(true)
+	yield(create_timer(0.08), "timeout")
+	_emote(false)
+	yield(create_timer(0.4), "timeout")
 	check(not p.emoting, "a tap stops the dance")
-	Input.action_press("emote")
-	yield(_frames(3), "completed")
-	Input.action_release("emote")
-	yield(_frames(4), "completed")
+	_emote(true)
+	yield(create_timer(0.08), "timeout")
+	_emote(false)
+	yield(create_timer(0.4), "timeout")
 	check(p.emoting and p.emote_id == settings.last_emote, "a tap repeats the last emote")
 	p.emoting = false
 
@@ -125,3 +125,10 @@ func _run() -> void:
 	for f in failures:
 		print("  - ", f)
 	quit(1 if failures.size() > 0 else 0)
+
+
+func _emote(down: bool) -> void:
+	var e := InputEventAction.new()
+	e.action = "emote"
+	e.pressed = down
+	Input.parse_input_event(e)

@@ -251,9 +251,9 @@ func _run() -> void:
 	# --- emote: tap to dance, moving cancels it
 	p.velocity = Vector3.ZERO
 	yield(_frames(30), "completed")
-	Input.action_press("emote")
+	_emote(true)
 	yield(_frames(3), "completed")
-	Input.action_release("emote")
+	_emote(false)
 	yield(_frames(10), "completed")
 	check(p.emoting, "the emote key starts the dance")
 	Input.action_press("move_forward")
@@ -310,3 +310,10 @@ func _run() -> void:
 
 	print("MECHANICS_RESULT failures=", failures.size())
 	quit(1 if failures.size() > 0 else 0)
+
+
+func _emote(down: bool) -> void:
+	var e := InputEventAction.new()
+	e.action = "emote"
+	e.pressed = down
+	Input.parse_input_event(e)

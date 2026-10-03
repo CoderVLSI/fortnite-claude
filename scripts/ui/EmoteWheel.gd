@@ -16,12 +16,22 @@ var _down := false
 var _hold := 0.0
 var _cursor := Vector2.ZERO
 var _sel := -1
+var _latch_down := false         # key events seen between frames, so a very quick tap on a slow frame rate is not missed
+var _latch_up := false
 
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_anchors_and_margins_preset(Control.PRESET_WIDE)
 	visible = false
+
+
+func _input(event: InputEvent) -> void:
+	if event.is_action("emote") and not event.is_echo() and not (event is InputEventMouseMotion):
+		if event.is_pressed():
+			_latch_down = true
+		else:
+			_latch_up = true
 
 
 func wheel() -> Array:
@@ -40,21 +50,28 @@ func _process(delta: float) -> void:
 		return
 	if _touch:
 		return
-	if _can_emote() and Input.is_action_just_pressed("emote") and not Controls.menu_open:
+	var pressed_now: bool = Input.is_action_just_pressed("emote") or _latch_down
+	var released_now: bool = _latch_up
+	_latch_down = false
+	_latch_up = false
+	if _can_emote() and pressed_now and not Controls.menu_open:
 		_down = true
 		_hold = 0.0
 	if _down:
-		if Input.is_action_pressed("emote"):
+		if Input.is_action_pressed("emote") and not released_now:
 			_hold += delta
 			if _hold > HOLD_TIME and not open:
 				_open(false)
 		else:
 			_down = false
+			var id := _selected_id() if open else ""
+			var slow_tap: bool = open and id == "" and _hold < 0.5      # a tap on a slow frame rate looks like a short hold
 			if open:
-				var id := _selected_id()
 				_close()
-				if id != "":
-					player.start_emote(id)
+			if id != "":
+				player.start_emote(id)
+			elif open and not slow_tap:
+				pass                                       # held, nothing picked: cancel
 			elif player.emoting:
 				player.emoting = false                     # a tap while dancing stops the dance
 			else:
