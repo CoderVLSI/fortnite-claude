@@ -18,11 +18,11 @@ storm closes in. Last one standing wins.
 | **Match flow** | Battle bus -> jump -> freefall -> glider -> land, shrinking storm in 5 phases, supply drops, last-one-standing win / elimination screen, title / pause / settings menus |
 | **Combat** | 5 weapon types (pistol, SMG, assault rifle, pump shotgun, bolt sniper) with detailed models, recoil, reloads, headshots, pickaxe melee; tracers; hit markers |
 | **Rarity** | Common / Uncommon / Rare / Epic / Legendary / **Mythic** (faster, bigger mags, tighter spread). Weapons carry a rarity-coloured accent and loot beam |
-| **Inventory** | 5-slot hotbar (pickaxe + 4), heal & shield consumables with use timers, 4 ammo types, materials counter; a Tab inventory screen (details, resources, ammo, equipment; X drops); a full inventory swaps the picked-up item for the one in hand |
+| **Inventory** | 5-slot hotbar (pickaxe + 4), heal & shield consumables with use timers (Bandage, Mini Shield, Medkit, Shield Potion, Slurp Juice, Chug Jug), throwable **Grenades**, 4 ammo types, materials counter; a Tab inventory screen (details, resources, ammo, equipment; X drops); a full inventory swaps the picked-up item for the one in hand |
 | **Loot** | Floor loot with beams, 4 container types: treasure chest, ammo box, falling **supply drop**, bunker **vault** |
 | **POIs** | A 480 m island with 13 named places: Maple Square, Saltworks Docks, Pine Ridge Lodge, Rusty Foundry, Golden Acres, Iron Bunker, Lighthouse Point, Blackwater Marina, Windmill Hollow, Granite Quarry, Ember Mesa, Frostbite Flats, Crescent Cove; roads between them; a full-screen map (M) with every name and the vehicles |
 | **Boss** | *The Warden* guards Iron Bunker (300 hp + shield) with a Mythic weapon |
-| **Movement** | Sprint, jump, **mantling** ledges, **swimming** (floating, strokes, ripples), freefall dive, glider |
+| **Movement** | Sprint, jump, **crouch** and **slide** (crouch while sprinting), **mantling** ledges, **swimming** (floating, strokes, ripples), freefall dive, glider, hard landings hurt (fall damage), a dance **emote** (B) |
 | **Vehicles** | Buggy (2 seats), quad bike, motor boat; run-over and crash damage, explosions, horn |
 | **Building** | Walls, floors, ramps and roofs in wood / stone / metal on a 4 m grid, destructible, harvested from trees / rocks / structures with the pickaxe, with a draining health bar over whatever you are hitting |
 | **Animation** | Jointed rig: idle breathing, walk / run / sprint cycles, landing squash, aim + recoil, reload, pickaxe wind-up, drinking, swimming strokes, mantle, vehicle seat, skydive, glide |
@@ -44,7 +44,8 @@ storm closes in. Last one standing wins.
 | Reload / horn | R | X | reload button beside the ammo readout |
 | Pick up (swaps the item in hand when full), open, enter / exit vehicle | E | Y | PICK UP / EXIT (appears when relevant) |
 | Inventory screen (X drops) | Tab | Select | bag button (top right) |
-| Hotbar | 1-5 / wheel | L1 / R1 | tap the slots |
+| Items | 1-4 / wheel, F = pickaxe | L1 / R1 | tap the slots |
+| Crouch / slide, emote | Ctrl, B | R3, D-pad up | |
 | Build mode | Q, or Z X C V for wall / floor / ramp / roof (wheel: material) | | the four piece buttons down the right edge (tap again to leave); tap a materials box to pick wood / stone / metal |
 | Map | M | | tap the minimap |
 | Pause | Esc | | II button / Back |

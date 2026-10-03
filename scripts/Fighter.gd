@@ -23,6 +23,8 @@ enum Mode { GROUND, BUS, FREEFALL, GLIDE, SWIM, MANTLE, VEHICLE }
 
 const MODEL_PATH := "res://assets/models/player.glb"
 const Grenade = preload("res://scripts/Grenade.gd")
+const FALL_SAFE_SPEED := 19.0          # landing faster than this hurts (about a 7 m drop)
+const FALL_DAMAGE_PER_MS := 3.5
 const GLIDER_PATH := "res://assets/models/glider.glb"
 const DEPLOY_ALTITUDE := 75.0
 const WATER_LEVEL := 0.0
@@ -84,6 +86,12 @@ var animator
 var grounded := true
 var forward_speed := 0.0
 var sprinting := false
+var crouching := false            # hold crouch: slower, lower, steadier aim
+var sliding := false              # sprint then crouch: a short momentum slide
+var emoting := false              # dancing: cancelled by moving, firing or jumping
+var emote_t := 0.0
+var _slide_t := 0.0
+var _slide_dir := Vector3.ZERO
 var aiming := false               # aim-down-sights (player only; see Player._update_aim)
 var vehicle = null
 var vehicle_seat := 0
@@ -503,6 +511,8 @@ func move_body(delta: float, wish: Vector3, speed: float, want_jump: bool) -> vo
 	grounded = is_on_floor()
 	if grounded and not _was_grounded and vy_before < -7.0:
 		Audio.play3d("land", global_transform.origin, clamp(-18.0 + (-vy_before) * 1.2, -14.0, -2.0), rand_range(0.95, 1.05))
+		if mode == Mode.GROUND and -vy_before > FALL_SAFE_SPEED and not is_dead:
+			take_damage((-vy_before - FALL_SAFE_SPEED) * FALL_DAMAGE_PER_MS, null)      # a hard landing hurts
 	_was_grounded = grounded
 	forward_speed = Vector3(velocity.x, 0.0, velocity.z).dot(-global_transform.basis.z)
 	_clamp_to_map()
@@ -951,6 +961,8 @@ func _spread(dir: Vector3) -> Vector3:
 	if item != null and item.kind == "weapon" and is_in_group("player"):
 		var sc: Dictionary = Items.scope_of(item.id)
 		deg = deg * sc.spread if aiming else deg + sc.get("hip_spread", 0.0)    # aiming tightens; a sniper hip-fires wide
+		if crouching:
+			deg *= 0.7                                                          # crouching steadies the shot
 	if deg <= 0.0:
 		return dir
 	var s := deg2rad(deg)

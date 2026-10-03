@@ -166,5 +166,73 @@ func _run() -> void:
 		yield(self, "idle_frame")
 	check(hud._dmg.size() == 0, "the number fades away")
 
+	# --- crouch: slower, lower camera, steadier aim
+	p.select_slot(0)
+	p.max_health = 1000000.0
+	p.health = p.max_health
+	p.global_transform.origin = Vector3(0.0, world.terrain.height_at(0.0, 35.0) + 1.0, 35.0)
+	p.velocity = Vector3.ZERO
+	p.rotation.y = 0.0
+	yield(_frames(60), "completed")
+	Input.action_press("move_forward")
+	yield(_frames(60), "completed")
+	var walk_speed := Vector2(p.velocity.x, p.velocity.z).length()
+	Input.action_press("crouch")
+	yield(_frames(60), "completed")
+	var crouch_speed := Vector2(p.velocity.x, p.velocity.z).length()
+	check(p.crouching and crouch_speed < walk_speed * 0.7, "crouching slows you (%.1f vs %.1f m/s)" % [crouch_speed, walk_speed])
+	check(p.head.translation.y < 1.2, "the camera sinks while crouched (%.2f)" % p.head.translation.y)
+	Input.action_release("crouch")
+	Input.action_release("move_forward")
+	yield(_frames(60), "completed")
+	check(not p.crouching and p.head.translation.y > 1.4, "standing up restores the camera")
+
+	# --- slide: crouch while sprinting
+	p.rotation.y = 0.0
+	p.global_transform.origin = Vector3(24.0, world.terrain.height_at(24.0, 50.0) + 1.0, 50.0)       # clear of the test wall
+	p.velocity = Vector3.ZERO
+	yield(_frames(40), "completed")
+	Input.action_press("move_forward")
+	Input.action_press("sprint")
+	yield(_frames(90), "completed")
+	var run_speed := Vector2(p.velocity.x, p.velocity.z).length()
+	Input.action_press("crouch")
+	yield(_frames(4), "completed")
+	Input.action_release("crouch")
+	check(p.sliding, "crouch while sprinting starts a slide (running at %.1f m/s)" % run_speed)
+	Input.action_release("move_forward")
+	Input.action_release("sprint")
+	yield(_frames(12), "completed")
+	var slide_speed := Vector2(p.velocity.x, p.velocity.z).length()
+	check(slide_speed > walk_speed, "the slide keeps momentum without input (%.1f m/s)" % slide_speed)
+	yield(_frames(80), "completed")
+	check(not p.sliding, "the slide ends by itself")
+
+	# --- emote: tap to dance, moving cancels it
+	p.velocity = Vector3.ZERO
+	yield(_frames(30), "completed")
+	Input.action_press("emote")
+	yield(_frames(3), "completed")
+	Input.action_release("emote")
+	yield(_frames(10), "completed")
+	check(p.emoting, "the emote key starts the dance")
+	Input.action_press("move_forward")
+	yield(_frames(6), "completed")
+	Input.action_release("move_forward")
+	check(not p.emoting, "moving cancels the emote")
+
+	# --- fall damage: a small drop is free, a big one hurts
+	p.max_health = 100.0
+	p.health = 100.0
+	p.shield = 0.0
+	p.global_transform.origin = Vector3(0.0, world.terrain.height_at(0.0, 40.0) + 3.0, 40.0)
+	p.velocity = Vector3.ZERO
+	yield(_frames(80), "completed")
+	check(p.health >= 99.9, "a 2 m drop does no damage (%.0f)" % p.health)
+	p.global_transform.origin = Vector3(0.0, world.terrain.height_at(0.0, 40.0) + 32.0, 40.0)
+	p.velocity = Vector3.ZERO
+	yield(_frames(180), "completed")
+	check(p.health < 80.0 and p.health > 0.0, "a 30 m fall hurts (%.0f / 100)" % p.health)
+
 	print("MECHANICS_RESULT failures=", failures.size())
 	quit(1 if failures.size() > 0 else 0)

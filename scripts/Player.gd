@@ -8,6 +8,9 @@ const Builder = preload("res://scripts/Builder.gd")
 const SHOULDER_OFFSET := Vector3(0.65, 1.55, 0.0)
 const CAMERA_DISTANCE := 3.6
 const INTERACT_RANGE := 3.2
+const SLIDE_TIME := 0.85
+const SLIDE_SPEED := 11.5
+const EMOTE_LENGTH := 4.5
 const BUILD_ACTIONS := ["build_wall", "build_floor", "build_ramp", "build_roof"]
 
 var input_enabled := true
@@ -63,6 +66,9 @@ func _physics_process(delta: float) -> void:
 	_update_air_audio()
 	if mode != Mode.GROUND or is_dead:
 		aiming = false
+		crouching = false
+		sliding = false
+		emoting = false
 	if is_dead:
 		velocity = Vector3(0, velocity.y, 0)
 		move_body(delta, Vector3.ZERO, 0.0, false)
@@ -170,8 +176,16 @@ func _ground_process(delta: float) -> void:
 		return
 	if input_enabled and not grounded and move.y < -0.3 and try_mantle(-b.z):
 		return                             # jumped / fell against a ledge: grab it
+	_update_stance(delta, move, want_jump)
+	if emoting:
+		move = Vector2.ZERO
 	var wish := b.x * move.x + b.z * move.y    # move.y > 0 is backwards, and basis.z points backwards
 	var speed := sprint_speed if sprinting else walk_speed
+	if sliding:                                # momentum: a fixed direction, losing speed as the slide ends
+		wish = _slide_dir
+		speed = lerp(3.0, SLIDE_SPEED, clamp(_slide_t / SLIDE_TIME, 0.0, 1.0))
+	elif crouching:
+		speed *= 0.5
 	if is_using():
 		speed *= 0.5
 	if aiming:
@@ -183,6 +197,32 @@ func _ground_process(delta: float) -> void:
 
 # Right mouse / L2 (hold) or the touch scope button (toggle) aims the equipped gun. Aiming cancels sprinting and
 # pauses while reloading or using an item.
+# Crouch (hold), slide (crouch while sprinting) and emote (tap) state for this frame.
+func _update_stance(delta: float, move: Vector2, want_jump: bool) -> void:
+	var flat_speed := Vector2(velocity.x, velocity.z).length()
+	if sliding:
+		_slide_t -= delta
+		if _slide_t <= 0.0 or want_jump or not grounded:
+			sliding = false
+	elif input_enabled and Input.is_action_just_pressed("crouch") and sprinting and grounded and flat_speed > 5.5:
+		sliding = true
+		_slide_t = SLIDE_TIME
+		_slide_dir = Vector3(velocity.x, 0.0, velocity.z).normalized()
+		Audio.play3d("skid", global_transform.origin, -6.0, 1.4)
+	crouching = input_enabled and Input.is_action_pressed("crouch") and grounded and not sliding
+	if sliding or crouching:
+		sprinting = false
+	if emoting:
+		emote_t += delta
+		if move.length() > 0.2 or want_jump or Input.is_action_pressed("fire") or sliding or emote_t > EMOTE_LENGTH:
+			emoting = false
+	elif input_enabled and Input.is_action_just_pressed("emote") and grounded and not sliding and not crouching and not aiming \
+			and move.length() < 0.2 and not builder.active:
+		emoting = true
+		emote_t = 0.0
+		cancel_use()
+
+
 # A build piece key / button: enter build mode with that piece; pressing the chosen piece again leaves build mode.
 func press_piece(index: int) -> void:
 	if is_dead or mode != Mode.GROUND:
@@ -331,6 +371,14 @@ func _process(delta: float) -> void:
 		offset = Vector3(0.0, 1.62, 0.0) if sc.kind == "scope" else Vector3(0.72, 1.5, 0.0)
 	if mode == Mode.GROUND:
 		fov_rate = 12.0
+	if mode == Mode.GROUND:
+		if sliding:
+			offset.y -= 0.85
+		elif crouching:
+			offset.y -= 0.55
+		if emoting:
+			dist = 5.2
+			offset = Vector3(0.0, 1.45, 0.0)
 	var k: float = clamp((9.0 if mode == Mode.GROUND else 3.0) * delta, 0.0, 1.0)
 	camera.fov = lerp(camera.fov, run_fov, clamp(fov_rate * delta, 0.0, 1.0))
 	if model != null:

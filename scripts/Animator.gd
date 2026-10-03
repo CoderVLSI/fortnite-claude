@@ -101,8 +101,8 @@ func update(f, delta: float) -> void:
 			_:
 				_pose_ground(f, delta)
 
-	if f.held != null:       # items are only visible when the character is on foot
-		f.held.visible = f.is_dead or f.mode == GROUND or f.mode == MANTLE
+	if f.held != null:       # items are only visible when the character is on foot (and not mid-dance)
+		f.held.visible = (f.is_dead or f.mode == GROUND or f.mode == MANTLE) and not f.emoting
 	var k := 1.0 - exp(-rate * delta)
 	for n in JOINTS:
 		cur[n] = cur[n].linear_interpolate(tgt[n], k)
@@ -124,6 +124,12 @@ func _pose_ground(f, delta: float) -> void:
 
 	if not f.grounded:
 		_pose_airborne(f, item)
+		return
+	if f.emoting:
+		_pose_emote(f)
+		return
+	if f.sliding:
+		_pose_slide(f)
 		return
 
 	# locomotion cycle (negative speed along facing = backpedal)
@@ -181,6 +187,46 @@ func _pose_ground(f, delta: float) -> void:
 				_pose_pickaxe(f, swing, elbow_free)
 			"consumable":
 				_pose_consume(f, item)
+	if f.crouching:                                  # squat: hips down, thighs forward, knees folded
+		hips_target_y = -0.42 - land_squash * 0.1
+		_to("HipL", Vector3(1.0 + s * 0.15 * w, 0, 0))
+		_to("HipR", Vector3(1.0 - s * 0.15 * w, 0, 0))
+		_to("KneeL", Vector3(-1.85, 0, 0))
+		_to("KneeR", Vector3(-1.85, 0, 0))
+
+
+# Default dance: knees pumping, arms alternating overhead, hips swaying.
+func _pose_emote(f) -> void:
+	var beat := t * 7.0
+	var s := sin(beat)
+	hips_target_y = -0.10 - abs(sin(beat)) * 0.16
+	_to("Hips", Vector3(0, sin(beat * 0.5) * 0.35, sin(beat) * 0.10))
+	_to("Spine", Vector3(-0.05, -sin(beat * 0.5) * 0.30, -sin(beat) * 0.08))
+	_to("Head", Vector3(sin(beat) * 0.12, sin(beat * 0.5) * 0.4, 0))
+	_to("HipL", Vector3(0.45 + s * 0.45, 0, 0))
+	_to("HipR", Vector3(0.45 - s * 0.45, 0, 0))
+	_to("KneeL", Vector3(-0.9 - s * 0.5, 0, 0))
+	_to("KneeR", Vector3(-0.9 + s * 0.5, 0, 0))
+	_to("ShoulderL", Vector3(2.5 + s * 0.35, 0, 0.35))
+	_to("ShoulderR", Vector3(2.5 - s * 0.35, 0, -0.35))
+	_to("ElbowL", Vector3(0.7 - s * 0.4, 0, 0))
+	_to("ElbowR", Vector3(0.7 + s * 0.4, 0, 0))
+
+
+# Sliding: leaning back with one leg out in front.
+func _pose_slide(f) -> void:
+	hips_target_y = -0.62
+	_to("Hips", Vector3(0.25, 0, 0))
+	_to("Spine", Vector3(0.55, 0, 0))
+	_to("Head", Vector3(-0.35, 0, 0))
+	_to("HipL", Vector3(1.45, 0, 0))
+	_to("KneeL", Vector3(-0.1, 0, 0))
+	_to("HipR", Vector3(0.65, 0, 0))
+	_to("KneeR", Vector3(-1.5, 0, 0))
+	_to("ShoulderL", Vector3(0.9, 0, 0.5))
+	_to("ShoulderR", Vector3(0.9, 0, -0.5))
+	_to("ElbowL", Vector3(0.5, 0, 0))
+	_to("ElbowR", Vector3(0.5, 0, 0))
 
 
 func _pose_weapon(f, item, sprinting: bool, run: float, w: float, s: float) -> void:
