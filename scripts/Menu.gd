@@ -62,6 +62,7 @@ var settings_pages := {}
 var settings_tabs := {}
 var rebind_buttons := {}
 var pad_buttons := {}
+var gpu_note: Label
 var pad_status: Label
 var play_button: Button
 var _rebind_action := ""
@@ -417,6 +418,18 @@ func _build_settings() -> Control:
 	fps.pressed = Settings.show_fps
 	fps.connect("toggled", self, "_on_fps")
 	settings_pages["graphics"].add_child(fps)
+	if OS.get_name() == "Windows":
+		var gpu := Button.new()
+		gpu.text = "USE MY HIGH-PERFORMANCE GPU (laptops with NVIDIA / AMD)"
+		gpu.rect_min_size = Vector2(620, 44)
+		gpu.connect("pressed", self, "_on_high_gpu")
+		settings_pages["graphics"].add_child(gpu)
+		gpu_note = _label("The game may be running on the weak built-in graphics. This tells Windows to use the fast GPU for Storm Island, then restart the game.", 15, Color(0.7, 0.8, 1.0))
+		gpu_note.autowrap = true
+		gpu_note.rect_min_size = Vector2(900, 0)
+		settings_pages["graphics"].add_child(gpu_note)
+	var adapter := _label("Graphics card in use: " + VisualServer.get_video_adapter_name(), 16, Color(0.8, 0.95, 0.8))
+	settings_pages["graphics"].add_child(adapter)
 	var auto := CheckBox.new()
 	auto.text = "Auto-adjust graphics when the game runs slowly"
 	auto.pressed = Settings.auto_graphics
@@ -1389,6 +1402,15 @@ func _on_invert(on: bool) -> void:
 	Settings.save_settings()
 
 
+# Windows "Graphics settings": ask for the high-performance GPU for this exe (the same switch as Settings > Display > Graphics).
+func _on_high_gpu() -> void:
+	var exe := OS.get_executable_path().replace("/", "\\")
+	var out := []
+	var code := OS.execute("reg", ["add", "HKCU\\Software\\Microsoft\\DirectX\\UserGpuPreferences", "/v", exe, "/t", "REG_SZ", "/d", "GpuPreference=2;", "/f"], true, out)
+	gpu_note.text = "Done - close the game completely and start it again." if code == 0 else "Could not change it automatically. Open Windows Settings > System > Display > Graphics, add StormIsland.exe and choose High performance."
+	Audio.play2d("ui_click", -6.0)
+
+
 func _on_auto_graphics(on: bool) -> void:
 	Settings.auto_graphics = on
 	Settings.save_settings()
@@ -1412,7 +1434,9 @@ func _process(delta: float) -> void:
 	Controls.menu_open = state != "hidden"
 	fps_label.visible = Settings.show_fps
 	if Settings.show_fps:
-		fps_label.text = "%d FPS" % Engine.get_frames_per_second()
+		var P = Performance
+		fps_label.text = "%d FPS   script %.1f ms  physics %.1f ms  draws %d\n%s" % [Engine.get_frames_per_second(), P.get_monitor(P.TIME_PROCESS) * 1000.0,
+			P.get_monitor(P.TIME_PHYSICS_PROCESS) * 1000.0, P.get_monitor(P.RENDER_DRAW_CALLS_IN_FRAME), VisualServer.get_video_adapter_name()]
 	if state == "title" and lobby != null:
 		orbit_cam.global_transform = lobby.camera_transform()
 		_tip_t += delta

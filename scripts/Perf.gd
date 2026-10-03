@@ -24,6 +24,14 @@ func setup(w) -> void:
 	pause_mode = Node.PAUSE_MODE_STOP
 
 
+# One toast when the game is clearly not on a real graphics card (a laptop's built-in chip, or software rendering).
+func _check_adapter() -> void:
+	var a := VisualServer.get_video_adapter_name().to_lower()
+	var weak: bool = ("intel" in a and not "arc" in a) or "llvmpipe" in a or "basic render" in a or "software" in a or "uhd" in a
+	if weak and world.hud != null and OS.get_name() == "Windows":
+		world.hud.show_toast("Running on %s - see Settings > Graphics > High-performance GPU" % VisualServer.get_video_adapter_name())
+
+
 func _process(delta: float) -> void:
 	if world == null or world.player == null:
 		return
@@ -58,6 +66,8 @@ func cull() -> void:
 func _govern(delta: float) -> void:
 	if _grace > 0.0:
 		_grace -= delta
+		if _grace <= 0.0:
+			_check_adapter()
 		return
 	_gov_t += delta
 	_gov_frames += 1

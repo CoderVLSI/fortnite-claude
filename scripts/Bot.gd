@@ -99,7 +99,19 @@ func _on_died(_victim, _killer) -> void:
 	get_tree().create_timer(10.0).connect("timeout", self, "queue_free")
 
 
-func _physics_process(delta: float) -> void:
+var _lod_acc := 0.0
+var _lod_n := 0
+
+
+func _physics_process(delta_in: float) -> void:
+	var delta := delta_in
+	if not visible and net_owner == 0 and not is_dead:          # far from the camera (Perf.gd): think and move a third as often
+		_lod_acc += delta_in
+		_lod_n += 1
+		if _lod_n % 3 != 0:
+			return
+		delta = _lod_acc
+		_lod_acc = 0.0
 	tick_weapon(delta)
 	if net_owner != 0:                     # on a client the host runs this bot; we only show it
 		net_smooth(delta)
