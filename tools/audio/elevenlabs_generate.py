@@ -12,12 +12,14 @@ Each result is converted with ffmpeg to 22.05 kHz mono WAV and written over asse
 tools/import_assets.sh. UNTESTED against the live API: the sandbox this was written in cannot reach it.
 Needs outbound access to api.elevenlabs.io and ffmpeg.
 
-Loops are cross-faded into a seamless join (loopify). music_menu / music_bus use the /v1/music endpoint, which
-needs a PAID ElevenLabs plan (free plans get HTTP 402); without it the synthesised music stays in place.
+Loops are cross-faded into a seamless join (loopify). music_bus uses the /v1/music endpoint, which needs a
+PAID ElevenLabs plan (free plans get HTTP 402); without it the synthesised music stays in place. music_menu
+(title/lobby) is a 20 s sound-generator music bed, so it works on the free plan.
 `--loopify NAME...` re-applies the seam fix to an existing 16-bit mono WAV, spending no credits.
 """
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -82,9 +84,15 @@ LOOPS = {   # looped ambience / engines: ElevenLabs supports a "loop" flag on ne
     "ambient_loop": ("gentle outdoor wind over grass and distant birds, seamless loop", 10.0),
 }
 
-MUSIC = {   # /v1/music, instrumental; looped by Audio.gd, so each track is cross-faded into a seamless loop
-    "music_menu": ("calm upbeat video game lobby music, instrumental, warm synths and light percussion, "
-                   "friendly adventurous mood, loopable", 30),
+# Title/lobby music made with the sound generator (works on the free plan): 20 s bed, equal-power
+# cross-faded into a loop and normalised to the level of the other music tracks.
+MUSIC_BEDS = {
+    "music_menu": ("energetic electronic game lobby music, punchy synth bass, bright arpeggios, upbeat drums, "
+                   "stormy sci-fi atmosphere, instrumental music, loopable", 20),
+}
+MUSIC_LUFS = -19.6
+
+MUSIC = {   # /v1/music, instrumental (PAID plan only); each track is cross-faded into a seamless loop
     "music_bus": ("energetic instrumental for an airborne drop, driving drums, rising synth arpeggios, "
                   "anticipation and excitement, loopable", 30),
 }
@@ -140,19 +148,33 @@ def loopify(path, xf=1.0):
         w.writeframes(out.tobytes())
 
 
+def set_loudness(path, target):
+    """Apply one fixed gain so the integrated loudness equals `target` LUFS (peaks limited to -1 dBFS)."""
+    out = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", path, "-af", "ebur128", "-f", "null", "-"],
+                         capture_output=True, text=True).stderr
+    measured = float(re.findall(r"I:\s+(-?[\d.]+) LUFS", out)[-1])
+    tmp = path + ".norm.wav"
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", path, "-af",
+                    "volume=%gdB,alimiter=limit=0.89:level=disabled" % (target - measured), "-sample_fmt", "s16", tmp], check=True)
+    os.replace(tmp, path)
+
+
 RATES = {}
 
 
-def to_wav(audio_bytes, name, rate=22050, loop=False, xf=1.0):
+def to_wav(audio_bytes, name, rate=22050, loop=False, xf=1.0, lufs=None):
     with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
         f.write(audio_bytes)
         tmp = f.name
     dest = os.path.join(OUT, name + ".wav")
-    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", tmp, "-ar", str(rate), "-ac", "1", "-sample_fmt", "s16", dest], check=True)
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", tmp, "-ar", str(rate), "-ac", "1", "-sample_fmt", "s16", dest],
+                   check=True)
     os.unlink(tmp)
     if loop:
         RATES[dest] = rate
         loopify(dest, xf)
+    if lufs is not None:
+        set_loudness(dest, lufs)
     print("  wrote", dest)
 
 
@@ -160,6 +182,7 @@ def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     table = dict(SFX)
     table.update(LOOPS)
+    table.update(MUSIC_BEDS)
     table.update(MUSIC)
     if "--list" in sys.argv:
         for n, (p, s) in table.items():
@@ -179,6 +202,10 @@ def main():
         prompt, secs = table[n]
         print(n, "->", prompt)
         if "--dry-run" in sys.argv:
+            continue
+        if n in MUSIC_BEDS:
+            payload = {"text": prompt, "duration_seconds": secs, "prompt_influence": 0.6, "loop": True}
+            to_wav(request("/v1/sound-generation", payload, key), n, rate=32000, loop=True, xf=2.0, lufs=MUSIC_LUFS)
             continue
         if n in MUSIC:
             payload = {"prompt": prompt, "music_length_ms": int(secs * 1000), "force_instrumental": True}
