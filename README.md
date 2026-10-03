@@ -119,6 +119,10 @@ Protect blocks sideloaded apps that target more than two API levels below the ph
 version ("Unsafe app blocked ... built for an older version of Android").
 `.github/workflows/build.yml` exports Android, Windows and Linux with the same image (not yet run on GitHub).
 
+**Windows icon:** Godot only embeds `application/icon` when it can run rcedit (Wine). On a box without Wine run
+`pip install lief pillow && tools/patch_windows_icon.py` once: it rewrites the icons inside the Windows export
+template from `icon.png`, so every export shows the game's icon instead of the Godot logo.
+
 The APK is debug-signed. Make a release keystore before publishing.
 
 ## Status
