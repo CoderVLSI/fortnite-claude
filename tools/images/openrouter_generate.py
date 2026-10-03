@@ -80,6 +80,15 @@ for _n, _d in [
     ("medkit", "a white first-aid medkit box with a red cross"),
     ("mini_shield", "a small glowing blue potion bottle"),
     ("shield_potion", "a large glowing blue shield potion flask"),
+    ("grenade", "a classic frag hand grenade with an olive-green segmented faceted body, a steel safety lever along "
+                "one side and a gold brass pull ring on the top pin, slightly tilted, glossy with a small warm "
+                "highlight on the metal, thick dark outline"),
+    ("slurp_juice", "a chunky round glass vial full of glowing teal-cyan liquid with a few bubbles, a cork stopper and a "
+                    "thin cyan glow around it, teal and cyan tones only, glossy, thick dark outline, drawn large so it "
+                    "fills about 70 percent of the canvas"),
+    ("chug_jug", "a big round glass jar jug with a metal clamp lid and a handle ring, filled with bright "
+                 "blue-white glowing liquid and a soft bright glow, large premium legendary-looking, glossy, thick "
+                 "dark outline"),
 ]:
     add("heal_" + _n, "items", "%s%s, %s" % (STYLE, _d, KEYED))
 
