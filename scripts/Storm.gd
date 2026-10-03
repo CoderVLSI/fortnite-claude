@@ -13,13 +13,13 @@ const PHASES := [
 const WALL_HEIGHT := 140.0
 
 var center := Vector2.ZERO
-var radius := 232.0
+var radius := 352.0
 var phase := 0
 var waiting := true
 var time_left := 0.0
 var damage_per_second := 0.0
 var next_center := Vector2.ZERO
-var next_radius := 150.0
+var next_radius := 228.0
 var finished := false
 var active := true          # false while the battle bus is still flying
 
@@ -27,21 +27,27 @@ var _from_center := Vector2.ZERO
 var _from_radius := 0.0
 var _rng: RandomNumberGenerator
 var _tick := 0.0
+var _scale := 1.0           # the phases were authored for a 232 m start radius; a bigger island scales them
 var _wall: MeshInstance
 
 
 func setup(start_radius: float, rng: RandomNumberGenerator) -> void:
 	radius = start_radius
+	_scale = start_radius / 232.0
 	_rng = rng
 	add_to_group("storm")
 	_build_wall()
 	_begin_wait()
 
 
+func _time_scale() -> float:
+	return 1.0 + (_scale - 1.0) * 0.6          # a bigger circle takes a little longer to cross, not proportionally
+
+
 func _begin_wait() -> void:
 	waiting = true
-	time_left = PHASES[phase].wait
-	next_radius = PHASES[phase].radius
+	time_left = PHASES[phase].wait * _time_scale()
+	next_radius = PHASES[phase].radius * _scale
 	var spread: float = max(0.0, radius - next_radius)
 	var a := _rng.randf() * TAU
 	var r := sqrt(_rng.randf()) * spread
@@ -51,7 +57,7 @@ func _begin_wait() -> void:
 
 func _begin_shrink() -> void:
 	waiting = false
-	time_left = PHASES[phase].shrink
+	time_left = PHASES[phase].shrink * _time_scale()
 	_from_center = center
 	_from_radius = radius
 
@@ -61,7 +67,7 @@ func _process(delta: float) -> void:
 		return
 	time_left -= delta
 	if not waiting:
-		var t: float = clamp(1.0 - time_left / PHASES[phase].shrink, 0.0, 1.0)
+		var t: float = clamp(1.0 - time_left / (PHASES[phase].shrink * _time_scale()), 0.0, 1.0)
 		center = _from_center.linear_interpolate(next_center, t)
 		radius = lerp(_from_radius, next_radius, t)
 	if time_left <= 0.0:
@@ -100,7 +106,7 @@ func skip_to(target_phase: int) -> void:
 	# Debug / test helper: jump straight to the start of a phase's waiting period.
 	phase = int(clamp(target_phase, 0, PHASES.size() - 1))
 	if phase > 0:
-		radius = PHASES[phase - 1].radius
+		radius = PHASES[phase - 1].radius * _scale
 	finished = false
 	_begin_wait()
 	_update_wall()

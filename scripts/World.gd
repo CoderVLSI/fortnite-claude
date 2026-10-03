@@ -28,7 +28,7 @@ const Sprites = preload("res://scripts/Sprites.gd")
 const Skins = preload("res://scripts/Skins.gd")
 const Cosmetics = preload("res://scripts/Cosmetics.gd")
 
-const MAP_HALF := 240.0                  # a 480 m island (it was 320 m)
+const MAP_HALF := 360.0                  # a 720 m island (it was 480 m): room for 50 players
 const MAP_SCALE := MAP_HALF / 160.0      # POI radii and spacing are authored for the old 160 m island
 const SEED := 20241002
 const MODEL_DIR := "res://assets/models/"
@@ -42,7 +42,7 @@ const STRUCTURE_SINK := {"highrise_a": 24.0, "highrise_b": 32.0, "highrise_c": 4
 const STRUCTURE_HITS := {"house_a": 16, "house_b": 22, "lodge": 30, "cabin": 12, "barn": 34, "warehouse": 40, "bunker": 60, "keeper_house": 14,
 	"tower": 50, "silo": 26, "watchtower": 18, "windmill": 30, "lighthouse": 45, "highrise_a": 70, "highrise_b": 95, "highrise_c": 130, "container": 14, "tank": 22, "crane": 28, "chimney": 16, "radar": 18}
 const BUS_ALTITUDE := 260.0
-const BUS_LENGTH := 720.0
+const BUS_LENGTH := 1000.0
 const BOT_NAMES := ["Rook", "Nova", "Echo", "Blitz", "Sable", "Juno", "Kestrel", "Moxie", "Vesper", "Dash",
 	"Onyx", "Pixel", "Zephyr", "Ember", "Gizmo", "Havoc", "Indigo", "Lynx", "Maverick", "Nimbus",
 	"Orbit", "Pepper", "Quill", "Riot", "Sprout"]
@@ -164,14 +164,14 @@ func _make_profile() -> Dictionary:
 	var mobile := OS.has_feature("mobile") or ("--mobile" in args)
 	var p := {
 		"mobile": mobile,
-		"bots": 16 if mobile else 28,
-		"trees": 260 if mobile else 700,
-		"rocks": 36 if mobile else 90,
-		"outlying": 13 if mobile else 21,
-		"floor_items": 36 if mobile else 70,
-		"outdoor_chests": 5 if mobile else 9,
+		"bots": 28 if mobile else 49,
+		"trees": 520 if mobile else 1500,
+		"rocks": 80 if mobile else 200,
+		"outlying": 24 if mobile else 40,
+		"floor_items": 70 if mobile else 150,
+		"outdoor_chests": 10 if mobile else 20,
 		"shadows": not mobile,
-		"cell": 4.0 if mobile else 3.0,
+		"cell": 5.0 if mobile else 4.0,
 		"use_bus": not ("--no-bus" in args),
 	}
 	for a in args:
@@ -388,7 +388,13 @@ func _locate_poi(def: Dictionary, placed: Array) -> Vector2:
 				while r <= rmax:
 					var c := dir * r
 					var h: float = terrain.raw_height(c.x, c.y)
-					if h > 4.0:
+					var on_land := true             # the whole flattened pad must be land, or it would cut a cliff into the beach
+					for k in range(8):
+						var edge := c + Vector2(cos(k * PI / 4.0), sin(k * PI / 4.0)) * (float(def.zone) + 6.0)
+						if terrain.raw_height(edge.x, edge.y) < 2.0:
+							on_land = false
+							break
+					if h > 4.0 and on_land:
 						var variance := 0.0
 						for k in range(8):
 							var q := c + Vector2(cos(k * PI / 4.0), sin(k * PI / 4.0)) * 16.0
@@ -601,8 +607,8 @@ func _spawn_rifts_and_sprites() -> void:
 	var rifts := 0
 	var sprites := 0
 	var tries := 0
-	var want_sprites: int = 8 if profile.cell > 3.0 else 18
-	while (rifts < 7 or sprites < want_sprites) and tries < 900:
+	var want_sprites: int = 18 if profile.mobile else 40
+	while (rifts < 14 or sprites < want_sprites) and tries < 900:
 		tries += 1
 		var p := Vector2(rr.randf_range(-1.0, 1.0), rr.randf_range(-1.0, 1.0)) * MAP_HALF * 0.8
 		if p.length() < 40.0 or p.length() > MAP_HALF * 0.7:
@@ -610,7 +616,7 @@ func _spawn_rifts_and_sprites() -> void:
 		var h: float = terrain.height_at(p.x, p.y)
 		if h < 3.0 or not terrain.is_free(p.x, p.y, 4.0) or _near_building(p, 8.0) or _near_tree(p, 3.0):
 			continue
-		if rifts < 7 and (sprites >= want_sprites or rr.randf() < 0.4):
+		if rifts < 14 and (sprites >= want_sprites or rr.randf() < 0.4):
 			var ok := true
 			for r in get_tree().get_nodes_in_group("rifts"):
 				if Vector2(r.translation.x, r.translation.z).distance_to(p) < 60.0:
@@ -694,7 +700,7 @@ func _spawn_vehicles() -> void:
 				p.y += 1.2
 			spawn_vehicle(def.kind, p, yaw)
 	# a few extra along the roads
-	for i in range(3 if profile.mobile else 6):
+	for i in range(6 if profile.mobile else 12):
 		var seg: Array = poi_roads[rng.randi() % poi_roads.size()]
 		var t := rng.randf_range(0.25, 0.75)
 		var base: Vector2 = seg[0].linear_interpolate(seg[1], t)
@@ -977,7 +983,7 @@ func _start_bus() -> void:
 	var a := rng.randf() * TAU
 	var dir := Vector3(cos(a), 0.0, sin(a))
 	var perp := Vector3(-dir.z, 0.0, dir.x)
-	var start := -dir * (BUS_LENGTH / 2.0) + perp * rng.randf_range(-45.0, 45.0) + Vector3(0, BUS_ALTITUDE, 0)
+	var start := -dir * (BUS_LENGTH / 2.0) + perp * rng.randf_range(-70.0, 70.0) + Vector3(0, BUS_ALTITUDE, 0)
 	bus = Bus.new()
 	bus.name = "Bus"
 	add_child(bus)

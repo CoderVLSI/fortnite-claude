@@ -139,9 +139,9 @@ func _run() -> void:
 	# --- swimming: find open water and drop in
 	var sea := Vector3.ZERO
 	var found := false
-	for r in range(205, 100, -1):          # the island is 480 m wide now: deep water starts further out
+	for r in range(150, int(world.MAP_HALF)):          # walk out from the island until the water is deep
 		var h: float = world.terrain.height_at(float(r), 0.0)
-		if h < -4.0:
+		if h < -2.5:                       # just past the shallows: close enough to swim back in half a minute
 			sea = Vector3(float(r), -0.3, 0.0)
 			found = true
 			break

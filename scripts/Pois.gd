@@ -301,6 +301,98 @@ const POIS := [
 		"items": [Vector2(14, 0), Vector2(-14, 2), Vector2(0, 14), Vector2(2, -14), Vector2(15, -14), Vector2(-15, 15)],
 		"vehicles": [{"kind": "buggy", "at": Vector2(14, -2), "yaw": 90}, {"kind": "quad", "at": Vector2(-14, 6), "yaw": 0}],
 	},
+	{
+		"id": "dune", "name": "DUSTY OUTPOST", "angle": 68.0, "mode": "flat", "rmin": 100.0, "rmax": 114.0, "zone": 34.0,
+		"props": [
+			{"res": "house_a", "at": Vector2(0, 0), "yaw": 0, "harvest": "wood", "building": true, "face_center": true},
+			{"res": "cabin", "at": Vector2(-15, -9), "yaw": 0, "harvest": "wood", "building": true, "face_center": true},
+			{"res": "cabin", "at": Vector2(-15, 10), "yaw": 0, "harvest": "wood", "building": true, "face_center": true},
+			{"res": "watchtower", "at": Vector2(14, -12), "yaw": 0, "harvest": "wood"},
+			{"res": "haystack", "at": Vector2(10, 11), "yaw": 0, "harvest": "wood"},
+			{"res": "sandbags", "at": Vector2(8, -4), "yaw": 90, "harvest": "stone", "decor": true},
+			{"res": "crate", "at": Vector2(6, 8), "yaw": 20, "harvest": "wood"},
+		],
+		"chests": [
+			{"in": 0, "at": Vector2(-2.7, -2.3), "kind": "chest"},
+			{"in": 1, "at": Vector2(-1.8, -1.6), "kind": "chest"},
+			{"in": 2, "at": Vector2(-1.8, -1.6), "kind": "ammo_box"},
+			{"at": Vector2(12, 4), "yaw": 0, "kind": "chest"},
+		],
+		"items": [Vector2(4, 6), Vector2(-7, 3), Vector2(9, -7)],
+		"vehicles": [{"kind": "quad", "at": Vector2(12, 0), "yaw": 90}],
+	},
+	{
+		"id": "ridge", "name": "RIDGEWAY LOOKOUT", "angle": 196.0, "mode": "hill", "rmin": 100.0, "rmax": 116.0, "zone": 32.0,
+		"props": [
+			{"res": "cabin", "at": Vector2(0, 0), "yaw": 0, "harvest": "wood", "building": true, "face_center": true},
+			{"res": "watchtower", "at": Vector2(12, 8), "yaw": 0, "harvest": "wood"},
+			{"res": "radar", "at": Vector2(-14, -6), "yaw": 0, "harvest": "metal", "spin": "dish"},
+			{"res": "container", "at": Vector2(-8, 12), "yaw": 0, "tint": Color(0.3, 0.5, 0.35), "harvest": "metal"},
+			{"res": "crate", "at": Vector2(6, -8), "yaw": 30, "harvest": "wood"},
+			{"res": "crate", "at": Vector2(7.4, -7), "yaw": 70, "harvest": "wood"},
+		],
+		"chests": [
+			{"in": 0, "at": Vector2(-1.8, -1.6), "kind": "chest"},
+			{"at": Vector2(10, 4), "yaw": 0, "kind": "ammo_box"},
+			{"at": Vector2(-10, -10), "yaw": 0, "kind": "chest"},
+		],
+		"items": [Vector2(3, 6), Vector2(-6, 4), Vector2(8, -2)],
+		"vehicles": [],
+	},
+	{
+		"id": "cinder", "name": "CINDER YARD", "angle": 262.0, "mode": "flat", "rmin": 100.0, "rmax": 114.0, "zone": 36.0,
+		"props": [
+			{"res": "warehouse", "at": Vector2(0, 0), "yaw": 0, "harvest": "metal", "building": true, "face_center": true},
+			{"res": "tank", "at": Vector2(16, -15), "yaw": 0, "harvest": "metal"},
+			{"res": "tank", "at": Vector2(16, 15), "yaw": 0, "harvest": "metal"},
+			{"res": "chimney", "at": Vector2(-18, 0), "yaw": 0, "harvest": "metal"},
+			{"res": "container", "at": Vector2(10, 0), "yaw": 90, "tint": Color(0.75, 0.3, 0.12), "harvest": "metal"},
+			{"res": "container", "at": Vector2(-12, 14), "yaw": 0, "tint": Color(0.25, 0.4, 0.6), "harvest": "metal"},
+		],
+		"chests": [
+			{"in": 0, "at": Vector2(-6.5, -3.8), "kind": "chest"},
+			{"in": 0, "at": Vector2(6.5, -3.8), "kind": "chest"},
+			{"in": 0, "at": Vector2(0, -4.4), "kind": "ammo_box"},
+		],
+		"items": [Vector2(4, 8), Vector2(-8, 6), Vector2(8, -6)],
+		"vehicles": [{"kind": "buggy", "at": Vector2(20, 2), "yaw": 90}],
+	},
+	{
+		"id": "glacier", "name": "GLACIER LODGE", "angle": 320.0, "mode": "flat", "rmin": 100.0, "rmax": 116.0, "zone": 34.0,
+		"props": [
+			{"res": "lodge", "at": Vector2(0, 0), "yaw": 0, "harvest": "wood", "building": true, "face_center": true},
+			{"res": "cabin", "at": Vector2(-16, -12), "yaw": 0, "harvest": "wood", "building": true, "face_center": true},
+			{"res": "cabin", "at": Vector2(-16, 12), "yaw": 0, "harvest": "wood", "building": true, "face_center": true},
+			{"res": "fence", "at": Vector2(12, 14), "yaw": 90, "harvest": "wood", "decor": true},
+			{"res": "crate", "at": Vector2(10, -6), "yaw": 25, "harvest": "wood"},
+		],
+		"chests": [
+			{"in": 0, "at": Vector2(-6.5, -3.8), "kind": "chest"},
+			{"in": 0, "at": Vector2(6.5, -3.8), "kind": "ammo_box"},
+			{"in": 1, "at": Vector2(-1.8, -1.6), "kind": "chest"},
+			{"in": 2, "at": Vector2(-1.8, -1.6), "kind": "chest"},
+		],
+		"items": [Vector2(5, 6), Vector2(-6, 2), Vector2(8, -8)],
+		"vehicles": [{"kind": "quad", "at": Vector2(14, 0), "yaw": 90}],
+	},
+	{
+		"id": "orchard", "name": "ORCHARD ROW", "angle": 28.0, "mode": "flat", "rmin": 98.0, "rmax": 112.0, "zone": 36.0,
+		"props": [
+			{"res": "barn", "at": Vector2(0, 0), "yaw": 0, "harvest": "wood", "building": true, "face_center": true},
+			{"res": "silo", "at": Vector2(-15, -4), "yaw": 0, "harvest": "metal"},
+			{"res": "house_b", "at": Vector2(16, 12), "yaw": 0, "harvest": "wood", "building": true, "face_center": true},
+			{"res": "haystack", "at": Vector2(12, -10), "yaw": 0, "harvest": "wood"},
+			{"res": "haystack", "at": Vector2(-8, 16), "yaw": 0, "harvest": "wood"},
+			{"res": "fence", "at": Vector2(-22, 14), "yaw": 90, "harvest": "wood", "decor": true},
+		],
+		"chests": [
+			{"in": 0, "at": Vector2(-3, -5.5), "kind": "chest"},
+			{"in": 0, "at": Vector2(3, -5.5), "kind": "ammo_box"},
+			{"in": 2, "at": Vector2(-3.0, -2.5), "kind": "chest"},
+		],
+		"items": [Vector2(0, 4), Vector2(9, 4), Vector2(-9, 8)],
+		"vehicles": [{"kind": "buggy", "at": Vector2(8, 10), "yaw": 0}],
+	},
 ]
 
 # Roads: pairs of POI ids (or "maple" for the town) drawn on the terrain and the map.
@@ -309,5 +401,5 @@ const ROADS := [
 	["maple", "lighthouse"], ["docks", "lighthouse"], ["farm", "bunker"], ["foundry", "lodge"],
 	["maple", "marina"], ["maple", "hollow"], ["maple", "quarry"], ["maple", "mesa"], ["maple", "frost"], ["maple", "cove"],
 	["marina", "docks"], ["marina", "lighthouse"], ["cove", "bunker"], ["hollow", "lodge"], ["quarry", "foundry"],
-	["mesa", "foundry"], ["frost", "farm"], ["frost", "mesa"], ["maple", "skyline"], ["skyline", "docks"], ["skyline", "bunker"],
+	["mesa", "foundry"], ["frost", "farm"], ["frost", "mesa"], ["maple", "skyline"], ["skyline", "docks"], ["skyline", "bunker"], ["maple", "dune"], ["dune", "marina"], ["maple", "ridge"], ["ridge", "quarry"], ["maple", "cinder"], ["cinder", "mesa"], ["cinder", "farm"], ["maple", "glacier"], ["glacier", "frost"], ["glacier", "bunker"], ["maple", "orchard"], ["orchard", "docks"], ["orchard", "skyline"],
 ]
