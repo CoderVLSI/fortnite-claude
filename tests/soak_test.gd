@@ -28,6 +28,8 @@ var _nodes_start := 0
 var _nodes_log := []
 var _rng := RandomNumberGenerator.new()
 var _alive_min := 999
+var _swim_t := 0.0
+var _placed := false
 
 
 func _init() -> void:
@@ -181,8 +183,16 @@ func _brain() -> void:
 		p.Mode.SWIM:
 			_hold("move_forward", true)
 			_pulse("jump")
+			_swim_t += 0.35
+			if _swim_t > 8.0:                                    # wandered into the sea: be put ashore at a place with loot
+				_swim_t = 0.0
+				_teleport_to_poi()
 			return
 	# ---- on foot
+	_swim_t = 0.0
+	if not _placed:
+		_placed = true
+		_teleport_to_poi()                                       # a landing in the middle of nowhere would test nothing
 	_hold("move_forward", true)
 	_hold("sprint", _rng.randf() < 0.6)
 	var foe = _enemy_in_range(60.0)
@@ -282,6 +292,20 @@ func _brain() -> void:
 	if p.reserves["medium"] < 30:
 		for k in p.reserves.keys():
 			p.reserves[k] += 60
+
+
+func _teleport_to_poi() -> void:
+	var pois: Array = world.pois
+	if pois.empty():
+		return
+	var poi = pois[_rng.randi() % pois.size()]
+	var c: Vector2 = poi.center + Vector2(_rng.randf_range(-6, 6), _rng.randf_range(-6, 6))
+	p.global_transform.origin = Vector3(c.x, world.terrain.height_at(c.x, c.y) + 1.5, c.y)
+	p.velocity = Vector3.ZERO
+	p.mode = p.Mode.GROUND
+	p.collision_layer = 2
+	p.collision_mask = p.BODY_MASK
+	_target_pos = Vector3.ZERO
 
 
 func _build_once() -> void:
