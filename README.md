@@ -37,15 +37,19 @@ storm closes in. Last one standing wins.
 | | PC | Gamepad | Android |
 |---|---|---|---|
 | Move / look | WASD / mouse | sticks | floating joystick / drag right side |
-| Fire (auto) | left mouse | R2 | FIRE (drag on it to aim) |
+| Fire (auto) | left mouse | R2 | big FIRE button right, or the second FIRE above the joystick (drag on either to aim) |
 | Jump, drop from bus, glider, handbrake | Space | A | JUMP |
 | Sprint | Shift | L3 | SPRINT toggle / push stick fully |
-| Reload / horn | R | X | RELOAD |
+| Reload / horn | R | X | reload button beside the ammo readout |
 | Pick up, open, enter / exit vehicle | E | Y | PICK UP / EXIT (appears when relevant) |
 | Hotbar | 1-5 / wheel | L1 / R1 | tap the slots |
-| Build mode | Q (then 1-4 piece, wheel material) | | BUILD |
+| Build mode | Q (then 1-4 piece, wheel material) | | the four piece buttons down the right edge (tap again to leave); tap a materials box to pick wood / stone / metal |
 | Map | M | | tap the minimap |
 | Pause | Esc | | II button / Back |
+
+The phone HUD is its own layout (minimap, shield / health bars and kill feed top-left, materials and menu
+top-right, hotbar bottom-centre with ammo and reload beside it, fire / jump / sprint on the right); the PC HUD
+is unchanged. See `HUD._layout()` and `scripts/ui/TouchControls.gd`.
 
 All input goes through `scripts/Controls.gd`: keyboard, gamepad and touch controls produce the same
 `InputMap` actions, so gameplay code is identical on every platform.

@@ -9,6 +9,7 @@ const Compass = preload("res://scripts/ui/Compass.gd")
 const MapScreen = preload("res://scripts/ui/MapScreen.gd")
 const Crosshair = preload("res://scripts/ui/Crosshair.gd")
 const Minimap = preload("res://scripts/ui/Minimap.gd")
+const Materials = preload("res://scripts/ui/Materials.gd")
 const TouchControls = preload("res://scripts/ui/TouchControls.gd")
 const FONT_PATH := "res://assets/fonts/DejaVuSans-Bold.ttf"
 
@@ -24,6 +25,7 @@ var root: Control
 var crosshair: Control
 var minimap: Control
 var hotbar: Control
+var materials: Control
 var compass: Control
 var prompt_label: Label
 var bus_label: Label
@@ -222,6 +224,11 @@ func _build() -> void:
 	pause_btn.connect("pressed", self, "_on_pause_pressed")
 	root.add_child(pause_btn)
 
+	materials = Materials.new()
+	_place(materials, 1.0, 0.0, Vector2(-Materials.wanted_size().x - 88.0, 14), Materials.wanted_size())
+	materials.visible = Controls.touch_mode
+	root.add_child(materials)
+
 	map_screen = MapScreen.new()
 	_place(map_screen, 0.5, 0.5, Vector2(-290, -290), Vector2(580, 580))
 	map_screen.visible = false
@@ -231,9 +238,12 @@ func _build() -> void:
 	touch.visible = Controls.touch_mode
 	touch.hotbar = hotbar
 	touch.minimap = minimap
+	touch.materials = materials
 	touch.connect("map_pressed", self, "toggle_map")
+	touch.connect("piece_pressed", self, "_on_piece_pressed")
+	touch.connect("material_pressed", self, "_on_material_pressed")
 	root.add_child(touch)
-	_layout_hotbar()
+	_layout()
 
 	_build_end_panel()
 
@@ -270,16 +280,49 @@ func bind(world_node) -> void:
 	player.connect("hit_landed", self, "_on_hit_landed")
 	player.connect("picked_up", self, "show_toast")
 	hotbar.set_player(player)
+	materials.set_player(player)
+	touch.builder = player.builder
 	map_screen.world = world
 
 
-func _layout_hotbar() -> void:
+# Positions every widget for the current input mode: the PC HUD (minimap top-right, bars and
+# ammo bottom-centre, hotbar bottom-right) or the phone HUD (minimap and bars top-left,
+# materials and menu top-right, hotbar bottom-centre with the ammo readout beside it).
+func _layout() -> void:
 	var size: Vector2 = Hotbar.wanted_size()
-	if Controls.touch_mode:      # centre, above the ammo readout: keeps the thumbs' corners free
-		_place(hotbar, 0.5, 1.0, Vector2(-size.x / 2.0, -size.y - 150.0), size)
-	else:                        # bottom-right like a PC shooter
+	hotbar.show_materials = not Controls.touch_mode
+	if Controls.touch_mode:
+		var map_px := 168.0
+		_place(minimap, 0.0, 0.0, Vector2(20, 12), Vector2(map_px, map_px))
+		_place(shield_bar, 0.0, 0.0, Vector2(20 + map_px + 14, 30), Vector2(300, 24))
+		_place(health_bar, 0.0, 0.0, Vector2(20 + map_px + 14, 58), Vector2(300, 24))
+		_place(stats_label, 0.0, 0.0, Vector2(20 + map_px + 14, 88), Vector2(300, 30))
+		stats_label.align = Label.ALIGN_LEFT
+		_place(feed_box, 0.0, 0.0, Vector2(20, map_px + 24), Vector2(480, 130))
+		_place(pause_btn, 1.0, 0.0, Vector2(-70, 14), Vector2(54, 44))
+		pause_btn.text = "="
+		_place(hotbar, 0.5, 1.0, Vector2(-size.x / 2.0, -size.y + 2.0), size)
+		_place(ammo_label, 0.5, 1.0, Vector2(size.x / 2.0 + 16.0, -64), Vector2(200, 44))
+		ammo_label.align = Label.ALIGN_LEFT
+		ammo_label.clip_text = true
+		_place(toast_label, 0.5, 1.0, Vector2(-200, -196), Vector2(400, 30))
+	else:
+		_place(minimap, 1.0, 0.0, Vector2(-MAP_SIZE - 16, 16), Vector2(MAP_SIZE, MAP_SIZE))
+		_place(shield_bar, 0.5, 1.0, Vector2(-190, -92), Vector2(380, 26))
+		_place(health_bar, 0.5, 1.0, Vector2(-190, -60), Vector2(380, 26))
+		_place(stats_label, 1.0, 0.0, Vector2(-296, MAP_SIZE + 20), Vector2(280, 30))
+		stats_label.align = Label.ALIGN_RIGHT
+		_place(feed_box, 0.0, 0.0, Vector2(16, 16), Vector2(520, 130))
+		_place(pause_btn, 1.0, 0.0, Vector2(-MAP_SIZE - 86, 16), Vector2(58, 58))
+		pause_btn.text = "II"
 		_place(hotbar, 1.0, 1.0, Vector2(-size.x - 16.0, -size.y - 12.0), size)
+		_place(ammo_label, 0.5, 1.0, Vector2(-190, -140), Vector2(380, 40))
+		ammo_label.align = Label.ALIGN_CENTER
+		_place(toast_label, 0.5, 1.0, Vector2(-200, -184), Vector2(400, 30))
 	hotbar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pause_btn.mouse_filter = Control.MOUSE_FILTER_STOP
+	pause_btn.visible = Controls.touch_mode
+	materials.visible = Controls.touch_mode
 
 
 func toggle_map() -> void:
@@ -287,10 +330,31 @@ func toggle_map() -> void:
 	Audio.play2d("ui_click", -6.0)
 
 
+func _on_piece_pressed(index: int) -> void:
+	if player == null or player.is_dead:
+		return
+	var b = player.builder
+	if b.active and b.piece == index:
+		b.set_active(false)         # tapping the chosen piece again leaves build mode
+		return
+	b.set_active(true)
+	if b.active:
+		b.set_piece(index)
+
+
+func _on_material_pressed(kind: String) -> void:
+	if player != null:
+		player.builder.set_material(kind)
+
+
 func _on_slot_pressed(index: int) -> void:
 	if player == null:
 		return
-	if player.builder.active:
+	if Controls.touch_mode:
+		if player.builder.active:
+			player.builder.set_active(false)
+		player.select_slot(index)
+	elif player.builder.active:
 		if index < 4:
 			player.builder.set_piece(index)
 		else:
@@ -305,9 +369,7 @@ func _on_pause_pressed() -> void:
 
 
 func _on_touch_mode(enabled: bool) -> void:
-	if pause_btn:
-		pause_btn.visible = enabled
-	_layout_hotbar()
+	_layout()
 	if touch:
 		touch.visible = enabled and not end_panel.visible
 
@@ -390,6 +452,8 @@ func _process(delta: float) -> void:
 
 func _ammo_text() -> String:
 	if player.builder.active:
+		if Controls.touch_mode:      # the ammo readout is narrow on the phone HUD
+			return player.builder.PIECES[player.builder.piece].to_upper()
 		return "BUILD  " + player.builder.PIECES[player.builder.piece].to_upper() + "  " + player.builder.material.to_upper()
 	var item = player.selected_item()
 	if item == null:

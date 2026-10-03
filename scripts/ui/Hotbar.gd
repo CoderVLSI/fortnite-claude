@@ -11,6 +11,7 @@ const TOP := 76.0               # room above the slots for materials and the nam
 
 var player
 var builder
+var show_materials := true      # the touch HUD draws materials in its own widget (Materials.gd)
 var _pop := 0.0
 var _pop_text := ""
 var _pop_color := Color.white
@@ -63,12 +64,13 @@ func _draw() -> void:
 	if player == null:
 		return
 	var font := get_font("font", "Label")
-	_draw_materials(font)
+	if show_materials:
+		_draw_materials(font)
 	if _pop > 0.0:
 		var w := font.get_string_size(_pop_text).x
 		var c := Color(_pop_color.r, _pop_color.g, _pop_color.b, clamp(_pop, 0.0, 1.0))
 		draw_string(font, Vector2(rect_size.x - w, TOP - 10.0), _pop_text, c)
-	if builder != null and builder.active:
+	if builder != null and builder.active and not Controls.touch_mode:   # touch builds from the piece buttons
 		for i in range(Items.SLOT_COUNT):
 			_draw_build_slot(i, font)
 		return

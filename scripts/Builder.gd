@@ -68,6 +68,13 @@ func cycle_material(direction: int) -> void:
 	emit_signal("changed")
 
 
+func set_material(name: String) -> void:
+	if name in MATERIALS and name != material:
+		material = name
+		Audio.play2d("ui_slot", -8.0)
+		emit_signal("changed")
+
+
 func can_afford() -> bool:
 	return player.materials[material] >= COST
 

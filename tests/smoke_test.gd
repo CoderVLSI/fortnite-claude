@@ -395,6 +395,38 @@ func _run() -> void:
 	yield(_wait_idle(2), "completed")
 	check(not touch._buttons["interact"]["hidden"], "touch PICK UP button appears near loot")
 	yield(_shot("hud_touch"), "completed")
+
+	# build-piece buttons enter / leave build mode, material boxes pick the material
+	var pc: Vector2 = touch._buttons["piece1"]["center"]
+	var pt := InputEventScreenTouch.new()
+	pt.index = 6
+	pt.pressed = true
+	pt.position = _win(pc)
+	Input.parse_input_event(pt)
+	yield(_wait_idle(2), "completed")
+	pt.pressed = false
+	Input.parse_input_event(pt)
+	yield(_wait_idle(2), "completed")
+	check(p.builder.active and p.builder.piece == 1, "touch piece button enters build mode with that piece")
+	var mat_pos: Vector2 = world.hud.materials.rect_global_position + Vector2(76 * 2 + 12 + 30, 20)
+	var mt := InputEventScreenTouch.new()
+	mt.index = 7
+	mt.pressed = true
+	mt.position = _win(mat_pos)
+	Input.parse_input_event(mt)
+	yield(_wait_idle(2), "completed")
+	mt.pressed = false
+	Input.parse_input_event(mt)
+	yield(_wait_idle(2), "completed")
+	check(p.builder.material == "metal", "tapping a materials box chooses it")
+	yield(_shot("hud_touch_build"), "completed")
+	pt.pressed = true
+	Input.parse_input_event(pt)
+	yield(_wait_idle(2), "completed")
+	pt.pressed = false
+	Input.parse_input_event(pt)
+	yield(_wait_idle(2), "completed")
+	check(not p.builder.active, "tapping the chosen piece again leaves build mode")
 	controls.set_touch_mode(false)
 
 	# --- screenshots: loadout on the desktop HUD

@@ -13,4 +13,4 @@ else
 fi
 mkdir -p "$OUT"
 xvfb-run -a -s "-screen 0 ${RES}x24" "$GODOT" --path . --resolution "$RES" --audio-driver Dummy \
-  -s res://tests/smoke_test.gd -- --no-capture $EXTRA --shots="$OUT"
+  -s res://tests/smoke_test.gd -- --no-capture --no-bus --skip-menu $EXTRA --shots="$OUT"
