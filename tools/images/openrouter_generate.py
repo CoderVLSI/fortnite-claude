@@ -2,14 +2,13 @@
 """Generate 2D icons (gun icons, app icon, items) with a cheap OpenRouter image model.
 
     export OPENROUTER_API_KEY=...                  # never commit the key
-    python3 tools/images/openrouter_generate.py --models          # image models, cheapest first
+    python3 tools/images/openrouter_generate.py --models          # image models, cheapest estimate first
     python3 tools/images/openrouter_generate.py --list            # assets this script can make
     python3 tools/images/openrouter_generate.py --test --cheapest # ONE image: check quality/cost first
     python3 tools/images/openrouter_generate.py --cheapest weapon_pistol app_icon
     python3 tools/images/openrouter_generate.py --model <id> --group weapons
 
-See tools/images/README.md. UNTESTED against the live API: the sandbox it was written in could not reach
-openrouter.ai. Needs outbound access to openrouter.ai and ffmpeg. Standard library only.
+See tools/images/README.md. Needs outbound access to openrouter.ai and ffmpeg. Standard library only.
 """
 import argparse
 import base64
@@ -84,6 +83,12 @@ add("launcher_bg_432", "app", "abstract seamless dark purple to blue night-sky g
 GROUPS = sorted({a["group"] for a in ASSETS.values()})
 
 
+class ApiError(Exception):
+    def __init__(self, code, body):
+        super().__init__("OpenRouter HTTP %d: %s" % (code, body))
+        self.code, self.body = code, body
+
+
 def http(method, url, key=None, payload=None, timeout=180):
     headers = {"Content-Type": "application/json", "X-Title": "Storm Island assets"}
     if key:
@@ -94,8 +99,7 @@ def http(method, url, key=None, payload=None, timeout=180):
         with urllib.request.urlopen(req, timeout=timeout) as r:
             return json.loads(r.read())
     except urllib.error.HTTPError as e:
-        body = e.read().decode("utf-8", "replace")[:400]
-        sys.exit("OpenRouter HTTP %d: %s" % (e.code, body))
+        raise ApiError(e.code, e.read().decode("utf-8", "replace")[:400])
     except urllib.error.URLError as e:
         sys.exit("cannot reach openrouter.ai (%s). Is the host allowed by the environment's network policy?" % e.reason)
 
@@ -107,42 +111,67 @@ def _num(v):
         return 0.0
 
 
+# Output tokens billed for one ~1024x1024 image. OpenRouter lists only $/token (pricing.image_output),
+# not tokens per image, so these are rough anchors (1 MP / 256 px for FLUX, ~200 for GPT Image, ~570 for
+# Gemini Flash Image). The real cost is printed after every generation from the API's usage data.
+TOKENS_PER_IMAGE = [("flux", 4096), ("gpt-image", 200), ("gemini", 570)]
+DEFAULT_TOKENS = 1290
+
+
+def est_cost(model_id, pricing):
+    """Estimated $ per image, or None if the model does not report an output-image token price."""
+    price = _num(pricing.get("image_output")) or _num(pricing.get("image_token"))
+    if price <= 0:
+        return None
+    tokens = next((t for k, t in TOKENS_PER_IMAGE if k in model_id), DEFAULT_TOKENS)
+    return price * tokens
+
+
 def image_models():
-    """[(price_per_image_or_None, completion_price, id, name)] of models that can output images."""
+    """[(est_$_per_image_or_None, id, name, output_modalities)], cheapest estimate first, unknown last."""
     rows = []
     for m in http("GET", API + "/models?output_modalities=image")["data"]:
-        if "image" not in (m.get("architecture", {}).get("output_modalities") or []):
+        mods = m.get("architecture", {}).get("output_modalities") or []
+        if "image" not in mods or m["id"].startswith("openrouter/"):  # routers have no fixed price
             continue
-        p = m.get("pricing", {})
-        rows.append((_num(p.get("image")), _num(p.get("completion")), m["id"], m.get("name", "")))
-    # Cheapest first: by per-image price when the model has one, else by output-token price.
-    rows.sort(key=lambda r: (r[0] if r[0] > 0 else 0.0, r[1]))
+        rows.append((est_cost(m["id"], m.get("pricing", {})), m["id"], m.get("name", ""), mods))
+    rows.sort(key=lambda r: (r[0] is None, r[0] or 0.0, r[1]))
     return rows
 
 
 def pick_cheapest():
-    rows = [r for r in image_models() if r[2]]
+    rows = [r for r in image_models() if r[0] is not None]
     if not rows:
-        sys.exit("no image-capable models returned by OpenRouter")
-    r = rows[0]
-    print("cheapest image model: %s (image $%.4f, completion $%.8f per token)" % (r[2], r[0], r[1]))
-    return r[2]
+        sys.exit("no image models with a known price returned by OpenRouter")
+    print("cheapest image model by estimated cost: %s (~$%.4f/image)" % (rows[0][1], rows[0][0]))
+    return rows[0][1]
 
 
 def generate(model, prompt, key):
-    resp = http("POST", API + "/chat/completions", key, {
-        "model": model, "modalities": ["image", "text"],
-        "messages": [{"role": "user", "content": prompt}]})
+    """Returns (png_bytes, cost_usd_or_None). Image-only models reject modalities with 'text': retry once."""
+    payload = {"model": model, "usage": {"include": True},
+               "messages": [{"role": "user", "content": prompt}]}
+    try:
+        resp = http("POST", API + "/chat/completions", key, dict(payload, modalities=["image", "text"]))
+    except ApiError as e:
+        if e.code not in (400, 404, 422):
+            sys.exit(str(e))
+        print("  first request failed (%s); retrying with modalities=[image]" % e.body[:160].replace("\n", " "))
+        try:
+            resp = http("POST", API + "/chat/completions", key, dict(payload, modalities=["image"]))
+        except ApiError as e2:
+            sys.exit(str(e2))
     try:
         msg = resp["choices"][0]["message"]
         url = msg["images"][0]["image_url"]["url"]
     except (KeyError, IndexError, TypeError):
         sys.exit("no image in response: %s" % json.dumps(resp)[:400])
+    cost = (resp.get("usage") or {}).get("cost")
     m = re.match(r"data:image/[\w+.-]+;base64,(.*)", url, re.S)
     if m:
-        return base64.b64decode(m.group(1))
+        return base64.b64decode(m.group(1)), cost
     with urllib.request.urlopen(url, timeout=120) as r:
-        return r.read()
+        return r.read(), cost
 
 
 def convert(raw, spec, dest):
@@ -201,8 +230,10 @@ def main():
         wire_export()
         return
     if a.models:
-        for per_img, comp, mid, name in image_models():
-            print("%-48s image $%-9.4f completion $%.8f/token  %s" % (mid, per_img, comp, name))
+        print("%-48s %-12s %-12s %s" % ("model", "est $/image", "outputs", "name"))
+        for cost, mid, name, mods in image_models():
+            print("%-48s %-12s %-12s %s" % (mid, "n/a" if cost is None else "%.4f" % cost, "+".join(mods), name))
+        print("Estimates = output-image token price x assumed tokens per 1024px image; real cost is shown per image.")
         return
 
     names = list(a.names)
@@ -234,10 +265,14 @@ def main():
     if not model:
         sys.exit("choose a model: --cheapest, or --model <id> (see --models)")
 
+    spent = 0.0
     for i, n in enumerate(todo, 1):
         print("[%d/%d] %s via %s" % (i, len(todo), n, model))
-        convert(generate(model, ASSETS[n]["prompt"], key), ASSETS[n], dest_of(n))
-        print("  wrote", dest_of(n))
+        raw, cost = generate(model, ASSETS[n]["prompt"], key)
+        convert(raw, ASSETS[n], dest_of(n))
+        spent += cost or 0.0
+        print("  wrote %s (cost %s)" % (dest_of(n), "unknown" if cost is None else "$%.4f" % cost))
+    print("spent $%.4f on %d image(s)." % (spent, len(todo)))
     print("done. Run tools/import_assets.sh, then look at the PNGs before committing them.")
 
 
