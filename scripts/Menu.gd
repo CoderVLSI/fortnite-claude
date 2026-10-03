@@ -744,7 +744,7 @@ func friends_show() -> void:
 	var ie := LineEdit.new()
 	ie.rect_position = Vector2(182, 86)
 	ie.rect_size = Vector2(210, 42)
-	ie.placeholder_text = "their IP, e.g. 192.168.1.21"
+	ie.placeholder_text = "their IP"
 	friends_body.add_child(ie)
 	friends_fields["ip"] = ie
 	_fr_button("ADD", Vector2(400, 86), Vector2(116, 42), "_friend_add")

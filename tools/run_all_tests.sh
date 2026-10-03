@@ -41,6 +41,7 @@ run vault_test --no-bus --skip-menu
 run team_test --no-bus --skip-menu
 run emote_test --no-bus --skip-menu
 run menu_test
+run social_test
 run pad_test
 RES=844x390 run mobile_test --touch
 exit $fail
