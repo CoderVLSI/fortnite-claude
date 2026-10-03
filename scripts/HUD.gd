@@ -64,6 +64,9 @@ var _hv_id := ""
 var _hv_shown := 1.0
 var _hv_target := 1.0
 var end_bg: TextureRect
+var spec_button: Button
+var spec_root: Control
+var spec_label: Label
 var badge: TextureRect
 var _badge_name := ""
 var _icons := {}                # icon / backdrop textures kept alive (an unreferenced texture is freed and draws blank)
@@ -330,10 +333,44 @@ func _build_end_panel() -> void:
 	end_panel.add_child(end_stats)
 	var button := Button.new()
 	button.text = "PLAY AGAIN"
-	button.rect_position = Vector2(150, 205)
-	button.rect_size = Vector2(200, 60)
+	button.rect_position = Vector2(30, 205)
+	button.rect_size = Vector2(210, 60)
 	button.connect("pressed", self, "_on_restart")
 	end_panel.add_child(button)
+	spec_button = Button.new()                 # only when eliminated: keep watching the match
+	spec_button.text = "SPECTATE"
+	spec_button.rect_position = Vector2(260, 205)
+	spec_button.rect_size = Vector2(210, 60)
+	spec_button.connect("pressed", self, "_on_spectate")
+	end_panel.add_child(spec_button)
+
+	spec_root = Control.new()                  # spectate banner: who you are watching, switch, leave
+	spec_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_place(spec_root, 0.5, 0.0, Vector2(-300, 14), Vector2(600, 110))
+	spec_root.visible = false
+	root.add_child(spec_root)
+	spec_label = _label("", Label.ALIGN_CENTER, Color(1.0, 0.92, 0.55))
+	spec_label.rect_position = Vector2(0, 0)
+	spec_label.rect_size = Vector2(600, 36)
+	spec_root.add_child(spec_label)
+	var prev := Button.new()
+	prev.text = "<"
+	prev.rect_position = Vector2(110, 46)
+	prev.rect_size = Vector2(70, 50)
+	prev.connect("pressed", self, "_on_spec_step", [-1])
+	spec_root.add_child(prev)
+	var nxt := Button.new()
+	nxt.text = ">"
+	nxt.rect_position = Vector2(190, 46)
+	nxt.rect_size = Vector2(70, 50)
+	nxt.connect("pressed", self, "_on_spec_step", [1])
+	spec_root.add_child(nxt)
+	var leave := Button.new()
+	leave.text = "LEAVE"
+	leave.rect_position = Vector2(290, 46)
+	leave.rect_size = Vector2(190, 50)
+	leave.connect("pressed", self, "_on_spec_leave")
+	spec_root.add_child(leave)
 
 
 func bind(world_node) -> void:
@@ -537,6 +574,32 @@ func _on_touch_mode(enabled: bool) -> void:
 		touch.visible = enabled and not end_panel.visible
 
 
+func _on_spectate() -> void:
+	Audio.play2d("ui_click")
+	end_panel.visible = false
+	end_bg.visible = false
+	spec_root.visible = true
+	world.start_spectating()
+	if not world.spectating:                    # nobody left to watch
+		_on_spec_leave()
+		return
+	Controls.capture_mouse(false)
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+
+
+func _on_spec_step(dir: int) -> void:
+	Audio.play2d("ui_slot", -6.0)
+	world.cycle_spectate(dir)
+
+
+func _on_spec_leave() -> void:
+	Audio.play2d("ui_click", -6.0)
+	world.stop_spectating()
+	spec_root.visible = false
+	end_panel.visible = true
+	end_bg.visible = end_bg.texture != null
+
+
 func _on_restart() -> void:
 	Audio.play2d("ui_click")
 	Settings.autostart = true
@@ -577,6 +640,7 @@ func show_end(victory: bool, placement: int, kills: int) -> void:
 	end_bg.visible = end_bg.texture != null
 	end_bg.modulate = Color(1, 1, 1, 0)
 	end_panel.visible = true
+	spec_button.visible = not victory and world.alive_count() > 0
 	if touch:
 		touch.visible = false
 	Controls.capture_mouse(false)
@@ -607,6 +671,12 @@ func _process(delta: float) -> void:
 	var outside: bool = world.storm.active and not player.is_dead and not world.storm.is_inside(player.global_transform.origin)
 	warn_label.visible = outside
 	storm_rect.color.a = (0.16 + sin(_t * 5.0) * 0.04) if outside else 0.0
+	if spec_root.visible:
+		if world.spectating:
+			var left: int = world.alive_count()
+			spec_label.text = ("SPECTATING  %s" % world.spectate_name()) if left > 1 else ("%s WINS THE MATCH" % world.spectate_name())
+		else:
+			_on_spec_leave()                    # nobody left to watch
 	_update_harvest_bar(delta)
 	_update_damage_numbers(delta)
 	if end_bg.visible and end_bg.modulate.a < 1.0:

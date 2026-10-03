@@ -234,5 +234,39 @@ func _run() -> void:
 	yield(_frames(180), "completed")
 	check(p.health < 80.0 and p.health > 0.0, "a 30 m fall hurts (%.0f / 100)" % p.health)
 
+	# --- spectating after elimination (a fresh bot to watch; the earlier dummy died in the grenade test)
+	var Bot = load("res://scripts/Bot.gd")
+	var watched = Bot.new()
+	watched.name = "SpectateBot"
+	watched.world = world
+	watched.display_name = "Watchme"
+	watched.map_half = 236.0
+	watched.translation = Vector3(40.0, world.terrain.height_at(40.0, 60.0) + 1.0, 60.0)
+	world.add_child(watched)
+	watched.set_physics_process(false)
+	yield(_frames(10), "completed")
+	world.match_over = false            # the grenade test already "won" the match when the dummy died; start fresh
+	hud.end_panel.visible = false
+	hud.end_bg.visible = false
+	p.max_health = 100.0
+	p.health = 100.0
+	p.shield = 0.0
+	p.take_damage(1000.0, watched)
+	yield(_frames(150), "completed")
+	check(p.is_dead and hud.end_panel.visible, "being eliminated shows the result panel")
+	check(hud.spec_button.visible, "the eliminated panel offers SPECTATE")
+	hud._on_spectate()
+	yield(_frames(10), "completed")
+	check(world.spectating and world._spec_cam.current, "spectating switches to a free camera")
+	check(world.spectate_name() == "Watchme" and hud.spec_root.visible, "it follows a living fighter (%s)" % world.spectate_name())
+	var cam_before: Vector3 = world._spec_cam.global_transform.origin
+	watched.global_transform.origin += Vector3(8, 0, 0)
+	yield(_frames(60), "completed")
+	check(world._spec_cam.global_transform.origin.distance_to(cam_before) > 3.0, "the camera follows the fighter around")
+	watched.take_damage(1000000.0, null)
+	yield(_frames(30), "completed")
+	check(not world.spectating and hud.end_panel.visible, "when nobody is left to watch, the result panel comes back")
+	check(p.camera.current, "the player camera is restored")
+
 	print("MECHANICS_RESULT failures=", failures.size())
 	quit(1 if failures.size() > 0 else 0)

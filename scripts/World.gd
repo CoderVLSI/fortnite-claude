@@ -42,6 +42,9 @@ var hud
 var bus = null
 var building_positions := []     # Vector2 (x, z) for the minimap
 var tree_positions := []         # Vector2 (x, z), used to keep spawns out of foliage
+var spectating := false           # watching the remaining fighters after being eliminated
+var _spec_target = null
+var _spec_cam: Camera
 var match_over := false
 
 var shared := {}                 # cached meshes/materials shared by loot items
@@ -910,6 +913,7 @@ func _audio_process(delta: float) -> void:
 
 func _process(delta: float) -> void:
 	_audio_process(delta)
+	_update_spectator(delta)
 	for sp in _spinners:
 		if is_instance_valid(sp.node):
 			if sp.kind == "blades":
@@ -961,7 +965,74 @@ func _on_fighter_died(victim, killer) -> void:
 		get_tree().create_timer(1.2).connect("timeout", hud, "show_end", [true, 1, player.kills])
 
 
+# ------------------------------------------------------------------ spectating
+
+func start_spectating() -> void:
+	if spectating or alive_count() <= 0:
+		return
+	spectating = true
+	_spec_cam = Camera.new()
+	_spec_cam.far = 520.0
+	_spec_cam.fov = 72.0
+	add_child(_spec_cam)
+	_spec_target = null
+	cycle_spectate(1)
+	if not spectating:
+		return
+	var tp: Vector3 = _spec_target.global_transform.origin
+	_spec_cam.global_transform.origin = tp + Vector3(0, 2.6, 0) + _spec_target.global_transform.basis.z * 5.5
+	_spec_cam.make_current()
+
+
+func stop_spectating() -> void:
+	if not spectating:
+		return
+	spectating = false
+	_spec_target = null
+	if _spec_cam != null:
+		_spec_cam.queue_free()
+		_spec_cam = null
+	if player != null and player.camera != null:
+		player.camera.make_current()
+
+
+# Switch to the next / previous living fighter (the player's own body is not a choice).
+func cycle_spectate(dir: int) -> void:
+	var living := []
+	for f in get_tree().get_nodes_in_group("fighters"):
+		if f != player and not f.is_dead:
+			living.append(f)
+	if living.empty():
+		stop_spectating()
+		return
+	var idx: int = living.find(_spec_target)
+	_spec_target = living[int(posmod(idx + dir, living.size()))] if idx >= 0 else living[0]
+
+
+func _update_spectator(delta: float) -> void:
+	if not spectating:
+		return
+	if _spec_target == null or not is_instance_valid(_spec_target) or _spec_target.is_dead:
+		cycle_spectate(1)
+		if not spectating:
+			return
+	var tp: Vector3 = _spec_target.global_transform.origin
+	var fwd: Vector3 = -_spec_target.global_transform.basis.z
+	var want: Vector3 = tp + Vector3(0, 2.8, 0) - fwd * 6.0
+	_spec_cam.global_transform.origin = _spec_cam.global_transform.origin.linear_interpolate(want, clamp(5.0 * delta, 0.0, 1.0))
+	_spec_cam.look_at(tp + Vector3(0, 1.4, 0), Vector3.UP)
+
+
+func spectate_name() -> String:
+	return _spec_target.display_name if _spec_target != null and is_instance_valid(_spec_target) else ""
+
+
 func _input(event: InputEvent) -> void:
+	if spectating and event is InputEventKey and event.pressed and not event.echo:
+		if event.scancode == KEY_RIGHT or event.scancode == KEY_D:
+			cycle_spectate(1)
+		elif event.scancode == KEY_LEFT or event.scancode == KEY_A:
+			cycle_spectate(-1)
 	if Controls.touch_mode or match_over or get_tree().paused:
 		return
 	if event is InputEventMouseButton and event.pressed and Input.get_mouse_mode() != Input.MOUSE_MODE_CAPTURED:
