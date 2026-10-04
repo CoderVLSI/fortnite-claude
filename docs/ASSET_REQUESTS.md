@@ -52,3 +52,11 @@ weapon_rocket_launcher, weapon_burst_assault, ui_quest, ui_reboot_card, ui_llama
 spike trap, proximity mine, boogie / stink / shockwave bombs, bouncer, roast meat, rift-to-go, junk rift (anvil), burst rifle,
 charge shotgun, plus the grenade (ridged), round flask potions, chug jug, pistol colours and rocket launcher colours.
 `tools/render_models.gd` renders any item model for a side-by-side check against its icon.
+
+Update: the SMG, shotgun, sniper, assault rifle, burst rifle, charge shotgun, medkit and bandage models were redone too
+(black bodies, thicker barrels, rolled-gauze bandage, case with latches and a red handle). The gun materials were renamed
+(`gun_black`, `gun_gunmetal`, `gun_walnut`, ...) so Godot writes fresh `.material` files.
+
+NOTE FOR THE IMAGE AGENT: this project's Godot build cannot import JPG files (`valid=false`, "Error loading image"). Keep
+everything in `assets/ui/` and `assets/icons/` as PNG. To save space, quantise big backgrounds to a 256-colour PNG
+(Pillow: `im.quantize(256, dither=Image.FLOYDSTEINBERG).save(path, optimize=True)`).

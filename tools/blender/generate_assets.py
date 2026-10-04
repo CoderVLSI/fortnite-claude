@@ -385,17 +385,17 @@ def make_player():
 
 def _gun_mats():
     return dict(
-        dark=material("gun_dark", (0.10, 0.10, 0.12), rough=0.45),
-        steel=material("gun_steel", (0.34, 0.35, 0.38), rough=0.30),
-        wood=material("gun_wood", (0.45, 0.24, 0.09)),
-        poly=material("gun_poly", (0.20, 0.21, 0.23), rough=0.6),
+        dark=material("gun_black", (0.035, 0.035, 0.045), rough=0.45),
+        steel=material("gun_gunmetal", (0.20, 0.21, 0.24), rough=0.30),
+        wood=material("gun_walnut", (0.42, 0.20, 0.07)),
+        poly=material("gun_poly2", (0.07, 0.075, 0.085), rough=0.6),
         accent=material("accent", (0.60, 0.60, 0.65), rough=0.35),
         glass=material("scope_glass", (0.25, 0.55, 0.95), rough=0.1, emit=(0.1, 0.3, 0.8), emit_strength=0.6),
         brass=material("gun_brass", (0.85, 0.65, 0.2), rough=0.3),
-        olive=material("gun_olive", (0.30, 0.36, 0.14), rough=0.7),
-        tan=material("gun_tan", (0.66, 0.52, 0.22), rough=0.7),
-        slide=material("gun_slide", (0.55, 0.57, 0.60), rough=0.3),
-        orange=material("gun_orange", (0.78, 0.38, 0.10), rough=0.8),
+        olive=material("gun_olive2", (0.26, 0.31, 0.10), rough=0.7),
+        tan=material("gun_tan2", (0.62, 0.45, 0.16), rough=0.7),
+        slide=material("gun_slide2", (0.30, 0.31, 0.34), rough=0.3),
+        orange=material("gun_orange2", (0.80, 0.36, 0.08), rough=0.8),
     )
 
 
@@ -415,7 +415,7 @@ def _trigger_guard(g, m, y=0.04, z=-0.075):
 def make_assault(variant="rifle"):
     m = _gun_mats()
     burst = variant == "burst_assault"
-    furn = m["tan"] if burst else furn          # the burst rifle wears tan furniture on a black body
+    furn = m["tan"] if burst else m["olive"]          # the burst rifle wears tan furniture on a black body
     g = Part("BurstAssault" if burst else "Rifle")
     g.box((0, 0.04, -0.005), (0.07, 0.30, 0.10), m["dark"])                       # lower receiver
     g.box((0, 0.19, 0.055), (0.07, 0.42, 0.075), m["dark"])                       # upper receiver
@@ -428,10 +428,10 @@ def make_assault(variant="rifle"):
     g.box((0, 0.56, 0.082), (0.036, 0.28, 0.012), m["steel"])                     # handguard rail
     for yy in (0.46, 0.53, 0.60, 0.67):                                           # M-LOK slots
         sbox(g, 0.042, yy, 0.03, (0.004, 0.035, 0.028), m["dark"])
-    g.cone((0, 0.86, 0.03), 0.014, 0.014, 0.28, m["steel"], segments=8, axis="Y")   # barrel
+    g.cone((0, 0.86, 0.03), 0.022, 0.022, 0.28, m["steel"], segments=8, axis="Y")   # barrel
     g.box((0, 0.74, 0.088), (0.014, 0.03, 0.07), m["dark"])                       # front sight post
-    g.cone((0, 1.02, 0.03), 0.022, 0.022, 0.08, m["dark"], segments=8, axis="Y")    # flash hider
-    g.cone((0, -0.12, 0.03), 0.026, 0.026, 0.14, m["dark"], segments=8, axis="Y")   # buffer tube
+    g.cone((0, 1.02, 0.03), 0.032, 0.032, 0.09, m["dark"], segments=8, axis="Y")    # flash hider
+    g.cone((0, -0.12, 0.03), 0.034, 0.034, 0.14, m["dark"], segments=8, axis="Y")   # buffer tube
     g.box((0, -0.25, 0.015), (0.055, 0.17, 0.095), furn)                    # stock
     g.box((0, -0.34, 0.0), (0.06, 0.025, 0.12), m["dark"])                        # butt pad
     g.box((0, -0.05, -0.085), (0.048, 0.07, 0.15), furn, rot=(0.3, 0, 0))   # pistol grip
@@ -456,8 +456,8 @@ def make_smg():
     for yy in (0.32, 0.38, 0.44, 0.50):                                           # vents
         sbox(g, 0.041, yy, 0.03, (0.004, 0.03, 0.04), m["dark"])
     g.box((0, 0.40, 0.082), (0.036, 0.24, 0.012), m["steel"])
-    g.cone((0, 0.60, 0.03), 0.016, 0.016, 0.16, m["steel"], segments=8, axis="Y")   # barrel
-    g.cone((0, 0.69, 0.03), 0.022, 0.022, 0.05, m["dark"], segments=8, axis="Y")    # muzzle device
+    g.cone((0, 0.60, 0.03), 0.026, 0.026, 0.16, m["steel"], segments=8, axis="Y")   # barrel
+    g.cone((0, 0.69, 0.03), 0.034, 0.034, 0.06, m["dark"], segments=8, axis="Y")    # muzzle device
     g.box((0, 0.08, 0.115), (0.04, 0.07, 0.04), m["dark"])                        # red dot
     g.box((0, 0.112, 0.115), (0.03, 0.008, 0.03), m["glass"])
     g.box((0, -0.08, 0.04), (0.02, 0.10, 0.03), m["dark"])                        # stock hinge
@@ -477,11 +477,11 @@ def make_shotgun(variant="shotgun"):
     if charge:                                                                   # teal body, glowing yellow coils round the barrel
         m["dark"] = material("charge_teal", (0.10, 0.45, 0.62), rough=0.4, emit=(0.05, 0.4, 0.7), emit_strength=0.5)
     g = Part("ChargeShotgun" if charge else "Shotgun")
-    g.box((0, 0.14, 0.03), (0.075, 0.36, 0.10), m["dark"])                        # receiver
+    g.box((0, 0.14, 0.03), (0.085, 0.38, 0.115), m["dark"])                        # receiver
     sbox(g, 0.039, 0.14, 0.035, (0.006, 0.18, 0.03), m["accent"])
-    g.cone((0, 0.68, 0.045), 0.019, 0.019, 0.72, m["steel"], segments=8, axis="Y")     # barrel
-    g.cone((0, 0.62, -0.005), 0.024, 0.024, 0.58, m["dark"], segments=8, axis="Y")    # magazine tube
-    g.box((0, 0.58, -0.005), (0.07, 0.24, 0.07), m["wood"])                       # pump forend
+    g.cone((0, 0.68, 0.045), 0.027, 0.027, 0.72, m["steel"], segments=8, axis="Y")     # barrel
+    g.cone((0, 0.62, -0.005), 0.032, 0.032, 0.58, m["dark"], segments=8, axis="Y")    # magazine tube
+    g.box((0, 0.58, -0.005), (0.085, 0.26, 0.085), m["orange"])                       # pump forend
     for yy in (0.50, 0.545, 0.59, 0.635, 0.68):                                   # grip ribs
         g.box((0, yy, -0.005), (0.076, 0.016, 0.076), m["orange"])
     g.box((0, 1.04, 0.07), (0.012, 0.012, 0.025), m["brass"])                     # bead sight
@@ -523,17 +523,17 @@ def make_sniper():
     g = Part("Sniper")
     g.box((0, 0.20, 0.03), (0.07, 0.48, 0.10), m["dark"])                         # receiver
     sbox(g, 0.037, 0.2, 0.035, (0.006, 0.26, 0.03), m["accent"])
-    g.cone((0, 0.90, 0.035), 0.016, 0.016, 0.82, m["steel"], segments=8, axis="Y")   # long barrel
-    g.cone((0, 1.32, 0.035), 0.027, 0.027, 0.10, m["dark"], segments=8, axis="Y")    # muzzle brake
+    g.cone((0, 0.90, 0.035), 0.026, 0.026, 0.82, m["steel"], segments=8, axis="Y")   # long barrel
+    g.cone((0, 1.32, 0.035), 0.040, 0.040, 0.12, m["dark"], segments=8, axis="Y")    # muzzle brake
     sbox(g, 0.03, 1.32, 0.035, (0.012, 0.03, 0.02), m["steel"])                      # brake ports
     g.box((0, 0.58, -0.005), (0.07, 0.30, 0.07), m["olive"])                      # forend
     g.box((0.055, 0.12, 0.05), (0.012, 0.09, 0.012), m["steel"])                  # bolt handle (right side)
     g.box((0.07, 0.12, 0.05), (0.03, 0.02, 0.03), m["dark"])
     # scope: tube, objective bell, ocular, windage / elevation turrets
-    g.cone((0, 0.26, 0.14), 0.030, 0.030, 0.36, m["dark"], segments=10, axis="Y")
-    g.cone((0, 0.11, 0.14), 0.038, 0.038, 0.08, m["dark"], segments=10, axis="Y")
-    g.cone((0, 0.44, 0.14), 0.050, 0.044, 0.12, m["dark"], segments=10, axis="Y")
-    g.box((0, 0.50, 0.14), (0.07, 0.005, 0.07), m["glass"])
+    g.cone((0, 0.26, 0.14), 0.042, 0.042, 0.40, m["dark"], segments=10, axis="Y")
+    g.cone((0, 0.09, 0.14), 0.050, 0.050, 0.09, m["dark"], segments=10, axis="Y")
+    g.cone((0, 0.47, 0.14), 0.066, 0.056, 0.14, m["dark"], segments=10, axis="Y")
+    g.box((0, 0.545, 0.14), (0.10, 0.006, 0.10), m["glass"])
     sbox(g, 0.04, 0.26, 0.14, (0.03, 0.03, 0.03), m["steel"])
     g.box((0, 0.26, 0.185), (0.03, 0.03, 0.03), m["steel"])
     sbox(g, 0.0, 0.20, 0.09, (0.02, 0.03, 0.05), m["steel"])
@@ -543,7 +543,7 @@ def make_sniper():
     g.box((0, -0.42, -0.005), (0.07, 0.03, 0.14), m["dark"])
     g.box((0, -0.06, -0.08), (0.045, 0.065, 0.14), m["olive"], rot=(0.25, 0, 0))
     g.box((0, 0.22, -0.10), (0.045, 0.08, 0.10), m["dark"])                       # magazine
-    sbox(g, 0.03, 0.78, -0.03, (0.01, 0.22, 0.01), m["steel"], rot=(0, 0, 0.5))     # folded bipod legs
+    sbox(g, 0.03, 0.78, -0.03, (0.018, 0.24, 0.018), m["steel"], rot=(0, 0, 0.5))     # folded bipod legs
     _trigger_guard(g, m)
     export("sniper", [g.build(), empty("Muzzle", (0, 1.38, 0.035))])
 
@@ -764,12 +764,14 @@ def make_bandage():
     red = material("bandage_red", (0.85, 0.15, 0.15))
     cream = material("bandage_cream", (0.88, 0.86, 0.78))
     b = Part("Bandage")
-    b.cone((0, 0, 0.12), 0.16, 0.16, 0.24, white, segments=12)
-    b.cone((0, 0, 0.245), 0.10, 0.10, 0.02, cream, segments=12)                  # rolled-up top
-    b.cone((0, 0, 0.255), 0.05, 0.05, 0.02, white, segments=10)
+    b.cone((0, 0, 0.12), 0.165, 0.165, 0.24, cream, segments=14)                 # the rolled gauze
+    b.cone((0, 0, 0.12), 0.172, 0.172, 0.10, white, segments=14)                 # the wrap band round the middle
+    for r, z, m in ((0.13, 0.243, white), (0.10, 0.247, cream), (0.07, 0.251, white), (0.045, 0.255, cream), (0.02, 0.259, white)):
+        b.cone((0, 0, z), r, r, 0.012, m, segments=14)                           # the spiral on top, as stacked rings
+    b.cone((0, 0, 0.004), 0.17, 0.17, 0.012, cream, segments=14)
     for sgn in (-1, 1):                                                          # red cross label, both faces
-        b.box((0, sgn * 0.155, 0.12), (0.10, 0.012, 0.03), red)
-        b.box((0, sgn * 0.155, 0.12), (0.03, 0.012, 0.10), red)
+        b.box((0, sgn * 0.174, 0.12), (0.11, 0.014, 0.036), red)
+        b.box((0, sgn * 0.174, 0.12), (0.036, 0.014, 0.11), red)
     export("bandage", [b.build()])
 
 
@@ -777,18 +779,24 @@ def make_medkit():
     white = material("medkit_white", (0.95, 0.95, 0.95))
     red = material("medkit_red", (0.85, 0.12, 0.12))
     grey = material("medkit_grey", (0.4, 0.4, 0.42))
+    dark = material("medkit_dark", (0.10, 0.10, 0.12), rough=0.6)
     m = Part("Medkit")
-    m.box((0, 0, 0.15), (0.42, 0.18, 0.30), white)
-    m.box((0, 0, 0.19), (0.43, 0.185, 0.02), grey)                               # lid seam
-    for sgn in (-1, 1):                                                          # cross on both faces
-        m.box((0, sgn * 0.095, 0.15), (0.14, 0.02, 0.05), red)
-        m.box((0, sgn * 0.095, 0.15), (0.05, 0.02, 0.14), red)
-    for sx in (-0.13, 0.13):                                                     # latches (mirrored)
+    m.box((0, 0, 0.11), (0.44, 0.20, 0.22), white)                               # the case
+    m.box((0, 0, 0.255), (0.43, 0.19, 0.07), white)                              # the lid, a little narrower
+    m.box((0, 0, 0.215), (0.45, 0.21, 0.025), dark)                              # rubber gasket between lid and case
+    for sx in (-0.21, 0.21):                                                     # corner bumpers
         for sgn in (-1, 1):
-            m.box((sx, sgn * 0.097, 0.19), (0.05, 0.02, 0.06), grey)
-    m.box((0, 0, 0.345), (0.20, 0.03, 0.03), red)                                # carry handle
-    for sx in (-0.10, 0.10):
-        m.box((sx, 0, 0.32), (0.03, 0.03, 0.05), red)
+            m.box((sx, sgn * 0.09, 0.025), (0.035, 0.035, 0.05), dark)
+    for sgn in (-1, 1):                                                          # a big red cross on both faces
+        m.box((0, sgn * 0.103, 0.12), (0.17, 0.016, 0.055), red)
+        m.box((0, sgn * 0.103, 0.12), (0.055, 0.016, 0.17), red)
+    for sx in (-0.15, 0.15):                                                     # black latches across the seam
+        for sgn in (-1, 1):
+            m.box((sx, sgn * 0.108, 0.215), (0.06, 0.02, 0.09), dark)
+    for sx in (-0.07, 0.07):                                                     # carry handle: two posts and a thick red bar
+        m.box((sx, 0, 0.31), (0.035, 0.035, 0.05), dark)
+        m.box((sx, 0, 0.345), (0.035, 0.05, 0.03), red)
+    m.box((0, 0, 0.372), (0.17, 0.05, 0.035), red)
     export("medkit", [m.build()])
 
 
@@ -1568,9 +1576,13 @@ def make_item_models():
     make_assault("burst_assault")
     reset_scene()
     make_shotgun("charge_shotgun")
-    for fn in (make_pistol, make_rocket_launcher, make_grenade):
+    for fn in (make_pistol, make_rocket_launcher, make_grenade, make_smg, make_sniper, make_bandage, make_medkit):
         reset_scene()
         fn()
+    reset_scene()
+    make_assault()
+    reset_scene()
+    make_shotgun()
     for name, color, size in (("mini_shield", (0.25, 0.55, 1.0), 0.8), ("shield_potion", (0.20, 0.45, 1.0), 1.25),
                               ("slurp_juice", (0.20, 0.90, 0.85), 0.95), ("chug_jug", (0.55, 0.80, 1.0), 1.5)):
         reset_scene()
