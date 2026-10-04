@@ -75,7 +75,7 @@ func _run() -> void:
 	check(p.has_sprite(second_id), "catching another swaps it in")
 	var released := false
 	for w in get_nodes_in_group("wild_sprites"):
-		if is_instance_valid(w) and not w.is_queued_for_deletion() and w.data.id == first_id and w.global_transform.origin.distance_to(swap_at) < 3.0:
+		if is_instance_valid(w) and not w.is_queued_for_deletion() and w.data.id == first_id and Vector2(w.global_transform.origin.x - swap_at.x, w.global_transform.origin.z - swap_at.z).length() < 3.0:
 			released = true
 	check(released, "the sprite you carried is released where you swapped")
 
