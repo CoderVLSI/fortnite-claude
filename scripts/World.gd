@@ -108,6 +108,8 @@ var _last_waiting := true
 
 
 func _ready() -> void:
+	if "--server" in OS.get_cmdline_args() and not (Net.dedicated and Net.in_match):
+		return                              # a dedicated server starts in Server.tscn (Net.gd switches to it); only a running match builds the island
 	add_to_group("world")
 	net_match = Net.active and Net.in_match
 	rng.seed = SEED
@@ -1672,7 +1674,25 @@ func _spawn_fighters() -> void:
 		_spawn_order.append(bot)
 		bot.rotation.y = rng.randf() * TAU
 		bot.connect("died", self, "_on_fighter_died")
+	if player == null:
+		_make_ghost_player()               # a dedicated server has nobody of its own, but the rest of the game expects a `player`
 	_assign_teams()
+
+
+# The dedicated server's stand-in for a local player: not a fighter, not drawn, never moves.
+func _make_ghost_player() -> void:
+	player = Player.new()
+	player.name = "Ghost"
+	player.map_half = MAP_HALF - 4.0
+	add_child(player)
+	player.translation = Vector3(0, -400, 0)
+	player.remove_from_group("fighters")
+	player.remove_from_group("player")
+	player.input_enabled = false
+	player.collision_layer = 0
+	player.collision_mask = 0
+	player.visible = false
+	player.set_physics_process(false)
 
 
 func _start_bus() -> void:
@@ -1827,7 +1847,38 @@ func _audio_process(delta: float) -> void:
 		Audio.music(want, 2.0)
 
 
+var _server_t := 0.0
+var _server_end_t := -1.0
+var _server_age := 0.0
+
+
+# Dedicated server: decide when the match is over (a winner, nobody human left, or everybody gone) and send everyone home.
+func _server_rules(delta: float) -> void:
+	_server_age += delta
+	if _server_end_t >= 0.0:
+		_server_end_t -= delta
+		if _server_end_t <= 0.0:
+			_server_end_t = -1.0
+			Net.server_end_match()
+			get_tree().change_scene("res://scenes/Server.tscn")
+		return
+	_server_t -= delta
+	if _server_t > 0.0:
+		return
+	_server_t = 1.0
+	var humans_alive := 0
+	for r in get_tree().get_nodes_in_group("remote_players"):
+		if not r.is_dead:
+			humans_alive += 1
+	var done: bool = alive_teams() <= 1 or Net.members.empty() or (humans_alive == 0 and _server_age > 25.0)
+	if done:
+		_server_end_t = 10.0 if not Net.members.empty() else 0.5
+		print("SERVER match over (humans alive %d, teams %d)" % [humans_alive, alive_teams()])
+
+
 func _process(delta: float) -> void:
+	if Net.dedicated and net_live:
+		_server_rules(delta)
 	_weak_tick(delta)
 	_ping_tick(delta)
 	if net_live:
@@ -1887,8 +1938,8 @@ func _on_fighter_died(victim, killer) -> void:
 	if team_size > 1 and victim.team >= 0 and not victim.has_meta("left") and not ("is_boss" in victim and victim.is_boss) and allies_alive(victim):
 		_spawn_card(victim)              # a team-mate can carry this to a Reboot Van
 
-	if match_over:
-		return
+	if match_over or Net.dedicated:
+		return                               # (a dedicated server decides the end of a match in _server_rules)
 	var teams := alive_teams()
 	if player.is_dead and not allies_alive(player):
 		match_over = true
@@ -1965,7 +2016,8 @@ func _net_process(delta: float) -> void:
 	_net_pose_t -= delta
 	if _net_pose_t <= 0.0:
 		_net_pose_t = 1.0 / 15.0
-		Net.send_pose(player.net_pack())
+		if not Net.dedicated:
+			Net.send_pose(player.net_pack())
 	_net_veh_t -= delta
 	if _net_veh_t <= 0.0:
 		_net_veh_t = 1.0 / 15.0

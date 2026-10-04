@@ -1738,7 +1738,7 @@ func start_game() -> void:
 	Audio.set_paused(false)
 	if world != null:
 		world.on_game_started()
-	if not Controls.touch_mode and not ("--no-capture" in OS.get_cmdline_args()):
+	if not Controls.touch_mode and not ("--no-capture" in OS.get_cmdline_args()) and not Net.dedicated:
 		Controls.capture_mouse(true)
 
 

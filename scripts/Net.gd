@@ -19,12 +19,15 @@ signal match_starting                # the host started the match: load the worl
 signal match_go                      # all worlds are built: start now
 signal games_found                   # LAN discovery list changed
 signal invited(ip, host_name, port)  # a friend invited us to their party
+signal probe_done                    # the server status query finished: see probe_results
 signal queue_changed                 # the leader queued up (or cancelled): everybody sees the same countdown
 
-const VERSION := "storm-island-lan-2"
+const VERSION := "storm-island-net-1"
 const PORT := 7777
 const DISCOVERY_PORT := 7778
-const MAX_PLAYERS := 8
+const MAX_PLAYERS := 8              # a player-hosted party
+const SERVER_MAX_PLAYERS := 16       # a dedicated server
+const STATUS_PORT_OFFSET := 1000     # a dedicated server answers "how full are you?" queries on port + this
 const TOTAL_FIGHTERS := 50           # humans + bots
 const QUEUE_SECONDS := 3.0           # the shared "match starting" countdown after the leader presses PLAY
 
@@ -43,6 +46,12 @@ var peer_ips := {}                   # peer id -> address (host side)
 var _joined_ip := ""
 var sessions := {}                   # LAN discovery: ip -> {"name", "players", "port", "seen"}
 var last_error := ""
+var dedicated := false               # this process is a dedicated server: no local player, everybody is a remote player
+var max_players := MAX_PLAYERS
+var room_code := ""                  # dedicated: the private room code ("" = a public lobby)
+var room_leader := 0                 # dedicated private room: the peer that created it (only they can start)
+var instance_index := 0              # dedicated: which of the consecutive ports this server is
+var server_port := PORT
 var queue_left := -1.0               # seconds until the match starts for the whole party (-1 = not queueing)
 
 var _peer: NetworkedMultiplayerENet
@@ -57,6 +66,8 @@ var _loot_seq := 0
 
 func _ready() -> void:
 	pause_mode = Node.PAUSE_MODE_PROCESS          # the lobby / party menus pause the tree: discovery, announcing and RPCs must keep running
+	if "--server" in OS.get_cmdline_args():
+		call_deferred("_boot_server")
 	var tree := get_tree()
 	tree.connect("network_peer_connected", self, "_on_peer_connected")
 	tree.connect("network_peer_disconnected", self, "_on_peer_disconnected")
@@ -65,7 +76,12 @@ func _ready() -> void:
 	tree.connect("server_disconnected", self, "_on_server_disconnected")
 
 
+func _boot_server() -> void:
+	get_tree().change_scene("res://scenes/Server.tscn")
+
+
 func _process(delta: float) -> void:
+	_poll_status()
 	if queue_left >= 0.0:
 		queue_left -= delta
 		if queue_left < 0.0:
@@ -138,6 +154,50 @@ func host_game(player_name: String, loadout: Dictionary, port: int = PORT) -> St
 	return ""
 
 
+# A dedicated server: nobody in the party list is "me". Clients connect with join_game(); the server decides when matches start.
+func host_dedicated(port: int = PORT, instance: int = 0) -> String:
+	leave("")
+	_peer = NetworkedMultiplayerENet.new()
+	var err := _peer.create_server(port, SERVER_MAX_PLAYERS - 1)
+	if err != OK:
+		_peer = null
+		return "Could not open port %d." % port
+	get_tree().network_peer = _peer
+	active = true
+	is_host = true
+	dedicated = true
+	in_match = false
+	my_id = 1
+	max_players = SERVER_MAX_PLAYERS
+	instance_index = instance
+	server_port = port
+	_my_name = "SERVER"
+	members = {}
+	room_code = ""
+	room_leader = 0
+	_open_status(port + STATUS_PORT_OFFSET)
+	return ""
+
+
+# "ABCDEFGH" instance letter + 4 characters, e.g. "C7QX2": the letter says which server instance (port) the room lives on.
+func _new_room_code() -> String:
+	var alphabet := "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+	var rr := RandomNumberGenerator.new()
+	rr.randomize()
+	var s := char(65 + clamp(instance_index, 0, 25))
+	for i in range(4):
+		s += alphabet[rr.randi() % alphabet.length()]
+	return s
+
+
+static func instance_of_code(code: String) -> int:
+	code = code.strip_edges().to_upper()
+	if code.length() < 2:
+		return -1
+	var c := code.ord_at(0) - 65
+	return c if c >= 0 and c < 26 else -1
+
+
 func join_game(ip: String, player_name: String, loadout: Dictionary, port: int = PORT) -> String:
 	leave("")
 	if ip.strip_edges() == "":
@@ -154,6 +214,7 @@ func join_game(ip: String, player_name: String, loadout: Dictionary, port: int =
 	_my_name = player_name
 	_my_loadout = loadout.duplicate()
 	_joined_ip = ip.strip_edges()
+	dedicated = false
 	return ""
 
 
@@ -182,6 +243,12 @@ func leave(reason: String = "") -> void:
 	is_host = false
 	in_match = false
 	queue_left = -1.0
+	dedicated = false
+	room_code = ""
+	room_leader = 0
+	join_code = ""
+	_close_status()
+	max_players = MAX_PLAYERS
 	members = {}
 	order = []
 	peer_ips = {}
@@ -190,6 +257,85 @@ func leave(reason: String = "") -> void:
 	_ready_peers = {}
 	if was:
 		emit_signal("left", reason)
+
+
+# ------------------------------------------------------------------ server status (dedicated server side + client probe)
+
+var _status_udp: PacketPeerUDP
+var probe_results := []              # [{ip, port, players, max, in_match, private, instance}]
+var _probe_udp: PacketPeerUDP
+var _probe_left := 0.0
+var _probe_ports := {}
+
+
+func _open_status(port: int) -> void:
+	_close_status()
+	_status_udp = PacketPeerUDP.new()
+	if _status_udp.listen(port, "*") != OK:
+		_status_udp = null
+
+
+func _close_status() -> void:
+	if _status_udp != null:
+		_status_udp.close()
+		_status_udp = null
+
+
+func _poll_status() -> void:
+	if _status_udp != null:
+		while _status_udp.get_available_packet_count() > 0:
+			var text := _status_udp.get_packet().get_string_from_utf8()
+			var ip := _status_udp.get_packet_ip()
+			var port := _status_udp.get_packet_port()
+			if text.begins_with("SQ") and ip != "":
+				_status_udp.set_dest_address(ip, port)
+				_status_udp.put_packet(("SS|%s|%d|%d|%d|%d|%d|%d" % [VERSION, members.size(), max_players, 1 if in_match else 0,
+					1 if room_code != "" else 0, instance_index, server_port]).to_utf8())
+	if _probe_udp != null:
+		while _probe_udp.get_available_packet_count() > 0:
+			var text2 := _probe_udp.get_packet().get_string_from_utf8()
+			var ip2 := _probe_udp.get_packet_ip()
+			var parts := text2.split("|")
+			if parts.size() >= 8 and parts[0] == "SS" and parts[1] == VERSION:
+				probe_results.append({"ip": ip2, "port": int(parts[7]), "players": int(parts[2]), "max": int(parts[3]), "in_match": parts[4] == "1",
+					"private": parts[5] == "1", "instance": int(parts[6])})
+		_probe_left -= get_process_delta_time()
+		if _probe_left <= 0.0 or probe_results.size() >= _probe_ports.size():
+			_probe_udp.close()
+			_probe_udp = null
+			emit_signal("probe_done")
+
+
+# Ask the servers on host:base_port ... base_port+count-1 how full they are (results arrive in probe_results, then probe_done).
+func probe_servers(host: String, base_port: int, count: int) -> void:
+	probe_results = []
+	_probe_ports = {}
+	if _probe_udp != null:
+		_probe_udp.close()
+	_probe_udp = PacketPeerUDP.new()
+	for i in range(count):
+		_probe_udp.set_dest_address(host, base_port + i + STATUS_PORT_OFFSET)
+		_probe_udp.put_packet("SQ".to_utf8())
+		_probe_ports[base_port + i] = true
+	_probe_left = 1.6
+
+
+# Quick Play: the best public server from the last probe (a lobby that already has people, else an idle one); {} if none.
+func best_public_server() -> Dictionary:
+	var best := {}
+	for r in probe_results:
+		if r.in_match or r.private or r.players >= r.max:
+			continue
+		if best.empty() or r.players > best.players:
+			best = r
+	return best
+
+
+func idle_server() -> Dictionary:
+	for r in probe_results:
+		if not r.in_match and not r.private and r.players == 0:
+			return r
+	return {}
 
 
 func _start_announce() -> void:
@@ -255,6 +401,13 @@ func _on_peer_disconnected(id: int) -> void:
 		var nm: String = members[id].name
 		members.erase(id)
 		order.erase(id)
+		if is_host and dedicated and id == room_leader:
+			room_leader = 0
+			for other in members:
+				room_leader = other                  # the next player takes over the room
+				break
+			if room_code != "":
+				rpc("_room_info", room_code, room_leader)
 		if is_host:
 			rpc("_party_update", members)
 			if is_queueing() and not in_match:
@@ -266,9 +419,12 @@ func _on_peer_disconnected(id: int) -> void:
 			_check_ready()
 
 
+var join_code := ""                  # what to tell the server when we connect: "" (quick play), "NEW" (make a private room) or a room code
+
+
 func _on_connected_to_server() -> void:
 	my_id = get_tree().get_network_unique_id()
-	rpc_id(1, "_hello", VERSION, _my_name, _my_loadout)
+	rpc_id(1, "_hello", VERSION, _my_name, _my_loadout, join_code)
 
 
 func _on_connection_failed() -> void:
@@ -280,10 +436,16 @@ func _on_server_disconnected() -> void:
 	leave("The host left the game.")
 
 
-remote func _hello(version: String, player_name: String, loadout: Dictionary) -> void:
+remote func _hello(version: String, player_name: String, loadout: Dictionary, code: String = "") -> void:
 	if not is_host:
 		return
 	var id := get_tree().get_rpc_sender_id()
+	if dedicated:
+		var why := _dedicated_admit(code)
+		if why != "":
+			rpc_id(id, "_rejected", why)
+			_peer.disconnect_peer(id)
+			return
 	if version != VERSION:
 		rpc_id(id, "_rejected", "Version mismatch: you need the same build as the host (%s)." % VERSION)
 		_peer.disconnect_peer(id)
@@ -292,17 +454,66 @@ remote func _hello(version: String, player_name: String, loadout: Dictionary) ->
 		rpc_id(id, "_rejected", "A match is already in progress.")
 		_peer.disconnect_peer(id)
 		return
-	if members.size() >= MAX_PLAYERS:
+	if members.size() >= max_players:
 		rpc_id(id, "_rejected", "The party is full.")
 		_peer.disconnect_peer(id)
 		return
 	members[id] = {"name": player_name.substr(0, 14), "loadout": loadout, "ready": false}
+	if dedicated:
+		if code.to_upper() == "NEW":
+			room_code = _new_room_code()
+			room_leader = id
+		elif room_leader == 0 and room_code != "":
+			room_leader = id
 	if peer_ips.has(id):
 		Settings.add_recent(members[id].name, str(peer_ips[id]))
 	rpc("_party_update", members)
 	rpc_id(id, "_accepted")
 	rpc_id(id, "_set_team_size", team_size)
+	if dedicated:
+		rpc("_room_info", room_code, room_leader)
 	emit_signal("party_changed")
+
+
+# Dedicated server: may this newcomer come in? Returns "" or the reason they are turned away.
+func _dedicated_admit(code: String) -> String:
+	code = code.strip_edges().to_upper()
+	if in_match:
+		return "A match is already in progress here."
+	if code == "NEW":
+		if members.size() > 0 or room_code != "":
+			return "That server is busy. Try again."
+		return ""
+	if room_code != "":                          # a private room: only people who know the code
+		if code != room_code:
+			return "Wrong room code." if code != "" else "That room is private."
+		return ""
+	if code != "":
+		return "Room not found."
+	return ""
+
+
+remote func _room_info(code: String, leader: int) -> void:
+	room_code = code
+	room_leader = leader
+	emit_signal("party_changed")
+
+
+func is_room_leader() -> bool:
+	return room_leader == my_id and room_leader != 0
+
+
+# A private room's leader (not the server) presses PLAY.
+func request_queue() -> void:
+	if not active or is_host or in_match:
+		return
+	rpc_id(1, "_req_queue")
+
+
+remote func _req_queue() -> void:
+	var id := get_tree().get_rpc_sender_id()
+	if is_host and dedicated and not in_match and room_code != "" and id == room_leader:
+		queue_up()
 
 
 remote func _rejected(reason: String) -> void:
@@ -462,6 +673,31 @@ func _check_ready() -> void:
 
 remote func _go() -> void:
 	emit_signal("match_go")
+
+
+# Dedicated server: the match is over. Everybody is sent home, then the server goes back to an empty lobby.
+func server_end_match(reason: String = "The match is over.") -> void:
+	if not dedicated:
+		return
+	for id in members.keys():
+		rpc_id(id, "_bye", reason)
+	var ids := members.keys()
+	members = {}
+	order = []
+	in_match = false
+	handler = null
+	_ready_peers = {}
+	queue_left = -1.0
+	room_code = ""
+	room_leader = 0
+	for id in ids:
+		if _peer != null:
+			_peer.disconnect_peer(id)
+
+
+remote func _bye(reason: String) -> void:
+	if not is_host:
+		leave(reason)
 
 
 # Back to the party screen after a match (the host keeps the party).
