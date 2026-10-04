@@ -57,6 +57,7 @@ const FPS_CAPS := [0, 30, 60, 120, 144]
 var prefs := PREF_DEFAULTS.duplicate()
 var padbinds := {}                # action -> controller button (-1 = none); only the ones the player changed
 var keybinds := {}                # action -> [[type, code], ...]; only the actions the player changed
+var server_addr := ""             # the online server: "host", "host:7777" or "host:7777+4" (4 server instances on consecutive ports)
 var autostart := false            # runtime only: skip the title screen after "Play again"
 
 
@@ -69,6 +70,28 @@ func _ready() -> void:
 	filter = load("res://scripts/ColorFilter.gd").new()
 	add_child(filter)
 	apply_display()
+
+
+# The online server clients connect to: what the player typed, else the one baked into the build (res://server.cfg).
+func server_endpoint() -> Dictionary:
+	var text := server_addr.strip_edges()
+	if text == "":
+		var cfg := ConfigFile.new()
+		if cfg.load("res://server.cfg") == OK:
+			text = str(cfg.get_value("server", "addr", "")).strip_edges()
+	if text == "":
+		return {}
+	var count := 1
+	var port := 7777
+	if "+" in text:
+		var pc := text.split("+")
+		count = int(max(1, int(pc[1])))
+		text = pc[0]
+	if ":" in text:
+		var hp := text.split(":")
+		text = hp[0]
+		port = int(hp[1])
+	return {"host": text, "port": port, "count": count}
 
 
 func load_settings() -> void:
@@ -104,6 +127,7 @@ func load_settings() -> void:
 	if cfg.has_section("padbinds"):
 		for action in cfg.get_section_keys("padbinds"):
 			padbinds[action] = int(cfg.get_value("padbinds", action, -1))
+	server_addr = str(cfg.get_value("online", "server", server_addr))
 	player_name = str(cfg.get_value("profile", "name", player_name))
 	matches = int(cfg.get_value("profile", "matches", matches))
 	wins = int(cfg.get_value("profile", "wins", wins))
@@ -217,6 +241,7 @@ func save_settings() -> void:
 		cfg.set_value("prefs", k, prefs[k])
 	for action in padbinds:
 		cfg.set_value("padbinds", action, padbinds[action])
+	cfg.set_value("online", "server", server_addr)
 	cfg.set_value("profile", "name", player_name)
 	cfg.set_value("profile", "matches", matches)
 	cfg.set_value("profile", "wins", wins)

@@ -389,9 +389,17 @@ func stop_discovery(clear_want: bool = true) -> void:
 
 # ------------------------------------------------------------------ connection callbacks
 
+# Loading the island blocks a slow device (a phone) for many seconds, during which it cannot answer the network. ENet's default
+# timeout (a few seconds) then drops the player, so the other side starts without them. Allow a long silence while loading.
+func _relax_timeout(id: int) -> void:
+	if _peer != null:
+		_peer.set_peer_timeout(id, 64, 30000, 150000)
+
+
 func _on_peer_connected(id: int) -> void:
 	if is_host and _peer != null:
 		peer_ips[id] = _peer.get_peer_address(id)          # the newcomer says hello, then we add them
+		_relax_timeout(id)
 
 
 func _on_peer_disconnected(id: int) -> void:
@@ -424,6 +432,7 @@ var join_code := ""                  # what to tell the server when we connect: 
 
 func _on_connected_to_server() -> void:
 	my_id = get_tree().get_network_unique_id()
+	_relax_timeout(1)
 	rpc_id(1, "_hello", VERSION, _my_name, _my_loadout, join_code)
 
 
@@ -463,6 +472,7 @@ remote func _hello(version: String, player_name: String, loadout: Dictionary, co
 		if code.to_upper() == "NEW":
 			room_code = _new_room_code()
 			room_leader = id
+			members[id].ready = true                      # the leader counts as ready
 		elif room_leader == 0 and room_code != "":
 			room_leader = id
 	if peer_ips.has(id):

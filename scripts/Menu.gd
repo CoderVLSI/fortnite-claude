@@ -1011,8 +1011,15 @@ func party_show(view: String) -> void:
 		_party_view()
 		return
 	party_view = "home"
+	if party_tab == "":
+		party_tab = "online" if not Settings.server_endpoint().empty() else "lan"      # no server set up: start on the same-Wi-Fi page
 	_pt_label("PLAY WITH FRIENDS", 30, Vector2(24, 14), Color(1.0, 0.82, 0.25))
-	_pt_label("Same Wi-Fi / network. Everybody needs the same version of the game.", 14, Vector2(24, 54), Color(0.85, 0.9, 1.0))
+	var tab_online := _pt_button("ONLINE", Vector2(24, 52), Vector2(240, 34), "party_set_tab", ["online"])
+	var tab_lan := _pt_button("SAME WI-FI", Vector2(276, 52), Vector2(240, 34), "party_set_tab", ["lan"])
+	(tab_online if party_tab == "online" else tab_lan).disabled = true
+	if party_tab == "online":
+		_online_view()
+		return
 	_pt_button("HOST A GAME", Vector2(24, 92), Vector2(492, 58), "party_host")
 	_pt_label("OR JOIN A GAME", 15, Vector2(24, 172), Color(0.65, 0.78, 1.0))
 	var e := LineEdit.new()
@@ -1030,6 +1037,120 @@ func party_show(view: String) -> void:
 
 
 var _last_ip := ""
+var party_tab := ""             # "" = decide when first shown; "online" (a dedicated server) or "lan" (a game on your own network)
+var _online_busy := false
+var _online_action := ""        # what the probe is for: "quick", "create" or "code"
+var _online_code := ""
+
+
+func party_set_tab(which: String) -> void:
+	party_tab = which
+	party_show("home")
+
+
+# ONLINE: Quick Play / private room on a dedicated server (Settings.server_addr or the server baked into the build).
+func _online_view() -> void:
+	var ep: Dictionary = Settings.server_endpoint()
+	_pt_label("Play with anybody, or with friends using a room code. Same version needed.", 14, Vector2(24, 94), Color(0.85, 0.9, 1.0))
+	_pt_button("QUICK PLAY", Vector2(24, 124), Vector2(492, 62), "online_quick")
+	_pt_label("PRIVATE ROOM (friends only)", 15, Vector2(24, 206), Color(0.65, 0.78, 1.0))
+	_pt_button("CREATE A ROOM", Vector2(24, 232), Vector2(492, 50), "online_create")
+	var e := LineEdit.new()
+	e.rect_position = Vector2(24, 296)
+	e.rect_size = Vector2(340, 46)
+	e.placeholder_text = "room code, e.g. A7QX2"
+	e.max_length = 6
+	party_body.add_child(e)
+	party_fields["code"] = e
+	_pt_button("JOIN ROOM", Vector2(376, 296), Vector2(140, 46), "online_join_code")
+	_pt_label("SERVER", 15, Vector2(24, 372), Color(0.65, 0.78, 1.0))
+	var se := LineEdit.new()
+	se.rect_position = Vector2(24, 398)
+	se.rect_size = Vector2(340, 46)
+	se.placeholder_text = "server address, e.g. play.example.com:7777+4"
+	se.text = Settings.server_addr
+	party_body.add_child(se)
+	party_fields["server"] = se
+	_pt_button("SAVE", Vector2(376, 398), Vector2(140, 46), "online_save_server")
+	var hint := "Connects to %s" % ep.host if not ep.empty() else "No server set yet: ask whoever runs the game's server for its address."
+	_pt_label(hint, 14, Vector2(24, 452), Color(0.7, 0.75, 0.9))
+	party_error = _pt_label("", 15, Vector2(24, 566), Color(1.0, 0.45, 0.4))
+
+
+func online_save_server() -> void:
+	Settings.server_addr = party_fields["server"].text.strip_edges()
+	Settings.save_settings()
+	if party_error != null:
+		party_error.text = "Saved."
+		party_error.add_color_override("font_color", Color(0.6, 1.0, 0.7))
+
+
+func _online_say(text: String, bad: bool = true) -> void:
+	if party_error != null:
+		party_error.text = text
+		party_error.add_color_override("font_color", Color(1.0, 0.45, 0.4) if bad else Color(0.8, 0.9, 1.0))
+
+
+func _online_probe(action: String, code: String = "") -> void:
+	if _online_busy:
+		return
+	var ep: Dictionary = Settings.server_endpoint()
+	if ep.empty():
+		_online_say("No server address yet. Type it below and press SAVE.")
+		return
+	_online_busy = true
+	_online_action = action
+	_online_code = code
+	_online_say("Looking for a server...", false)
+	if not Net.is_connected("probe_done", self, "_on_probe_done"):
+		Net.connect("probe_done", self, "_on_probe_done")
+	Net.probe_servers(ep.host, ep.port, ep.count)
+
+
+func online_quick() -> void:
+	_online_probe("quick")
+
+
+func online_create() -> void:
+	_online_probe("create")
+
+
+func online_join_code() -> void:
+	var code: String = party_fields["code"].text.strip_edges().to_upper()
+	if Net.instance_of_code(code) < 0 or code.length() < 5:
+		_online_say("That does not look like a room code (5 letters / numbers).")
+		return
+	_online_probe("code", code)
+
+
+func _on_probe_done() -> void:
+	if not _online_busy:
+		return
+	_online_busy = false
+	var ep: Dictionary = Settings.server_endpoint()
+	var target := {}
+	var code := ""
+	match _online_action:
+		"quick":
+			target = Net.best_public_server()
+			if target.empty():
+				target = Net.idle_server()
+		"create":
+			target = Net.idle_server()
+			code = "NEW"
+		"code":
+			var idx: int = Net.instance_of_code(_online_code)
+			for r in Net.probe_results:
+				if r.instance == idx:
+					target = r
+			code = _online_code
+	if target.empty():
+		_online_say("No server answered." if Net.probe_results.empty() else ("That room was not found." if _online_action == "code" else "All servers are busy right now. Try again in a minute."))
+		return
+	_online_say("Connecting...", false)
+	var err := Net.join_game(ep.host, Settings.player_name, Settings.loadout, target.port, code)
+	if err != "":
+		_online_say(err)
 
 
 func _games_list() -> void:
@@ -1066,6 +1187,10 @@ func _party_view() -> void:
 	if Net.is_host:
 		var addr := "  /  ".join(Net.local_addresses())
 		_pt_label("You are hosting.  Friends join with:  %s   (port %d)" % [addr if addr != "" else "your IP", Net.PORT], 14, Vector2(24, 54), Color(0.85, 0.9, 1.0))
+	elif Net.room_code != "":
+		_pt_label("PRIVATE ROOM  %s   -  share this code with your friends" % Net.room_code, 17, Vector2(24, 54), Color(1.0, 0.9, 0.4))
+	elif not Net.members.has(1):
+		_pt_label("Online lobby: press READY. The match starts when everybody is ready (bots fill the rest).", 14, Vector2(24, 54), Color(0.85, 0.9, 1.0))
 	else:
 		_pt_label("Connected. Press READY, then the party leader starts the match for everybody.", 14, Vector2(24, 54), Color(0.85, 0.9, 1.0))
 	var y := 96.0
@@ -1086,6 +1211,8 @@ func _party_view() -> void:
 	party_error = _pt_label("", 15, Vector2(24, 520), Color(1.0, 0.45, 0.4))
 	if Net.is_host:
 		_pt_button("QUEUE UP" if not Net.is_queueing() else "CANCEL", Vector2(24, 460), Vector2(492, 56), "party_start")
+	elif Net.is_room_leader():
+		_pt_button("START MATCH", Vector2(24, 460), Vector2(492, 56), "party_start")
 	else:
 		_pt_button("NOT READY" if Net.my_ready() else "READY", Vector2(24, 460), Vector2(492, 56), "party_ready")
 	_pt_button("LEAVE PARTY", Vector2(24, 536), Vector2(492, 52), "party_leave")
@@ -1120,6 +1247,10 @@ func party_join_ip(ip: String, port: int) -> void:
 
 
 func party_start() -> void:
+	if Net.active and not Net.is_host:
+		Net.request_queue()                       # a private room's leader on a dedicated server
+		party_show("party")
+		return
 	if Net.is_queueing():
 		Net.cancel_queue()
 	else:
@@ -1686,6 +1817,9 @@ func _refresh_play_button() -> void:
 		var n: int = Net.members.size()
 		play_button.text = "PLAY" if n <= 1 else "QUEUE UP  (%d/%d ready)" % [Net.ready_count(), n]
 		play_button.disabled = false
+	elif Net.is_room_leader():
+		play_button.text = "START MATCH  (%d/%d ready)" % [Net.ready_count(), Net.members.size()]
+		play_button.disabled = false
 	else:
 		play_button.text = "NOT READY" if Net.my_ready() else "READY"
 		play_button.disabled = false
@@ -1800,6 +1934,8 @@ func _on_button(id: String) -> void:
 						Net.cancel_queue()
 					else:
 						Net.queue_up()                       # the leader's PLAY queues the whole party
+				elif Net.is_room_leader():
+					Net.request_queue()                      # the leader of a private room on a server
 				else:
 					Net.set_ready(not Net.my_ready())        # a member's PLAY is READY
 				_refresh_lobby()

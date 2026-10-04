@@ -183,6 +183,8 @@ func _ready() -> void:
 	hud.root.visible = false
 	if net_match:
 		Settings.autostart = false
+		if not Net.is_connected("left", self, "_on_net_left"):
+			Net.connect("left", self, "_on_net_left", [], CONNECT_ONESHOT)     # also while we are still waiting for the others
 		Net.connect("match_go", self, "_on_net_go", [], CONNECT_ONESHOT)
 		menu.show_waiting("WAITING FOR THE OTHER PLAYERS...")
 		Net.world_ready(self)
@@ -1876,9 +1878,17 @@ func _server_rules(delta: float) -> void:
 		print("SERVER match over (humans alive %d, teams %d)" % [humans_alive, alive_teams()])
 
 
+var _wait_t := 0.0
+
+
 func _process(delta: float) -> void:
 	if Net.dedicated and net_live:
 		_server_rules(delta)
+	if net_match and not net_live and Net.active:          # waiting for the other players: never wait for ever
+		_wait_t += delta
+		if _wait_t > 180.0:
+			_wait_t = -1.0e9
+			Net.leave("The other players did not finish loading.")
 	_weak_tick(delta)
 	_ping_tick(delta)
 	if net_live:
@@ -1980,7 +1990,8 @@ func _record_match(victory: bool, placement: int) -> void:
 
 func _on_net_go() -> void:
 	net_live = true
-	Net.connect("left", self, "_on_net_left", [], CONNECT_ONESHOT)
+	if not Net.is_connected("left", self, "_on_net_left"):
+		Net.connect("left", self, "_on_net_left", [], CONNECT_ONESHOT)
 	menu.start_game()
 
 
