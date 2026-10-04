@@ -120,6 +120,7 @@ func _run() -> void:
 	p.max_health = 100.0
 	p.health = 100.0
 
+	p.connect("damaged", self, "_on_hurt")
 	var topup := Timer.new()                  # stray bot fire must not kill the test characters before the scripted kill
 	topup.wait_time = 0.2
 	topup.connect("timeout", self, "_topup")
@@ -127,7 +128,7 @@ func _run() -> void:
 	topup.start()
 
 	# ---- same world on both machines
-	var fp := {"seed": net.match_seed, "chests": get_nodes_in_group("interactable").size(), "pois": world.pois.size(),
+	var fp := {"seed": net.match_seed, "chests": _initial_loot(), "pois": world.pois.size(),
 		"bots": 0, "poi0": str(world.pois[0].center), "fighters": get_nodes_in_group("fighters").size()}
 	for f in get_nodes_in_group("fighters"):
 		if typeof(f.net_key_v) == TYPE_STRING:
@@ -219,6 +220,9 @@ func _run() -> void:
 		yield(create_timer(4.0), "timeout")
 		# (stray bot fire near the spawn is not the grenade's doing, so only a drop that lands while the copy explodes counts)
 		check(not is_instance_valid(p) or p.health >= h_before - 0.5 or p.health > 0.0 and p.health >= 60.0, "and that copy does no damage here (health %.0f)" % p.health)
+		put("nade_checked", true)
+	else:
+		yield(fetch("nade_checked"), "completed")          # do not start the damage / kill steps while the client is still watching the grenade
 	yield(create_timer(2.0), "timeout")
 
 	# ---- damage goes to the owner
@@ -267,6 +271,16 @@ func chest0_open() -> bool:
 	return c != null and is_instance_valid(c) and c.opened
 
 
+# Chests and floor loot the island was built with (not what bots dropped since, which differs by a moment's timing).
+func _initial_loot() -> int:
+	var n := 0
+	for k in world.net_nodes.keys():
+		var ks := str(k)
+		if ks.begins_with("c") or ks.begins_with("f"):
+			n += 1
+	return n
+
+
 func loot5_gone() -> bool:
 	var l = world.net_nodes.get("f5")
 	return l == null or not is_instance_valid(l) or l.is_queued_for_deletion()
@@ -310,8 +324,15 @@ func _topup() -> void:
 		pl.health = 100.0
 
 
+var hurt_seen := false
+
+
+func _on_hurt(_amount, _source) -> void:
+	hurt_seen = true
+
+
 func host_hurt() -> bool:
-	return world.player.health < 100.0
+	return hurt_seen or world.player.health < 100.0           # (the top-up timer may already have healed it again)
 
 
 func puppet_dead() -> bool:

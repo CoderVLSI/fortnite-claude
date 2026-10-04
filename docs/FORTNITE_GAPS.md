@@ -23,7 +23,7 @@ Effects", Turbo Building, weapon and item lists). Storm Island is an original ga
 | Accessibility | Visualize sound effects, reticle options, HUD scale, toggle sprint... | **Added**: visualize sound effects, crosshair colour / size, toggle sprint / crouch, FOV, ADS sensitivity, low health / ammo warnings, rumble, button size; **colour-blind modes (3) with strength, HUD size slider** |
 | Controller | Full gamepad | Auto-detected Xbox / PlayStation / Switch pads, remappable, menu navigation |
 | Phone | Full touch HUD | Touch HUD, auto run, auto fire, edit button, ping, emote, 6-slot hotbar |
-| Social | Friends, party, invites | LAN party, friends (saved name + IP), invites, recent players; no internet matchmaking |
+| Social | Friends, party, invites, queue together | LAN / IP party, friends (saved name + IP), invites, recent players, **party card + READY for members, leader presses PLAY to queue the whole party with one shared countdown, your party stands beside you in the lobby**; no internet matchmaking |
 | Locker | Skins, pickaxes, back blings, gliders, contrails, emotes | All of those, plus Sprites as companions |
 | Progression | Battle Pass, quests, XP | Level and stats per account (local), **12+ quests from Keepers (gold + XP)**; no battle pass |
 | World life | NPCs, wildlife, vehicles with fuel, trains, weather | Boss, wild Sprites, **Keeper NPCs, chickens and boars (Roast Meat), vehicles with fuel + pumps, rain storms**. No trains |
@@ -41,7 +41,7 @@ Effects", Turbo Building, weapon and item lists). Storm Island is an original ga
 
 ## How it is tested
 
-`tools/run_all_tests.sh` (headless suites), `tools/run_net_test.sh` (two-process LAN test), and `tools/run_soak.sh`: exports the **native
+`tools/run_all_tests.sh` (headless suites), `tools/run_net_test.sh` (two-process LAN test), `tools/run_net_team_test.sh` (party ready-up and queue, Duos, knock-down, revive, reboot card + van across the network), and `tools/run_soak.sh`: exports the **native
 Linux build** and lets a monkey player play whole matches in it (drops from the bus, glides, loots, fights, builds, heals, vaults,
 emotes, pings, opens the map / inventory / menus, changes settings, in solo and team modes) and reports frame times, node growth
 and any script errors.

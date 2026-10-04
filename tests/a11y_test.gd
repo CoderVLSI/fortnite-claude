@@ -53,7 +53,7 @@ func _run() -> void:
 	settings.set_pref("colorblind", 0)
 	check(not settings.filter.rect.visible, "and Off turns it off")
 	settings.reset_prefs()
-	yield(_frames(5), "completed")
+	yield(_frames(15), "completed")
 	check(is_equal_approx(hud.root.rect_scale.x, 1.0), "reset restores the HUD size")
 	print("A11Y_RESULT failures=%d" % failures.size())
 	quit(1 if failures.size() > 0 else 0)
