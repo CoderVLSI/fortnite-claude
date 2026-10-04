@@ -184,3 +184,8 @@ The APK is debug-signed. Make a release keystore before publishing.
 Multiplayer is peer to peer (UDP port 7777 on the host). To play with a friend who is not on your network, either put both PCs on
 a free virtual LAN (**Tailscale** or **ZeroTier**, then join the host's virtual IP from the FRIENDS tab) or forward UDP 7777 on the
 host's router and join the router's public IP. A relay server (no setup) is on the wish list in `docs/FORTNITE_GAPS.md`.
+
+
+## Added overnight (Oct 2026)
+* 1 km island, 28 named places, **100 fighters per match**, keycard **vaults** guarded by three Wardens, Zero Build mode (lobby toggle), four more weapons (Tactical Shotgun, Revolver, Semi-Auto Sniper, Grenade Launcher), aim assist for phones and controllers, weapon bloom, Fortnite healing times, storm pace setting, server-side anti-cheat (`scripts/Guard.gd`) and deployable dedicated servers (`docs/SERVER.md`).
+* New tests: `vault_test`, `zerobuild_test`, `weapons2_test`, `assist_test`, `guard_test`; `TEST=server_cheat_test tools/run_server_test.sh` runs a cheating client against a real server.

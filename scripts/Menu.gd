@@ -14,12 +14,13 @@ const FONT_PATH := "res://assets/fonts/DejaVuSans-Bold.ttf"
 const HELP_PC := "Move: WASD        Look: mouse        Fire: left click        Aim / scope: right click\nJump / handbrake: Space        Sprint: Shift        Reload / horn: R\nPick up / swap / open / enter vehicle: E        Inventory: Tab  (X drops)        Build: Q toggles, Z X C V = wall / floor / ramp / roof, wheel = material\nItems: 1-5 or wheel, F = pickaxe        Map: M        Emote: B        Crouch / slide: Ctrl        Pause: Esc  (all keys can be changed in Settings > Controls)"
 const HELP_TOUCH := "Left thumb: move    Right side: look    FIRE / JUMP / SPRINT buttons, scope button to aim down sights\nPICK UP appears next to loot, chests and vehicles    BUILD toggles building\nTap the hotbar to switch items, the bag button for the inventory    Tap the minimap for the island map"
 const HELP_PAD := "Xbox / PlayStation / Switch pads work as soon as they are connected:  left stick move, right stick look, RT fire, LT aim, A jump, B crouch\nX reload / pick up, Y build mode, D-Pad = wall / floor / ramp / roof, LB RB switch item (or material), L3 sprint, R3 edit, View = inventory, Menu = pause\nIn menus: D-Pad / stick + A to choose, B to go back, LB RB change tab   (Settings > Controls shows the controller and lets you remap every button)"
-const HELP_GOAL := "Ride the Sky Ferry, jump, glide down and loot.  Fight bots, stay inside the shrinking storm,\ndrive vehicles, swim, climb ledges, take on the Warden at Iron Bunker for Mythic loot.\nBe the last one standing."
+const HELP_GOAL := "Ride the Sky Ferry, jump, glide down and loot.  Fight bots, stay inside the shrinking storm,\ndrive vehicles, swim, climb ledges, beat a Warden for his vault keycard and open a vault for Mythic loot.\nBe the last one standing."
 
 const TIPS := [
 	"Land away from the crowd, then loot up before the first storm circle.",
 	"Pickaxe trees, rocks and buildings to gather wood, stone and metal for building.",
-	"Mythic weapons are rare: the Warden at Iron Bunker carries one.",
+	"Three Wardens guard Iron Bunker, The Bureau and Stealth Stronghold. Each drops a vault keycard and carries a Mythic.",
+	"A keycard opens one vault door: three Mythic chests wait inside. Vaults show on the map (M).",
 	"Ramps beat walls: build up to the high ground before you shoot.",
 	"Boats and the buggy get you across the island faster than running.",
 	"Shield potions stack on top of your health: pop one before every fight.",
