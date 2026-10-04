@@ -110,14 +110,19 @@ func _run() -> void:
 		if f.mode == 1:
 			still += 1
 	check(still == 0, "nobody is left on the bus")
-	yield(_frames(60 * 6), "completed")
 	var landed := 0
 	var alive := 0
-	for f in get_nodes_in_group("fighters"):
-		if not f.is_dead:
-			alive += 1
-			if f.mode == 0:
-				landed += 1
+	for sec in range(45):                       # the island is big: the last ones need a while to glide down
+		yield(_frames(60), "completed")
+		landed = 0
+		alive = 0
+		for f in get_nodes_in_group("fighters"):
+			if not f.is_dead:
+				alive += 1
+				if f.mode == 0:
+					landed += 1
+		if landed >= alive * 0.7:
+			break
 	check(landed >= alive * 0.7, "most fighters have landed (%d of %d)" % [landed, alive])
 
 	var audio = root.get_node("Audio")

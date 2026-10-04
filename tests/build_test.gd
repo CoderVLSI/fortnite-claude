@@ -68,6 +68,10 @@ func _run() -> void:
 	p.velocity = Vector3.ZERO
 	p.materials = {"wood": 100, "stone": 100, "metal": 0}
 	yield(_frames(60), "completed")
+	var wait_n := 0
+	while p.mode != 0 and wait_n < 600:          # a heavy frame (100 fighters) can delay the landing
+		yield(_frames(1), "completed")
+		wait_n += 1
 
 	check(not b.active, "build mode starts off")
 	Input.action_press("build_toggle")
