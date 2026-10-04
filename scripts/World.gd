@@ -214,6 +214,7 @@ func on_game_started() -> void:
 		for poi in pois:
 			if poi.def.has("boss"):
 				hud.add_feed("A Warden guards %s - he carries a vault keycard!" % poi.name.capitalize(), Color(1.0, 0.45, 0.15))
+		Audio.play2d("warden_spawn", -6.0)
 
 
 func apply_quality() -> void:
@@ -1745,6 +1746,7 @@ func _start_bus() -> void:
 	add_child(bus)
 	bus.setup(start, dir, BUS_LENGTH)
 	bus.connect("finished", self, "_on_bus_finished")
+	Audio.play2d("bus_horn_far", -8.0)
 	for f in get_tree().get_nodes_in_group("fighters"):
 		if "is_boss" in f and f.is_boss:
 			continue
@@ -1919,7 +1921,30 @@ func _server_rules(delta: float) -> void:
 var _wait_t := 0.0
 
 
+var _far_fire_t := 8.0
+var _last_alive_mark := 101
+
+
+# Far-off fighting you can hear but not see: one faint volley now and then from a bot in a fight beyond 150 m.
+func _far_fire_tick(delta: float) -> void:
+	_far_fire_t -= delta
+	if _far_fire_t > 0.0 or player == null or Net.dedicated:
+		return
+	_far_fire_t = rand_range(5.0, 12.0)
+	var here: Vector3 = player.global_transform.origin
+	var pool := []
+	for f in get_tree().get_nodes_in_group("fighters"):
+		if f != player and not f.is_dead and "target" in f and f.target != null:
+			var d: float = f.global_transform.origin.distance_to(here)
+			if d > 150.0 and d < 600.0:
+				pool.append(f)
+	if not pool.empty():
+		var f = pool[randi() % pool.size()]
+		Audio.play3d("distant_gunfire_" + ["a", "b", "c"][randi() % 3], f.global_transform.origin, -2.0, rand_range(0.92, 1.08))
+
+
 func _process(delta: float) -> void:
+	_far_fire_tick(delta)
 	if Net.dedicated and net_live:
 		_server_rules(delta)
 	if net_match and not net_live and Net.active:          # waiting for the other players: never wait for ever
@@ -1981,6 +2006,12 @@ func _on_fighter_died(victim, killer) -> void:
 			color = Color(1.0, 0.45, 0.4)
 	if hud:
 		hud.add_feed(text, color)
+	if "is_boss" in victim and victim.is_boss:
+		Audio.play3d("warden_down", victim.global_transform.origin + Vector3(0, 1.0, 0), 2.0)
+	for mark in [75, 50, 25, 10]:                          # a soft tick when the counter passes these
+		if alive <= mark and _last_alive_mark > mark and not Net.dedicated:
+			Audio.play2d("players_left_ping", -6.0, 1.0 + (75 - mark) * 0.004)
+	_last_alive_mark = alive
 	if victim.net_owner == 0:
 		_drop_inventory(victim)          # puppets drop on the machine that owns them (the loot is sent to everyone)
 	if team_size > 1 and victim.team >= 0 and not victim.has_meta("left") and not ("is_boss" in victim and victim.is_boss) and allies_alive(victim):

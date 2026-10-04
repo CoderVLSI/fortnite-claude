@@ -164,6 +164,8 @@ func interact(by) -> void:
 	if not res.ok:
 		Audio.play2d("ui_error", -4.0)
 		return
+	if item.kind == "keycard":
+		Audio.play2d("keycard_pickup", 0.0)
 	Audio.play2d("ammo_pickup" if (item.kind == "ammo" or item.kind == "material" or item.kind == "gold") else "loot_pickup", -3.0)
 	var rar := Items.rarity_of(item)
 	if item.kind == "weapon" and rar >= 1:

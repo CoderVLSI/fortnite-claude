@@ -103,7 +103,7 @@ func prompt_color() -> Color:
 func interact(by) -> void:
 	if not ("keycards" in by) or by.keycards <= 0:
 		by.emit_signal("picked_up", "Locked - a Warden carries the keycard")
-		Audio.play2d("ui_error", -4.0)
+		Audio.play2d("keycard_deny", -2.0)
 		return
 	by.keycards -= 1
 	by.emit_signal("picked_up", "Vault unlocked!")
@@ -117,7 +117,9 @@ func open(_from_net := false) -> void:
 		return
 	opened = true
 	remove_from_group("interactable")
-	Audio.play3d("chest_open", global_transform.origin + Vector3(0, 1.0, 0), 2.0, 0.6)
+	Audio.play3d("vault_unlock", global_transform.origin + Vector3(0, 1.0, 0), 2.0)
+	Audio.play3d("vault_door", global_transform.origin + Vector3(0, 1.0, 0), 4.0)
+	Audio.play3d("vault_alarm", global_transform.origin + Vector3(0, 2.0, -3.0), -4.0)
 	_strip.material_override = _glow(Color(0.2, 1.0, 0.3))
 	var tween := Tween.new()
 	add_child(tween)
