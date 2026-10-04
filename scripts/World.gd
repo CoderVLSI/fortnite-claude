@@ -1037,6 +1037,9 @@ func _spawn_boss() -> void:
 		b.name = "Warden" if bosses.empty() else "Warden%d" % (bosses.size() + 1)
 		b.is_boss = true
 		b.keycards = 1
+		b.net_key_v = b.name                   # Wardens are bots: the host runs them, everybody else sees puppets
+		if net_match and not Net.is_host:
+			b.net_owner = 1
 		b.world = self
 		b.display_name = def.boss.get("name", "The Warden")
 		b.vest_color = Color(1.0, 0.72, 0.1)
