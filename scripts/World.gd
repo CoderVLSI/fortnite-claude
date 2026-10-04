@@ -20,6 +20,7 @@ const Npc = preload("res://scripts/Npc.gd")
 const QuestLog = preload("res://scripts/QuestLog.gd")
 const RebootVan = preload("res://scripts/RebootVan.gd")
 const RebootCard = preload("res://scripts/RebootCard.gd")
+const Vault = preload("res://scripts/Vault.gd")
 const GasPump = preload("res://scripts/GasPump.gd")
 const Animal = preload("res://scripts/Animal.gd")
 const Llama = preload("res://scripts/Llama.gd")
@@ -42,7 +43,7 @@ const Sprites = preload("res://scripts/Sprites.gd")
 const Skins = preload("res://scripts/Skins.gd")
 const Cosmetics = preload("res://scripts/Cosmetics.gd")
 
-const MAP_HALF := 360.0                  # a 720 m island (it was 480 m): room for 50 players
+const MAP_HALF := 500.0                  # a 1 km island (it was 720 m): room for 100 players and 28 named places
 const MAP_SCALE := MAP_HALF / 160.0      # POI radii and spacing are authored for the old 160 m island
 const SEED := 20241002
 const MODEL_DIR := "res://assets/models/"
@@ -59,7 +60,9 @@ const BUS_ALTITUDE := 260.0
 const BUS_LENGTH := 1000.0
 const BOT_NAMES := ["Rook", "Nova", "Echo", "Blitz", "Sable", "Juno", "Kestrel", "Moxie", "Vesper", "Dash",
 	"Onyx", "Pixel", "Zephyr", "Ember", "Gizmo", "Havoc", "Indigo", "Lynx", "Maverick", "Nimbus",
-	"Orbit", "Pepper", "Quill", "Riot", "Sprout"]
+	"Orbit", "Pepper", "Quill", "Riot", "Sprout", "Tango", "Umber", "Vortex", "Wisp", "Yonder",
+	"Zinc", "Atlas", "Bramble", "Cinder", "Drift", "Fable", "Glint", "Hollow", "Ion", "Jolt",
+	"Kite", "Loom", "Mirage", "Nectar", "Opal", "Prowl", "Quartz", "Raven", "Slate", "Thistle"]
 const BOT_COLORS := [Color(0.85, 0.25, 0.22), Color(0.90, 0.60, 0.15), Color(0.70, 0.25, 0.80),
 	Color(0.20, 0.70, 0.65), Color(0.85, 0.80, 0.20), Color(0.90, 0.40, 0.60)]
 
@@ -82,6 +85,8 @@ var shared := {}                 # cached meshes/materials shared by loot items
 var pois := []                   # runtime POIs: {id, name, center (Vector2), frame_yaw, def, zone}
 var poi_roads := []              # [Vector2 a, Vector2 b] for the map
 var boss = null
+var bosses := []                   # every Warden (each carries a vault keycard)
+var vaults := {}                   # net id -> Vault
 var menu
 var sun: DirectionalLight
 var build_slots := {}            # grid key -> BuildPiece
@@ -90,6 +95,7 @@ var _props := {}                 # model name -> {mm, body, hits}
 var _supply_phase := -1
 var net_match := false           # a network match: the island is built from the shared seed
 var _net_pose_t := 0.0
+var _net_bot_tick := 0
 var _net_bots_t := 0.0
 var _net_storm_t := 0.0
 var net_nodes := {}               # network id -> node (loot, chests, wild sprites, rifts, buildings)
@@ -207,7 +213,7 @@ func on_game_started() -> void:
 	if boss != null and is_instance_valid(boss):
 		for poi in pois:
 			if poi.def.has("boss"):
-				hud.add_feed("The Warden guards %s - Mythic loot!" % poi.name.capitalize(), Color(1.0, 0.45, 0.15))
+				hud.add_feed("A Warden guards %s - he carries a vault keycard!" % poi.name.capitalize(), Color(1.0, 0.45, 0.15))
 
 
 func apply_quality() -> void:
@@ -222,12 +228,12 @@ func _make_profile() -> Dictionary:
 	var mobile := OS.has_feature("mobile") or ("--mobile" in args)
 	var p := {
 		"mobile": mobile,
-		"bots": 28 if mobile else 49,
-		"trees": 520 if mobile else 1500,
-		"rocks": 80 if mobile else 200,
-		"outlying": 24 if mobile else 40,
-		"floor_items": 70 if mobile else 150,
-		"outdoor_chests": 10 if mobile else 20,
+		"bots": 40 if mobile else 99,
+		"trees": 760 if mobile else 2200,
+		"rocks": 120 if mobile else 300,
+		"outlying": 36 if mobile else 60,
+		"floor_items": 100 if mobile else 220,
+		"outdoor_chests": 16 if mobile else 30,
 		"shadows": not mobile,
 		"cell": 5.0 if mobile else 4.0,
 		"use_bus": not ("--no-bus" in args),
@@ -646,7 +652,30 @@ func _prop_point(poi: Dictionary, entry: Dictionary) -> Array:
 	return [p, poi.frame_yaw + deg2rad(entry.get("yaw", 0.0))]
 
 
+# Vaults: a sealed room per POI that has a "vault" entry; the door needs a keycard, the loot is two vault chests.
+func _build_vaults() -> void:
+	for poi in pois:
+		var def: Dictionary = poi.def
+		if not def.has("vault"):
+			continue
+		var vd: Dictionary = def.vault
+		var v := Vault.new()
+		v.net_id = "vault_" + def.id
+		v.vault_name = def.name.capitalize() + " Vault"
+		var p := _poi_point(poi, vd.at)
+		v.translation = p
+		v.rotation.y = poi.frame_yaw + deg2rad(vd.get("yaw", 0.0))
+		add_child(v)
+		vaults[v.net_id] = v
+		net_nodes[v.net_id] = v
+		building_positions.append(Vector2(p.x, p.z))
+		for off in [Vector2(-2.2, -2.6), Vector2(2.2, -2.6), Vector2(0.0, -5.4)]:
+			var local: Vector3 = v.transform.xform(Vector3(off.x, 0.3, off.y))
+			_add_chest("vault", local, v.rotation.y)
+
+
 func _spawn_poi_loot() -> void:
+	_build_vaults()
 	for poi in pois:
 		var def: Dictionary = poi.def
 		for ch in def.get("chests", []):
@@ -1004,17 +1033,20 @@ func _spawn_boss() -> void:
 			continue
 		var p := _poi_point(poi, def.boss.at)
 		var b := Bot.new()
-		b.name = "Warden"
+		b.name = "Warden" if bosses.empty() else "Warden%d" % (bosses.size() + 1)
 		b.is_boss = true
+		b.keycards = 1
 		b.world = self
-		b.display_name = "The Warden"
+		b.display_name = def.boss.get("name", "The Warden")
 		b.vest_color = Color(1.0, 0.72, 0.1)
 		b.skill = 0.95
 		b.map_half = MAP_HALF - 4.0
 		b.translation = p + Vector3(0, 1.0, 0)
 		add_child(b)
 		b.connect("died", self, "_on_fighter_died")
-		boss = b
+		if boss == null:
+			boss = b
+		bosses.append(b)
 
 
 # ------------------------------------------------------------------ props
@@ -1572,6 +1604,12 @@ func _drop_inventory(victim) -> void:
 		var ag := float(n) * 1.7 + 0.3
 		spawn_item(Items.make_gold(victim.gold), pos + Vector3(cos(ag), 0.2, sin(ag)) * 1.3)
 		n += 1
+	if victim.keycards > 0:                            # a Warden's keycard (or one a player was carrying)
+		for k in range(victim.keycards):
+			var ak := float(n) * 1.7 + 0.9
+			spawn_item(Items.make_keycard(), pos + Vector3(cos(ak), 0.3, sin(ak)) * 1.4)
+			n += 1
+		victim.keycards = 0
 	for kind in Items.MATERIAL_NAMES:                  # and whatever materials they were carrying
 		var have: int = victim.materials.get(kind, 0)
 		if have >= 10:
@@ -1660,7 +1698,7 @@ func _spawn_fighters() -> void:
 		var bot := Bot.new()
 		bot.name = "Bot%d" % i
 		bot.world = self
-		bot.display_name = BOT_NAMES[i % BOT_NAMES.size()]
+		bot.display_name = BOT_NAMES[i % BOT_NAMES.size()] + ("" if i < BOT_NAMES.size() else str(i / BOT_NAMES.size() + 1))
 		bot.vest_color = BOT_COLORS[i % BOT_COLORS.size()]
 		bot.skin_id = Skins.ORDER[(i * 3 + 1) % Skins.ORDER.size()]
 		bot.loadout = Cosmetics.sanitize({"skin": bot.skin_id, "pickaxe": Cosmetics.PICKAXES.keys()[(i * 5 + 2) % Cosmetics.PICKAXES.size()],
@@ -2045,8 +2083,26 @@ func _net_process(delta: float) -> void:
 		if _net_bots_t <= 0.0:
 			_net_bots_t = 0.1
 			var chunk := []
+			_net_bot_tick += 1
+			var humans := []                   # bots near a human update 10x a second, the rest 2-3x (a hundred fighters is a lot of traffic)
+			for f in get_tree().get_nodes_in_group("fighters"):
+				if f.has_method("net_pack") and typeof(f.net_key_v) != TYPE_STRING and not f.is_dead:
+					humans.append(f.global_transform.origin)
+			for r in get_tree().get_nodes_in_group("remote_players"):
+				humans.append(r.global_transform.origin)
+			if player != null and not Net.dedicated:
+				humans.append(player.global_transform.origin)
 			for f in get_tree().get_nodes_in_group("fighters"):
 				if typeof(f.net_key_v) == TYPE_STRING and f.net_owner == 0:
+					if _net_bot_tick % 4 != int(f.name.hash()) % 4:
+						var near := false
+						var fo: Vector3 = f.global_transform.origin
+						for hp in humans:
+							if hp.distance_squared_to(fo) < 32400.0:       # 180 m
+								near = true
+								break
+						if not near and not f.is_dead:
+							continue
 					chunk.append([f.name, f.net_pack()])
 					if chunk.size() >= 8:               # keep every packet under the network MTU
 						Net.send_bots(chunk)
@@ -2157,6 +2213,10 @@ func net_event(from: int, kind: String, data) -> void:
 			var c = net_nodes.get(data)
 			if c != null and is_instance_valid(c) and not c.opened:
 				c.open(null, true)
+		"vault":
+			var vv = vaults.get(data)
+			if vv != null and is_instance_valid(vv):
+				vv.open(true)
 		"supply":
 			var sc := _add_chest("supply", data[0], data[1], data[2], data[3])
 			sc.start_fall(150.0, data[0].y)

@@ -152,6 +152,7 @@ var _vault := false               # the current MANTLE-mode move is a window vau
 var _vault_mid := Vector3.ZERO
 var emoting := false              # dancing: cancelled by moving, firing or jumping
 var emote_t := 0.0
+var keycards := 0                # vault keycards (dropped by Wardens) - each opens one vault door
 var cards := []                   # reboot cards of fallen team-mates we are carrying to a Reboot Van
 var boogie_t := 0.0               # a Boogie Bomb got us: forced to dance, cannot shoot, build or move
 var _slide_t := 0.0
@@ -476,6 +477,9 @@ func pickup(item: Dictionary) -> Dictionary:
 		"gold":
 			gold += item.count
 			return {"ok": true, "text": "+%d Gold" % item.count, "dropped": null}
+		"keycard":
+			keycards += item.count
+			return {"ok": true, "text": "Vault Keycard - find a vault door", "dropped": null}
 		"material":
 			add_material(item.id, item.count)
 			return {"ok": true, "text": "+%d %s" % [item.count, Items.MATERIAL_NAMES[item.id]], "dropped": null}

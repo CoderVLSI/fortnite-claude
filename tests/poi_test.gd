@@ -61,9 +61,9 @@ func _run() -> void:
 	check(chests >= 30, "chests are spread around (%d)" % chests)
 	var vaults := 0
 	for n in get_nodes_in_group("interactable"):
-		if n.has_method("open") and n.kind == "vault":
+		if n.has_method("open") and "kind" in n and n.kind == "vault":
 			vaults += 1
-	check(vaults == 1, "the bunker holds one vault")
+	check(vaults == 10, "one bunker vault chest + 3 vault rooms with three chests each (%d)" % vaults)
 	check(world.boss != null and is_instance_valid(world.boss) and not world.boss.is_dead, "the Warden stands guard")
 	if world.boss:
 		var w = world.boss.selected_item()
@@ -84,6 +84,11 @@ func _run() -> void:
 			if n.has_method("setup") and n.item.kind == "weapon" and n.item.rarity == 5:
 				after += 1
 		check(after == before + 1, "the Warden drops his mythic weapon on death")
+		var keys := 0
+		for n in get_nodes_in_group("interactable"):
+			if n.has_method("setup") and n.item.kind == "keycard":
+				keys += 1
+		check(keys == 1, "and his vault keycard (%d)" % keys)
 
 	if shots_dir != "":
 		for poi in world.pois:

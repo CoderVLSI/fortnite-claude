@@ -154,6 +154,11 @@ static func make_gold(count: int) -> Dictionary:
 	return {"kind": "gold", "id": "gold", "count": count}
 
 
+# A vault keycard: dropped by the Warden bosses, opens one vault door. Stored as a counter on the fighter, not in a slot.
+static func make_keycard(count: int = 1) -> Dictionary:
+	return {"kind": "keycard", "id": "keycard", "count": count}
+
+
 # Building materials lying on the floor: collected by walking over them, like ammo.
 static func make_material(kind: String, count: int) -> Dictionary:
 	return {"kind": "material", "id": kind, "count": count}
@@ -185,6 +190,8 @@ static func color_of(item: Dictionary) -> Color:
 		return MATERIAL_COLORS[item.id]
 	if item.kind == "gold":
 		return GOLD_COLOR
+	if item.kind == "keycard":
+		return Color(1.0, 0.35, 0.1)
 	if item.kind == "pickaxe":
 		return RARITIES[0].color
 	if item.kind == "consumable" and CONSUMABLES[item.id].has("color"):
@@ -207,6 +214,8 @@ static func name_of(item: Dictionary) -> String:
 			return "%s x%d" % [MATERIAL_NAMES[item.id], item.count]
 		"gold":
 			return "Gold Bars x%d" % item.count
+		"keycard":
+			return "Vault Keycard"
 	return "Pickaxe"
 
 
@@ -222,6 +231,8 @@ static func model_of(item: Dictionary) -> String:
 		return MODEL_DIR + "ammo_pickup.glb"
 	if item.kind == "gold":
 		return MODEL_DIR + "gold_bars.glb"
+	if item.kind == "keycard":
+		return ""
 	return MODEL_DIR + "pickaxe.glb"
 
 

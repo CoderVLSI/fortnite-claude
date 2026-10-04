@@ -21,6 +21,8 @@ func _ready() -> void:
 	var color := Items.color_of(item)
 	if item.kind == "material":
 		_model = _material_sprite()
+	elif item.kind == "keycard":
+		_model = _keycard_model()
 	elif item.kind == "consumable" and Items.CONSUMABLES[item.id].has("gadget"):
 		_model = preload("res://scripts/Gadgets.gd").build(Items.CONSUMABLES[item.id].gadget)
 		_model.scale = Vector3(1.7, 1.7, 1.7)
@@ -45,6 +47,32 @@ func _ready() -> void:
 	ring.cast_shadow = GeometryInstance.SHADOW_CASTING_SETTING_OFF
 	add_child(ring)
 	_rest_y = 0.55
+
+
+func _keycard_model() -> Spatial:
+	var mi := MeshInstance.new()
+	var cm := CubeMesh.new()
+	cm.size = Vector3(0.55, 0.36, 0.04)
+	mi.mesh = cm
+	var m := SpatialMaterial.new()
+	m.albedo_color = Color(1.0, 0.35, 0.1)
+	m.emission_enabled = true
+	m.emission = Color(1.0, 0.3, 0.05)
+	m.emission_energy = 1.3
+	mi.material_override = m
+	var stripe := MeshInstance.new()
+	var sm := CubeMesh.new()
+	sm.size = Vector3(0.55, 0.07, 0.05)
+	stripe.mesh = sm
+	var m2 := SpatialMaterial.new()
+	m2.albedo_color = Color(0.1, 0.1, 0.12)
+	stripe.material_override = m2
+	stripe.translation = Vector3(0, 0.06, 0)
+	mi.add_child(stripe)
+	var holder := Spatial.new()
+	holder.add_child(mi)
+	holder.scale = Vector3(1.8, 1.8, 1.8)
+	return holder
 
 
 # Materials show their icon as a camera-facing sprite (the generated wood / stone / metal icons).

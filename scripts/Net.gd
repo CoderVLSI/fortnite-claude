@@ -28,7 +28,7 @@ const DISCOVERY_PORT := 7778
 const MAX_PLAYERS := 8              # a player-hosted party
 const SERVER_MAX_PLAYERS := 16       # a dedicated server
 const STATUS_PORT_OFFSET := 1000     # a dedicated server answers "how full are you?" queries on port + this
-const TOTAL_FIGHTERS := 50           # humans + bots
+const TOTAL_FIGHTERS := 100           # humans + bots
 const QUEUE_SECONDS := 3.0           # the shared "match starting" countdown after the leader presses PLAY
 
 var active := false                  # a party or a networked match exists

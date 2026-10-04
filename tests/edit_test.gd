@@ -126,7 +126,7 @@ func _run() -> void:
 
 	# damaged pieces still flash / break normally
 	wall.take_damage(10.0, null)
-	check(wall.health < 150.0 and not wall.is_dead, "an edited wall takes damage")
+	check(wall.health < wall.MAT_HP[wall.mat_name] and not wall.is_dead, "an edited wall takes damage")
 
 	# press G once to start editing and again to confirm (no holding)
 	wall.apply_mask([true, true, true, true, true, true, true, true, true])

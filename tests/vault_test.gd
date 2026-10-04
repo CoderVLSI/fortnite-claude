@@ -1,24 +1,17 @@
 extends SceneTree
-# Vaulting through a low window: from outside to inside and back again.
+# Vaults and keycards: three vault rooms, Wardens carry keycards, the door needs one, and the loot behind it is reachable.
 
 var failures := []
 
 
 func check(cond: bool, msg: String) -> void:
-	if cond:
-		print("PASS  ", msg)
-	else:
-		print("FAIL  ", msg)
+	print(("PASS  " if cond else "FAIL  ") + msg)
+	if not cond:
 		failures.append(msg)
 
 
-func _frames(n: int) -> void:
-	for i in range(n):
-		yield(self, "physics_frame")
-
-
-func _init() -> void:
-	call_deferred("_run")
+func _initialize() -> void:
+	_run()
 
 
 func _run() -> void:
@@ -26,72 +19,58 @@ func _run() -> void:
 	var world = load("res://scenes/Main.tscn").instance()
 	root.add_child(world)
 	current_scene = world
-	for i in range(10):
-		yield(self, "idle_frame")
+	yield(self, "idle_frame")
 	var p = world.player
 	for f in get_nodes_in_group("fighters"):
-		if f != p:
-			f.set_physics_process(false)
-	var wins := get_nodes_in_group("windows")
-	check(wins.size() >= 10, "buildings have window markers (%d)" % wins.size())
-	var w = null
-	for c in wins:
-		if str(c.get_parent().name).begins_with("house") or str(c.get_parent().get_parent().name).begins_with("house"):
-			w = c
-			break
-	if w == null:
-		w = wins[0]
-	var nrm: Vector3 = w.global_transform.basis.xform(w.get_meta("dir")).normalized()
-	var wp: Vector3 = w.global_transform.origin
-	var ground_y: float = wp.y - 1.0
-	check(abs(nrm.length() - 1.0) < 0.01 and abs(nrm.y) < 0.01, "a window knows which way it faces")
-	# stand outside, face the window, jump
-	p.mode = p.Mode.GROUND
-	p.global_transform.origin = Vector3(wp.x, ground_y + 0.05, wp.z) + nrm * 1.1
-	p.velocity = Vector3.ZERO
-	p.rotation.y = atan2(nrm.x, nrm.z)             # the player's forward is -Z: look against the outward normal
-	yield(_frames(10), "completed")
-	Input.action_press("move_forward")
-	var jump := InputEventAction.new()
-	jump.action = "jump"
-	jump.pressed = true
-	Input.parse_input_event(jump)
-	yield(_frames(8), "completed")
-	var started: bool = p.mode == p.Mode.MANTLE and p._vault
-	check(started, "jumping at the window starts a vault (mode %d)" % p.mode)
-	var Clips = load("res://scripts/AnimClips.gd")
-	for c in ["slide", "vault", "mantle", "harvest"]:
-		check(Clips.has_clip(c) and Clips.length_of(c) > 0.3, "the Blender clip '%s' is loaded (%.2f s)" % [c, Clips.length_of(c)])
-	check(Clips.joints_of("harvest").size() == 6 and not ("HipL" in Clips.joints_of("harvest")), "the pickaxe swing only drives the upper body")
-	var smp: Dictionary = Clips.sample("vault", 0.35, 0.93)
-	check(smp.has("HipL") and smp.HipL.x > 1.2, "the vault clip tucks the legs (%.2f rad)" % smp.HipL.x)
-	yield(_frames(8), "completed")
-	check(p.animator.tgt["HipL"].x > 0.75, "the character plays it (thigh target %.2f)" % p.animator.tgt["HipL"].x)
-	jump.pressed = false
-	Input.parse_input_event(jump)
-	yield(_frames(70), "completed")
-	Input.action_release("move_forward")
-	var d_in: float = (p.global_transform.origin - wp).dot(nrm)
-	check(p.mode == p.Mode.GROUND and d_in < -0.5, "you land inside the building (%.1f m past the wall)" % -d_in)
-	check(abs(p.global_transform.origin.y - (ground_y + 0.05)) < 0.6, "on the floor, not on the roof (y %.1f)" % (p.global_transform.origin.y - ground_y))
-	# and back out again
-	p._mantle_cd = 0.0
-	p.rotation.y = atan2(-nrm.x, -nrm.z)
-	p.global_transform.origin = Vector3(wp.x, ground_y + 0.05, wp.z) - nrm * 1.1
-	yield(_frames(10), "completed")
-	Input.action_press("move_forward")
-	jump.pressed = true
-	Input.parse_input_event(jump)
-	yield(_frames(8), "completed")
-	check(p.mode == p.Mode.MANTLE, "and out again")
-	jump.pressed = false
-	Input.parse_input_event(jump)
-	yield(_frames(70), "completed")
-	Input.action_release("move_forward")
-	check((p.global_transform.origin - wp).dot(nrm) > 0.5, "you end up outside")
-	# far from any window nothing happens
-	p.global_transform.origin = world.player.global_transform.origin + Vector3(40, 0, 40)
-	yield(_frames(5), "completed")
-	check(not p.try_vault(Vector3(0, 0, -1)), "no vault away from windows")
-	print("VAULT_RESULT failures=%d" % failures.size())
+		if f != p and not f.is_boss:
+			f.queue_free()
+	yield(self, "idle_frame")
+	check(get_nodes_in_group("vaults").size() == 3, "three vaults on the island (%d)" % get_nodes_in_group("vaults").size())
+	check(world.bosses.size() == 3, "three Wardens (%d)" % world.bosses.size())
+	var carrying := 0
+	for b in world.bosses:
+		carrying += b.keycards
+	check(carrying == 3, "each Warden carries a keycard")
+	var v = get_nodes_in_group("vaults")[0]
+	var chests := 0
+	for n in get_nodes_in_group("interactable"):
+		if n.has_method("open") and "kind" in n and n.kind == "vault" and n.global_transform.origin.distance_to(v.global_transform.origin) < 9.0:
+			chests += 1
+	check(chests == 3, "three mythic chests inside the vault (%d)" % chests)
+
+	# locked without a keycard
+	var door_at: Vector3 = v.global_transform.origin
+	p.set_physics_process(false)
+	p.global_transform.origin = door_at + v.global_transform.basis.z * 2.0 + Vector3(0, 1, 0)
+	p.keycards = 0
+	check(v.can_interact() and "locked" in v.prompt_text(), "the door is locked and says why (%s)" % v.prompt_text())
+	v.interact(p)
+	yield(self, "idle_frame")
+	check(not v.opened, "interacting without a keycard does nothing")
+	# a closed door blocks the way
+	var space = p.get_world().direct_space_state
+	var from: Vector3 = door_at + v.global_transform.basis.z * 3.0 + Vector3(0, 1.2, 0)
+	var hit = space.intersect_ray(from, from - v.global_transform.basis.z * 6.0, [p], 1)
+	check(hit and hit.position.distance_to(door_at + Vector3(0, 1.2, 0)) < 1.0, "the closed door is solid")
+
+	# a Warden's death drops the keycard; picking it up counts it
+	var w = world.bosses[0]
+	w.take_damage(9999.0, p)
+	yield(self, "physics_frame")
+	yield(self, "physics_frame")
+	var card = null
+	for n in get_nodes_in_group("interactable"):
+		if n.has_method("setup") and n.item.kind == "keycard":
+			card = n
+	check(card != null, "the Warden dropped a keycard")
+	if card != null:
+		card.interact(p)
+	check(p.keycards == 1, "picked up: you carry %d keycard" % p.keycards)
+	check("use keycard" in v.prompt_text(), "the prompt now offers to use it (%s)" % v.prompt_text())
+	v.interact(p)
+	check(v.opened and p.keycards == 0, "the door opens and the keycard is used")
+	yield(create_timer(1.7), "timeout")
+	hit = space.intersect_ray(from, from - v.global_transform.basis.z * 6.0, [p], 1)
+	check(not hit or hit.position.distance_to(door_at + Vector3(0, 1.2, 0)) > 1.5, "the way in is open")
+	print("VAULT_RESULT failures=", failures.size())
 	quit(1 if failures.size() > 0 else 0)

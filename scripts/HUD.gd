@@ -922,8 +922,12 @@ func _update_quests() -> void:
 	quest_label.visible = not ls.empty() and not player.is_dead
 	quest_icon.visible = quest_label.visible
 	var n_cards: int = player.cards.size() if "cards" in player else 0
-	cards_label.text = ("REBOOT CARD x%d  - take it to a van" % n_cards) if n_cards > 0 else ""
-	cards_icon.visible = n_cards > 0 and not player.is_dead
+	var n_keys: int = player.keycards if "keycards" in player else 0
+	var ctext := ("REBOOT CARD x%d  - take it to a van" % n_cards) if n_cards > 0 else ""
+	if n_keys > 0:
+		ctext += ("\n" if ctext != "" else "") + "VAULT KEYCARD x%d  - find a vault door" % n_keys
+	cards_label.text = ctext
+	cards_icon.visible = (n_cards > 0 or n_keys > 0) and not player.is_dead
 
 
 func _update_poi(delta: float) -> void:
@@ -942,7 +946,14 @@ func _update_poi(delta: float) -> void:
 		poi_label.modulate.a = clamp(min(_poi_t, 3.6 - _poi_t + 0.0) * 2.0 if _poi_t < 3.0 else (3.6 - _poi_t) * 3.0, 0.0, 1.0)
 	else:
 		poi_label.modulate.a = 0.0
-	var b = world.boss
+	var b = null
+	var bd := 90.0
+	for wb in world.bosses:
+		if is_instance_valid(wb) and not wb.is_dead:
+			var wd: float = player.global_transform.origin.distance_to(wb.global_transform.origin)
+			if wd < bd:
+				bd = wd
+				b = wb
 	var show_boss: bool = b != null and is_instance_valid(b) and not b.is_dead and player.global_transform.origin.distance_to(b.global_transform.origin) < 90.0
 	boss_label.visible = show_boss
 	boss_bar.visible = show_boss
