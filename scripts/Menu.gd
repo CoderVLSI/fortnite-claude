@@ -581,6 +581,7 @@ func _build_settings() -> Control:
 	_build_pref_page(holder, "comfort", [
 		["toggle_sprint", "Toggle sprint (tap to start, stops when you stop)", "check"],
 		["toggle_crouch", "Toggle crouch (tap to stay down)", "check"],
+		["storm_pace", "Storm pace when you host (1 = quick match, 2 = like the real game, 3 = long)", "slider", 1.0, 3.0],
 		["aim_assist", "Aim assist (phones and controllers: the crosshair sticks to enemies you shoot at)", "check"],
 		["turbo_build", "Turbo building (hold fire to keep placing)", "check"],
 		["ads_sens", "Sensitivity while aiming down sights", "slider", 0.3, 1.5],

@@ -68,3 +68,4 @@ and any script errors.
 * **Aim assist** for phones and controllers (Settings > Comfort, on by default): while you shoot or aim, the view eases onto an enemy that is already within ~7 degrees of the crosshair, in the open and in range. Tested in `assist_test`.
 * **Weapon bloom**: spraying an automatic gun widens the cone (up to +90%); it settles in about half a second.
 * Not done (deliberately): a battle-pass reward track, because every cosmetic is already unlocked and locking them would get in the way of testing with friends.
+* **Storm pace** (Settings > Comfort, default 2.0): the circle waits and shrinks twice as long as before, so a 100-fighter match on the 1 km island lasts closer to a real match (set it to 1 for quick matches). The host's value counts.

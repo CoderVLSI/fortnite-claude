@@ -41,7 +41,8 @@ func setup(start_radius: float, rng: RandomNumberGenerator) -> void:
 
 
 func _time_scale() -> float:
-	return 1.0 + (_scale - 1.0) * 0.6          # a bigger circle takes a little longer to cross, not proportionally
+	var pace: float = float(Settings.pref("storm_pace"))
+	return (1.0 + (_scale - 1.0) * 0.6) * pace   # a bigger circle takes a little longer to cross, not proportionally; "pace" is the player's choice
 
 
 func _begin_wait() -> void:
