@@ -2,24 +2,15 @@
 
 importer="texture"
 type="StreamTexture"
-<<<<<<<< HEAD:docs/map.png.import
-path="res://.import/map.png-f75ab8cb2f4b75cb674e06c89ed384da.stex"
-========
 path="res://.import/lobby_bg.png-9c15b5af9c01790bc667be7c3c7e0558.stex"
->>>>>>>> origin/claude/audio-generation-apk-rebuild-rsy867:assets/ui/lobby_bg.png.import
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-<<<<<<<< HEAD:docs/map.png.import
-source_file="res://docs/map.png"
-dest_files=[ "res://.import/map.png-f75ab8cb2f4b75cb674e06c89ed384da.stex" ]
-========
 source_file="res://assets/ui/lobby_bg.png"
 dest_files=[ "res://.import/lobby_bg.png-9c15b5af9c01790bc667be7c3c7e0558.stex" ]
->>>>>>>> origin/claude/audio-generation-apk-rebuild-rsy867:assets/ui/lobby_bg.png.import
 
 [params]
 

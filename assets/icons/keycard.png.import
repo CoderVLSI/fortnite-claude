@@ -2,24 +2,15 @@
 
 importer="texture"
 type="StreamTexture"
-<<<<<<<< HEAD:docs/poses.png.import
-path="res://.import/poses.png-6ae91bf4b3310492035f54e9497ab2c8.stex"
-========
 path="res://.import/keycard.png-2ec6887e472133c2c335336ba40900c2.stex"
->>>>>>>> origin/claude/audio-generation-apk-rebuild-rsy867:assets/icons/keycard.png.import
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-<<<<<<<< HEAD:docs/poses.png.import
-source_file="res://docs/poses.png"
-dest_files=[ "res://.import/poses.png-6ae91bf4b3310492035f54e9497ab2c8.stex" ]
-========
 source_file="res://assets/icons/keycard.png"
 dest_files=[ "res://.import/keycard.png-2ec6887e472133c2c335336ba40900c2.stex" ]
->>>>>>>> origin/claude/audio-generation-apk-rebuild-rsy867:assets/icons/keycard.png.import
 
 [params]
 

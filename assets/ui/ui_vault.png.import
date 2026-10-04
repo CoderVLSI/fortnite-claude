@@ -2,24 +2,15 @@
 
 importer="texture"
 type="StreamTexture"
-<<<<<<<< HEAD:docs/lobby.png.import
-path="res://.import/lobby.png-112b5b8e0c083a6a0d914b3787a1f036.stex"
-========
 path="res://.import/ui_vault.png-d631490437e2b033a5f5fbb81b96d8e7.stex"
->>>>>>>> origin/claude/audio-generation-apk-rebuild-rsy867:assets/ui/ui_vault.png.import
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-<<<<<<<< HEAD:docs/lobby.png.import
-source_file="res://docs/lobby.png"
-dest_files=[ "res://.import/lobby.png-112b5b8e0c083a6a0d914b3787a1f036.stex" ]
-========
 source_file="res://assets/ui/ui_vault.png"
 dest_files=[ "res://.import/ui_vault.png-d631490437e2b033a5f5fbb81b96d8e7.stex" ]
->>>>>>>> origin/claude/audio-generation-apk-rebuild-rsy867:assets/ui/ui_vault.png.import
 
 [params]
 

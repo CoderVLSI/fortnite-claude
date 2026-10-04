@@ -2,24 +2,15 @@
 
 importer="texture"
 type="StreamTexture"
-<<<<<<<< HEAD:docs/scopes.png.import
 path="res://.import/scopes.png-3e7a559c09d459bde1767352908feb49.stex"
-========
-path="res://.import/ui_warden.png-3ea3baf190ced1d8f81c8a188c8c4f2f.stex"
->>>>>>>> origin/claude/audio-generation-apk-rebuild-rsy867:assets/ui/ui_warden.png.import
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-<<<<<<<< HEAD:docs/scopes.png.import
 source_file="res://docs/scopes.png"
 dest_files=[ "res://.import/scopes.png-3e7a559c09d459bde1767352908feb49.stex" ]
-========
-source_file="res://assets/ui/ui_warden.png"
-dest_files=[ "res://.import/ui_warden.png-3ea3baf190ced1d8f81c8a188c8c4f2f.stex" ]
->>>>>>>> origin/claude/audio-generation-apk-rebuild-rsy867:assets/ui/ui_warden.png.import
 
 [params]
 
