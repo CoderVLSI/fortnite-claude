@@ -471,6 +471,16 @@ func _on_downed() -> void:
 	_revive_target = null
 
 
+func _on_reboot() -> void:
+	for w in get_tree().get_nodes_in_group("world"):
+		w.stop_spectating()
+		if w.hud != null:
+			w.hud.show_toast("REBOOTED")
+	if camera != null:
+		camera.make_current()
+	_revive_target = null
+
+
 var _revive_target = null
 var _revive_t := 0.0
 

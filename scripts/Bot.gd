@@ -137,7 +137,20 @@ func _heal_slot() -> int:
 
 
 func _on_died(_victim, _killer) -> void:
-	get_tree().create_timer(10.0).connect("timeout", self, "queue_free")
+	# in team modes a corpse stays around for the length of a reboot card, so a Reboot Van can bring the bot back
+	get_tree().create_timer(125.0 if team >= 0 and not is_boss else 10.0).connect("timeout", self, "_free_if_dead")
+
+
+func _free_if_dead() -> void:
+	if is_dead:
+		queue_free()
+
+
+func _on_reboot() -> void:
+	state = State.WANDER
+	target = null
+	_think = 0.0
+	_wander_to = global_transform.origin
 
 
 var _lod_acc := 0.0

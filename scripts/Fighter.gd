@@ -152,6 +152,7 @@ var _vault := false               # the current MANTLE-mode move is a window vau
 var _vault_mid := Vector3.ZERO
 var emoting := false              # dancing: cancelled by moving, firing or jumping
 var emote_t := 0.0
+var cards := []                   # reboot cards of fallen team-mates we are carrying to a Reboot Van
 var boogie_t := 0.0               # a Boogie Bomb got us: forced to dance, cannot shoot, build or move
 var _slide_t := 0.0
 var _slide_dir := Vector3.ZERO
@@ -1680,6 +1681,41 @@ func _die(killer, credit: bool = true) -> void:
 		tween.interpolate_property(model, "rotation:x", 0.0, -PI / 2.0, 0.6, Tween.TRANS_QUAD, Tween.EASE_OUT)
 		tween.start()
 	emit_signal("died", self, killer)
+
+
+# A Reboot Van brought us back: on our feet at `pos` with a pistol and nothing else.
+func reboot(pos: Vector3) -> void:
+	if not is_dead:
+		return
+	is_dead = false
+	downed = false
+	health = 100.0
+	shield = 0.0
+	collision_layer = 2
+	mode = Mode.GROUND
+	velocity = Vector3.ZERO
+	grounded = false
+	boogie_t = 0.0
+	emoting = false
+	cards.clear()
+	global_transform.origin = pos
+	if model:
+		model.rotation.x = 0.0
+	if _sprite_model != null:
+		_sprite_model.visible = true
+	if glider:
+		glider.visible = false
+	for i in range(1, slots.size()):
+		slots[i] = null
+	selected = 0
+	give_weapon("pistol", 0)
+	_apply_selected()
+	if has_method("_on_reboot"):
+		call("_on_reboot")
+	Audio.play3d("heal_up", pos + Vector3(0, 1.2, 0), 0.0, 1.4)
+	emit_signal("slot_changed")
+	emit_signal("downed_changed", false)
+	emit_signal("picked_up", "REBOOTED - back in the fight")
 
 
 func set_skin(id: String) -> void:

@@ -45,6 +45,7 @@ run qol_test --no-bus --skip-menu
 run a11y_test --no-bus --skip-menu
 run quest_test --no-bus --skip-menu
 run trap_test --no-bus --skip-menu
+run reboot_test --no-bus --skip-menu
 run arsenal_test --no-bus --skip-menu
 run revive_test --no-bus --skip-menu
 run emote_test --no-bus --skip-menu

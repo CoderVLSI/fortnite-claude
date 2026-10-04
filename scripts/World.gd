@@ -18,6 +18,8 @@ const Lobby = preload("res://scripts/Lobby.gd")
 const VendingMachine = preload("res://scripts/VendingMachine.gd")
 const Npc = preload("res://scripts/Npc.gd")
 const QuestLog = preload("res://scripts/QuestLog.gd")
+const RebootVan = preload("res://scripts/RebootVan.gd")
+const RebootCard = preload("res://scripts/RebootCard.gd")
 const Pois = preload("res://scripts/Pois.gd")
 const BuildPiece = preload("res://scripts/BuildPiece.gd")
 const Vehicle = preload("res://scripts/Vehicle.gd")
@@ -145,6 +147,7 @@ func _ready() -> void:
 	_spawn_vehicles()
 	_spawn_vending()
 	_spawn_npcs()
+	_spawn_vans()
 	_spawn_rifts_and_sprites()
 	if profile.use_bus:
 		_start_bus()
@@ -664,6 +667,53 @@ func _spawn_vending() -> void:
 		if spot != Vector2.INF:
 			add_vending(VENDING_KINDS[n % 3], spot, poi.center)
 			n += 1
+
+
+# ------------------------------------------------------------------ Reboot Vans (team modes)
+
+const VAN_SPOTS := [Vector2(-18, -6), Vector2(20, 12), Vector2(-8, -22), Vector2(18, -14), Vector2(-20, 14)]
+
+
+func _spawn_vans() -> void:
+	if team_size <= 1:
+		return
+	for pp in [Vector2(18, -16), Vector2(-18, -16)]:
+		if not _near_building(pp, 7.0):
+			add_van(pp, Vector2.ZERO)
+	for poi in pois:
+		var spot := _vending_spot(poi, VAN_SPOTS)
+		if spot != Vector2.INF:
+			add_van(spot, poi.center)
+
+
+func add_van(pos: Vector2, face_to: Vector2) -> Node:
+	var van := RebootVan.new()
+	van.translation = Vector3(pos.x, terrain.height_at(pos.x, pos.y), pos.y)
+	var to := face_to - pos
+	if to.length() > 0.1:
+		van.rotation.y = atan2(-to.x, -to.y)
+	add_child(van)
+	return van
+
+
+func _spawn_card(victim) -> void:
+	var card := RebootCard.new()
+	card.fighter = victim
+	card.victim_key = victim.net_key_v
+	var o: Vector3 = victim.global_transform.origin
+	card.translation = Vector3(o.x, max(o.y, terrain.height_at(o.x, o.z)), o.z)
+	add_child(card)
+
+
+# A van brought `f` back (called on the machine of whoever used the van; the rest follow the "reboot" event).
+func reboot_fighter(f, pos: Vector3) -> void:
+	if f == null or not is_instance_valid(f) or not f.is_dead:
+		return
+	f.reboot(pos)
+	if hud:
+		hud.add_feed("%s was rebooted" % str(f.display_name), Color(0.4, 0.9, 1.0))
+	if net_live and Net.active:
+		Net.send_event("reboot", [f.net_key_v, pos])
 
 
 # ------------------------------------------------------------------ Keepers (quest givers)
@@ -1732,6 +1782,8 @@ func _on_fighter_died(victim, killer) -> void:
 		hud.add_feed(text, color)
 	if victim.net_owner == 0:
 		_drop_inventory(victim)          # puppets drop on the machine that owns them (the loot is sent to everyone)
+	if team_size > 1 and victim.team >= 0 and not victim.has_meta("left") and not ("is_boss" in victim and victim.is_boss) and allies_alive(victim):
+		_spawn_card(victim)              # a team-mate can carry this to a Reboot Van
 
 	if match_over:
 		return
@@ -1969,6 +2021,16 @@ func net_event(from: int, kind: String, data) -> void:
 			var rv = fighter_by_key(data)
 			if rv != null and is_instance_valid(rv) and rv.net_owner == 0:
 				rv.revive()
+		"reboot":                        # [fighter key, pos]
+			var rf = fighter_by_key(data[0])
+			if rf != null and rf.is_dead:
+				rf.reboot(data[1])
+				if hud:
+					hud.add_feed("%s was rebooted" % str(rf.display_name), Color(0.4, 0.9, 1.0))
+		"card_taken":
+			for c in get_tree().get_nodes_in_group("reboot_cards"):
+				if c.victim_key == data:
+					c.queue_free()
 		"trap":                          # [owner key, kind, pos]: a copy so everybody sees it; the owner's machine does the damage
 			var tr_owner = fighter_by_key(data[0])
 			if tr_owner != null:
