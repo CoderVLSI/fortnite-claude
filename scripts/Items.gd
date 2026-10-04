@@ -81,19 +81,19 @@ const MATERIAL_CAP := 500
 
 const CONSUMABLES := {
 	"bandage": {"name": "Bandage", "heal": 15.0, "heal_cap": 75.0, "shield": 0.0, "shield_cap": 0.0,
-		"time": 3.0, "stack": 15, "rarity": 0},
+		"time": 4.0, "stack": 15, "rarity": 0},
 	"medkit": {"name": "Medkit", "heal": 100.0, "heal_cap": 100.0, "shield": 0.0, "shield_cap": 0.0,
-		"time": 7.0, "stack": 3, "rarity": 2},
+		"time": 10.0, "stack": 3, "rarity": 2},
 	"mini_shield": {"name": "Mini Shield", "heal": 0.0, "heal_cap": 0.0, "shield": 25.0, "shield_cap": 50.0,
 		"time": 2.0, "stack": 6, "rarity": 1},
 	"meat": {"name": "Roast Meat", "heal": 25.0, "heal_cap": 100.0, "shield": 0.0, "shield_cap": 0.0,
 		"time": 1.6, "stack": 6, "rarity": 0, "color": Color(0.85, 0.5, 0.25)},
 	"shield_potion": {"name": "Shield Potion", "heal": 0.0, "heal_cap": 0.0, "shield": 50.0, "shield_cap": 100.0,
-		"time": 4.0, "stack": 2, "rarity": 2},
+		"time": 5.0, "stack": 2, "rarity": 2},
 	"slurp_juice": {"name": "Slurp Juice", "heal": 25.0, "heal_cap": 100.0, "shield": 25.0, "shield_cap": 100.0,
 		"time": 2.5, "stack": 4, "rarity": 2},
 	"chug_jug": {"name": "Chug Jug", "heal": 100.0, "heal_cap": 100.0, "shield": 100.0, "shield_cap": 100.0,
-		"time": 10.0, "stack": 1, "rarity": 4},
+		"time": 15.0, "stack": 1, "rarity": 4},
 	"grenade": {"name": "Grenade", "heal": 0.0, "heal_cap": 0.0, "shield": 0.0, "shield_cap": 0.0,
 		"time": 0.0, "stack": 6, "rarity": 1, "throw": true},
 	# Shockwave Grenade: no damage, but everyone nearby (you too) is flung away and upward.
