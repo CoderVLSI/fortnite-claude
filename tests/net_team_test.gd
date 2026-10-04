@@ -116,6 +116,10 @@ func puppet_dead() -> bool:
 	return r != null and r.is_dead
 
 
+func can_down() -> bool:
+	return world.player._can_go_down()
+
+
 func me_downed() -> bool:
 	return world.player.downed
 
@@ -133,11 +137,17 @@ func me_back() -> bool:
 
 
 func card_here() -> bool:
-	return get_nodes_in_group("reboot_cards").size() > 0
+	for c in get_nodes_in_group("reboot_cards"):
+		if c.fighter == puppet():
+			return true
+	return false
 
 
 func card_gone() -> bool:
-	return get_nodes_in_group("reboot_cards").size() == 0
+	for c in get_nodes_in_group("reboot_cards"):
+		if str(c.victim_key) == str(net.my_id):
+			return false
+	return true
 
 
 func _topup() -> void:
@@ -236,6 +246,8 @@ func _run() -> void:
 	if role == "client":
 		var foe = _foe()
 		check(foe != null, "there is an enemy to blame")
+		var ok_down: bool = yield(wait_for(self, "can_down", 20.0), "completed")
+		check(ok_down, "the brother can be knocked down (mode %d, ally standing %s, puppet downed %s)" % [p.mode, str(world.allies_standing(p)), str(puppet().downed if puppet() != null else "-")])
 		p.take_damage(500.0, foe)
 		check(p.downed and not p.is_dead, "a lethal hit with the brother alive knocks the brother down")
 	else:
@@ -263,12 +275,19 @@ func _run() -> void:
 	else:
 		check(yield(wait_for(self, "puppet_dead", 20.0), "completed"), "the leader sees the brother eliminated")
 		check(yield(wait_for(self, "card_here", 10.0), "completed"), "and a reboot card drops where they fell")
-		var card = get_nodes_in_group("reboot_cards")[0]
-		check(card.can_interact(), "the leader can take it")
+		var card = null
+		for c in get_nodes_in_group("reboot_cards"):          # (a bot team-mate somewhere may have fallen too: take the brother's)
+			if c.fighter == puppet():
+				card = c
+		check(card.can_interact(), "the leader can take it (me dead=%s downed=%s hp=%.0f, card fighter dead=%s ally=%s)" % [p.is_dead, p.downed, p.health, card.fighter.is_dead if card.fighter != null else "-", p.is_ally(card.fighter) if card.fighter != null else "-"])
 		card.interact(p)
 		check(p.cards.size() == 1, "the card is in the leader's pocket")
 	if role == "client":
-		check(yield(wait_for(self, "card_gone", 10.0), "completed"), "the card disappears on the brother's screen too when it is taken")
+		var gone: bool = yield(wait_for(self, "card_gone", 10.0), "completed")
+		var left := []
+		for c in get_nodes_in_group("reboot_cards"):
+			left.append("%s key=%s freed=%s" % [str(c.fighter), str(c.victim_key), c.is_queued_for_deletion()])
+		check(gone, "the card disappears on the brother's screen too when it is taken (my id %s, left: %s)" % [str(net.my_id), str(left)])
 	yield(sync("carded"), "completed")
 	if role == "host":
 		var van = get_nodes_in_group("reboot_vans")[0]

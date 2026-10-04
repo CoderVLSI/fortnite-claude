@@ -2133,9 +2133,9 @@ func net_event(from: int, kind: String, data) -> void:
 				rf.reboot(data[1])
 				if hud:
 					hud.add_feed("%s was rebooted" % str(rf.display_name), Color(0.4, 0.9, 1.0))
-		"card_taken":
+		"card_taken":                    # somebody picked up the card of fighter `data`: ours goes too (keys are peer ids or bot names)
 			for c in get_tree().get_nodes_in_group("reboot_cards"):
-				if c.victim_key == data:
+				if str(c.victim_key) == str(data):
 					c.queue_free()
 		"trap":                          # [owner key, kind, pos]: a copy so everybody sees it; the owner's machine does the damage
 			var tr_owner = fighter_by_key(data[0])
