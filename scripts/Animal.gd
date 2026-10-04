@@ -115,7 +115,7 @@ func take_damage(amount: float, source = null) -> void:
 
 func _flash() -> void:
 	_model.translation.y = 0.08
-	Audio.play3d("hit_flesh", global_transform.origin + Vector3(0, 0.5, 0), -4.0, 1.6 if kind == "chicken" else 0.8)
+	Audio.play3d("chicken_cluck" if kind == "chicken" else "boar_grunt", global_transform.origin + Vector3(0, 0.5, 0), 0.0)
 
 
 func _die(killer) -> void:

@@ -38,60 +38,30 @@ func _ready() -> void:
 
 
 func _build_spikes() -> void:
-	var plate := MeshInstance.new()
-	var pm := CubeMesh.new()
-	pm.size = Vector3(1.7, 0.1, 1.7)
-	plate.mesh = pm
-	plate.translation = Vector3(0, 0.05, 0)
-	var m := SpatialMaterial.new()
-	m.albedo_color = Color(0.3, 0.3, 0.34)
-	m.metallic = 0.5
-	plate.material_override = m
-	add_child(plate)
 	_spikes = Spatial.new()
 	add_child(_spikes)
-	var sm := SpatialMaterial.new()
-	sm.albedo_color = Color(0.75, 0.78, 0.85)
-	sm.metallic = 0.8
-	sm.roughness = 0.3
-	for ix in range(4):
-		for iz in range(4):
-			var s := MeshInstance.new()
-			var cm := CylinderMesh.new()
-			cm.top_radius = 0.0
-			cm.bottom_radius = 0.1
-			cm.height = 0.55
-			cm.radial_segments = 6
-			cm.rings = 1
-			s.mesh = cm
-			s.material_override = sm
-			s.translation = Vector3(-0.6 + ix * 0.4, 0.38, -0.6 + iz * 0.4)
-			_spikes.add_child(s)
-	_spikes.scale = Vector3(1, 0.25, 1)             # lying low until somebody steps on it
+	var scene = load("res://assets/models/spike_trap.glb")
+	if scene != null:
+		var m: Spatial = scene.instance()
+		m.scale = Vector3(3.4, 3.4, 3.4)            # the item model is 0.5 m across, the trap on the ground 1.7 m
+		_spikes.add_child(m)
+	_spikes.scale = Vector3(1, 0.5, 1)              # lying low until somebody steps on it
 
 
 func _build_mine() -> void:
-	var disc := MeshInstance.new()
-	var dm := CylinderMesh.new()
-	dm.top_radius = 0.34
-	dm.bottom_radius = 0.4
-	dm.height = 0.14
-	dm.radial_segments = 12
-	disc.mesh = dm
-	disc.translation = Vector3(0, 0.07, 0)
-	var m := SpatialMaterial.new()
-	m.albedo_color = Color(0.25, 0.3, 0.22)
-	m.metallic = 0.4
-	disc.material_override = m
-	add_child(disc)
-	var led := MeshInstance.new()
+	var scene = load("res://assets/models/proximity_mine.glb")
+	if scene != null:
+		var m: Spatial = scene.instance()
+		m.scale = Vector3(2.0, 2.0, 2.0)
+		add_child(m)
+	var led := MeshInstance.new()                    # the blinking light sits over the model's own one
 	var sph := SphereMesh.new()
 	sph.radius = 0.07
 	sph.height = 0.14
 	sph.radial_segments = 8
 	sph.rings = 4
 	led.mesh = sph
-	led.translation = Vector3(0, 0.17, 0)
+	led.translation = Vector3(0, 0.235, 0)
 	_mat.flags_unshaded = true
 	_mat.albedo_color = Color(1.0, 0.7, 0.1)
 	led.material_override = _mat
@@ -116,8 +86,13 @@ func _physics_process(delta: float) -> void:
 		if _cool[k] <= 0.0:
 			_cool.erase(k)
 	if kind == "mine":
+		var was_armed := _armed > 1.5
 		_armed += delta
 		var armed := _armed > 1.5
+		if armed and not was_armed:
+			Audio.play3d("mine_arm", global_transform.origin, -2.0)
+		if armed and fmod(_t, 1.0) < delta:
+			Audio.play3d("mine_beep", global_transform.origin, -10.0)
 		_mat.albedo_color = (Color(1.0, 0.15, 0.1) if fmod(_t * 4.0, 1.0) < 0.5 else Color(0.2, 0.0, 0.0)) if armed else Color(1.0, 0.7, 0.1)
 		if armed and not visual_only:
 			for f in get_tree().get_nodes_in_group("fighters"):
@@ -126,7 +101,7 @@ func _physics_process(delta: float) -> void:
 					return
 		return
 	if _spikes != null:
-		_spikes.scale.y = lerp(_spikes.scale.y, 1.0 if not _cool.empty() else 0.25, clamp(14.0 * delta, 0.0, 1.0))
+		_spikes.scale.y = lerp(_spikes.scale.y, 1.0 if not _cool.empty() else 0.5, clamp(14.0 * delta, 0.0, 1.0))
 	if visual_only:
 		return
 	for b in get_overlapping_bodies():
@@ -136,7 +111,7 @@ func _physics_process(delta: float) -> void:
 
 func _stab(f) -> void:
 	_cool[f.get_instance_id()] = 1.0
-	Audio.play3d("hit_metal", global_transform.origin, -2.0, 0.8)
+	Audio.play3d("spike_pop", global_transform.origin, 0.0)
 	f.take_damage(SPIKE_DAMAGE, owner_fighter)
 	if f.has_method("knockback") and not f.is_dead:
 		f.knockback(Vector3(0, 7.5, 0))

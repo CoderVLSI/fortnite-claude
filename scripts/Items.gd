@@ -31,10 +31,10 @@ const WEAPONS := {
 		"pellets": 9, "auto": false, "ammo": "shells", "range": 42.0, "head": 1.5},
 	# Hold fire to charge (about 1.8 s): up to 50% more damage per pellet and a tighter spread. Release to shoot.
 	"charge_shotgun": {"name": "Charge Shotgun", "damage": 10.0, "interval": 1.05, "mag": 3, "reload": 3.2, "spread": 4.2,
-		"pellets": 9, "auto": false, "ammo": "shells", "range": 46.0, "head": 1.5, "charge": 1.8, "model": "shotgun"},
+		"pellets": 9, "auto": false, "ammo": "shells", "range": 46.0, "head": 1.5, "charge": 1.8, "model": "shotgun", "mesh": "charge_shotgun"},
 	# Burst Assault Rifle: one pull of the trigger fires three rounds in quick succession.
 	"burst_assault": {"name": "Burst Assault Rifle", "damage": 24.0, "interval": 0.46, "mag": 30, "reload": 2.1, "spread": 0.8,
-		"pellets": 1, "auto": false, "ammo": "medium", "range": 170.0, "head": 1.9, "burst": 3, "burst_gap": 0.075, "model": "rifle"},
+		"pellets": 1, "auto": false, "ammo": "medium", "range": 170.0, "head": 1.9, "burst": 3, "burst_gap": 0.075, "model": "rifle", "mesh": "burst_assault"},
 	# Rocket Launcher: a slow rocket that blows up where it lands: damages everyone nearby and takes buildings down piece by piece.
 	"rocket_launcher": {"name": "Rocket Launcher", "damage": 105.0, "interval": 1.3, "mag": 1, "reload": 3.4, "spread": 0.0,
 		"pellets": 1, "auto": false, "ammo": "heavy", "range": 240.0, "head": 1.0, "projectile": "rocket", "sound": "sniper"},
@@ -90,10 +90,10 @@ const CONSUMABLES := {
 		"time": 0.0, "stack": 6, "rarity": 1, "throw": true},
 	# Shockwave Grenade: no damage, but everyone nearby (you too) is flung away and upward.
 	"shockwave_grenade": {"name": "Shockwave Grenade", "heal": 0.0, "heal_cap": 0.0, "shield": 0.0, "shield_cap": 0.0,
-		"time": 0.0, "stack": 4, "rarity": 2, "throw": true, "shock": true, "model": "grenade", "color": Color(0.35, 0.75, 1.0)},
+		"time": 0.0, "stack": 4, "rarity": 2, "throw": true, "shock": true, "color": Color(0.35, 0.75, 1.0)},
 	# Junk Rift: a rift opens in the sky over where it lands and something very heavy falls through.
 	"junk_rift": {"name": "Junk Rift", "heal": 0.0, "heal_cap": 0.0, "shield": 0.0, "shield_cap": 0.0,
-		"time": 0.0, "stack": 4, "rarity": 3, "throw": true, "junk": true, "model": "grenade", "color": Color(0.75, 0.4, 1.0)},
+		"time": 0.0, "stack": 4, "rarity": 3, "throw": true, "junk": true, "color": Color(0.75, 0.4, 1.0)},
 	# Jetpack: equip it, then hold jump to climb. The fuel refills on the ground.
 	"jetpack": {"name": "Jetpack", "heal": 0.0, "heal_cap": 0.0, "shield": 0.0, "shield_cap": 0.0,
 		"time": 0.0, "stack": 1, "rarity": 3, "gadget": "jetpack", "color": Color(1.0, 0.45, 0.25)},
@@ -102,19 +102,19 @@ const CONSUMABLES := {
 		"time": 0.0, "stack": 1, "rarity": 2, "gadget": "skateboard", "color": Color(0.25, 0.8, 1.0)},
 	# Bouncer: press fire to drop a spring pad a couple of metres ahead; whoever steps on it is flung into the air.
 	"bouncer": {"name": "Bouncer", "heal": 0.0, "heal_cap": 0.0, "shield": 0.0, "shield_cap": 0.0,
-		"time": 0.0, "stack": 3, "rarity": 2, "throw": true, "place": true, "model": "grenade", "color": Color(0.2, 0.6, 1.0)},
+		"time": 0.0, "stack": 3, "rarity": 2, "throw": true, "place": true, "color": Color(0.2, 0.6, 1.0)},
 	# Spike Trap: press fire to lay floor spikes ahead; enemies who step on them take damage and are thrown up (three stabs).
 	"spike_trap": {"name": "Spike Trap", "heal": 0.0, "heal_cap": 0.0, "shield": 0.0, "shield_cap": 0.0,
-		"time": 0.0, "stack": 3, "rarity": 2, "throw": true, "trap": "spike", "model": "grenade", "color": Color(0.8, 0.8, 0.9)},
+		"time": 0.0, "stack": 3, "rarity": 2, "throw": true, "trap": "spike", "color": Color(0.8, 0.8, 0.9)},
 	# Proximity Mine: place it; it arms after 1.5 s and blows up when an enemy walks within a few metres.
 	"proximity_mine": {"name": "Proximity Mine", "heal": 0.0, "heal_cap": 0.0, "shield": 0.0, "shield_cap": 0.0,
-		"time": 0.0, "stack": 3, "rarity": 3, "throw": true, "trap": "mine", "model": "grenade", "color": Color(1.0, 0.5, 0.15)},
+		"time": 0.0, "stack": 3, "rarity": 3, "throw": true, "trap": "mine", "color": Color(1.0, 0.5, 0.15)},
 	# Boogie Bomb: everybody in the blast (you too) has to dance for a few seconds and cannot shoot, build or move.
 	"boogie_bomb": {"name": "Boogie Bomb", "heal": 0.0, "heal_cap": 0.0, "shield": 0.0, "shield_cap": 0.0,
-		"time": 0.0, "stack": 4, "rarity": 2, "throw": true, "boogie": true, "model": "grenade", "color": Color(1.0, 0.4, 0.85)},
+		"time": 0.0, "stack": 4, "rarity": 2, "throw": true, "boogie": true, "color": Color(1.0, 0.4, 0.85)},
 	# Stink Bomb: a green cloud that hurts everybody inside it for seven seconds.
 	"stink_bomb": {"name": "Stink Bomb", "heal": 0.0, "heal_cap": 0.0, "shield": 0.0, "shield_cap": 0.0,
-		"time": 0.0, "stack": 4, "rarity": 2, "throw": true, "stink": true, "model": "grenade", "color": Color(0.5, 0.9, 0.2)},
+		"time": 0.0, "stack": 4, "rarity": 2, "throw": true, "stink": true, "color": Color(0.5, 0.9, 0.2)},
 	# Rift-to-Go: a portable rift. Using it flings you into the sky; the rift stays open for a few seconds for friends.
 	"rift_to_go": {"name": "Rift-to-Go", "heal": 0.0, "heal_cap": 0.0, "shield": 0.0, "shield_cap": 0.0,
 		"time": 0.0, "stack": 2, "rarity": 3, "throw": true, "rift": true, "color": Color(0.7, 0.35, 1.0)},
@@ -204,7 +204,7 @@ static func name_of(item: Dictionary) -> String:
 
 static func model_of(item: Dictionary) -> String:
 	if item.kind == "weapon":
-		var base: String = "rifle" if item.id == "assault" else WEAPONS[item.id].get("model", item.id)
+		var base: String = "rifle" if item.id == "assault" else WEAPONS[item.id].get("mesh", WEAPONS[item.id].get("model", item.id))
 		if item.rarity == MYTHIC and ResourceLoader.exists(MODEL_DIR + base + "_mythic.glb"):
 			return MODEL_DIR + base + "_mythic.glb"       # mythics have their own bespoke models
 		return MODEL_DIR + base + ".glb"

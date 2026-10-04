@@ -59,6 +59,10 @@ var warn_label: Label
 var down_label: Label
 var stats_label: Label
 var quest_label: Label
+var quest_icon: TextureRect
+var cards_icon: TextureRect
+var cards_label: Label
+var fuel_icon: TextureRect
 var _quest_t := 0.0
 var hint_label: Label
 var toast_label: Label
@@ -178,6 +182,12 @@ func _build() -> void:
 	quest_label = _label("", Label.ALIGN_RIGHT, Color(1.0, 0.9, 0.5))
 	_place(quest_label, 1.0, 0.0, Vector2(-336, MAP_SIZE + 52), Vector2(320, 90))
 	root.add_child(quest_label)
+	quest_icon = _icon_rect("res://assets/ui/ui_quest.png", 1.0, 0.0, Vector2(-372, MAP_SIZE + 50), 32.0)
+	cards_icon = _icon_rect("res://assets/ui/ui_reboot_card.png", 1.0, 0.0, Vector2(-372, MAP_SIZE + 150), 32.0)
+	cards_label = _label("", Label.ALIGN_RIGHT, Color(0.5, 0.95, 1.0))
+	_place(cards_label, 1.0, 0.0, Vector2(-336, MAP_SIZE + 150), Vector2(320, 30))
+	root.add_child(cards_label)
+	fuel_icon = _icon_rect("res://assets/ui/ui_fuel.png", 0.5, 0.5, Vector2(-16, -190), 32.0)
 	stats_label = _label("", Label.ALIGN_RIGHT)
 	_place(stats_label, 1.0, 0.0, Vector2(-296, MAP_SIZE + 20), Vector2(280, 30))
 	root.add_child(stats_label)
@@ -349,6 +359,19 @@ func _build() -> void:
 	_layout()
 
 	_build_end_panel()
+
+
+# A small picture pinned to the screen (anchor ax, ay, offset from it); hidden until something shows it.
+func _icon_rect(path: String, ax: float, ay: float, off: Vector2, size: float) -> TextureRect:
+	var t := TextureRect.new()
+	t.texture = _tex(path)
+	t.expand = true
+	t.stretch_mode = TextureRect.STRETCH_SCALE
+	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_place(t, ax, ay, off, Vector2(size, size))
+	t.visible = false
+	root.add_child(t)
+	return t
 
 
 func _tex(path: String):
@@ -897,6 +920,10 @@ func _update_quests() -> void:
 	var ls: Array = q.lines()
 	quest_label.text = ("QUESTS\n" + "\n".join(ls)) if not ls.empty() else ""
 	quest_label.visible = not ls.empty() and not player.is_dead
+	quest_icon.visible = quest_label.visible
+	var n_cards: int = player.cards.size() if "cards" in player else 0
+	cards_label.text = ("REBOOT CARD x%d  - take it to a van" % n_cards) if n_cards > 0 else ""
+	cards_icon.visible = n_cards > 0 and not player.is_dead
 
 
 func _update_poi(delta: float) -> void:
@@ -980,3 +1007,7 @@ func _update_prompts() -> void:
 			bus_label.visible = true
 		_:
 			bus_label.visible = false
+	var in_veh: bool = player.mode == MODE_VEHICLE and player.vehicle != null and is_instance_valid(player.vehicle) and "fuel" in player.vehicle
+	fuel_icon.visible = in_veh
+	if in_veh:
+		fuel_icon.modulate = Color(1, 0.35, 0.3) if player.vehicle.fuel < 15.0 else Color.white

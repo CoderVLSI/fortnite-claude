@@ -112,9 +112,9 @@ class Part:
         bmesh.ops.transform(self.bm, matrix=m, verts=verts)
         self._tag(verts, mat)
 
-    def blob(self, center, radius, mat, squash=0.6, jitter=0.25, seed=0):
+    def blob(self, center, radius, mat, squash=0.6, jitter=0.25, seed=0, subdiv=1):
         rng = random.Random(seed)
-        verts = bmesh.ops.create_icosphere(self.bm, subdivisions=1, radius=radius)["verts"]
+        verts = bmesh.ops.create_icosphere(self.bm, subdivisions=subdiv, radius=radius)["verts"]
         for v in verts:
             v.co *= 1.0 + rng.uniform(-jitter, jitter)
             v.co.z *= squash
@@ -412,9 +412,11 @@ def _trigger_guard(g, m, y=0.04, z=-0.075):
     g.box((0, y + 0.03, z + 0.03), (0.012, 0.014, 0.05), m["dark"])    # trigger
 
 
-def make_assault():
+def make_assault(variant="rifle"):
     m = _gun_mats()
-    g = Part("Rifle")
+    burst = variant == "burst_assault"
+    furn = m["tan"] if burst else furn          # the burst rifle wears tan furniture on a black body
+    g = Part("BurstAssault" if burst else "Rifle")
     g.box((0, 0.04, -0.005), (0.07, 0.30, 0.10), m["dark"])                       # lower receiver
     g.box((0, 0.19, 0.055), (0.07, 0.42, 0.075), m["dark"])                       # upper receiver
     g.box((0, 0.19, 0.098), (0.04, 0.40, 0.012), m["steel"])                      # top rail
@@ -422,7 +424,7 @@ def make_assault():
     g.box((0, 0.015, 0.135), (0.026, 0.05, 0.05), m["dark"])                      # rear sight tower
     g.box((0, 0.16, 0.152), (0.022, 0.30, 0.016), m["dark"])                      # carry handle
     g.box((0, 0.31, 0.135), (0.026, 0.035, 0.05), m["dark"])                      # handle front post
-    g.box((0, 0.56, 0.03), (0.082, 0.30, 0.085), m["olive"])                      # handguard
+    g.box((0, 0.56, 0.03), (0.082, 0.30, 0.085), furn)                      # handguard
     g.box((0, 0.56, 0.082), (0.036, 0.28, 0.012), m["steel"])                     # handguard rail
     for yy in (0.46, 0.53, 0.60, 0.67):                                           # M-LOK slots
         sbox(g, 0.042, yy, 0.03, (0.004, 0.035, 0.028), m["dark"])
@@ -430,14 +432,18 @@ def make_assault():
     g.box((0, 0.74, 0.088), (0.014, 0.03, 0.07), m["dark"])                       # front sight post
     g.cone((0, 1.02, 0.03), 0.022, 0.022, 0.08, m["dark"], segments=8, axis="Y")    # flash hider
     g.cone((0, -0.12, 0.03), 0.026, 0.026, 0.14, m["dark"], segments=8, axis="Y")   # buffer tube
-    g.box((0, -0.25, 0.015), (0.055, 0.17, 0.095), m["olive"])                    # stock
+    g.box((0, -0.25, 0.015), (0.055, 0.17, 0.095), furn)                    # stock
     g.box((0, -0.34, 0.0), (0.06, 0.025, 0.12), m["dark"])                        # butt pad
-    g.box((0, -0.05, -0.085), (0.048, 0.07, 0.15), m["olive"], rot=(0.3, 0, 0))   # pistol grip
+    g.box((0, -0.05, -0.085), (0.048, 0.07, 0.15), furn, rot=(0.3, 0, 0))   # pistol grip
     g.box((0, 0.17, -0.125), (0.05, 0.085, 0.17), m["dark"], rot=(-0.12, 0, 0))   # magazine (curved: 2 pieces)
     g.box((0, 0.195, -0.255), (0.05, 0.085, 0.10), m["dark"], rot=(-0.32, 0, 0))
     sbox(g, 0.045, 0.12, 0.06, (0.012, 0.05, 0.02), m["steel"])                   # charging handle + opposite lug
     _trigger_guard(g, m)
-    export("rifle", [g.build(), empty("Muzzle", (0, 1.07, 0.03))])
+    if burst:
+        for yy in (0.30, 0.345, 0.39):                                               # three brass rounds on the side: a burst
+            sbox(g, 0.064, yy, 0.04, (0.02, 0.02, 0.02), m["dark"])
+            g.cone((0.064, yy, 0.075), 0.012, 0.006, 0.06, m["brass"], segments=8)
+    export(variant, [g.build(), empty("Muzzle", (0, 1.07, 0.03))])
 
 
 def make_smg():
@@ -465,9 +471,12 @@ def make_smg():
     export("smg", [g.build(), empty("Muzzle", (0, 0.72, 0.03))])
 
 
-def make_shotgun():
+def make_shotgun(variant="shotgun"):
     m = _gun_mats()
-    g = Part("Shotgun")
+    charge = variant == "charge_shotgun"
+    if charge:                                                                   # teal body, glowing yellow coils round the barrel
+        m["dark"] = material("charge_teal", (0.10, 0.45, 0.62), rough=0.4, emit=(0.05, 0.4, 0.7), emit_strength=0.5)
+    g = Part("ChargeShotgun" if charge else "Shotgun")
     g.box((0, 0.14, 0.03), (0.075, 0.36, 0.10), m["dark"])                        # receiver
     sbox(g, 0.039, 0.14, 0.035, (0.006, 0.18, 0.03), m["accent"])
     g.cone((0, 0.68, 0.045), 0.019, 0.019, 0.72, m["steel"], segments=8, axis="Y")     # barrel
@@ -481,24 +490,30 @@ def make_shotgun():
     g.box((0, -0.36, -0.01), (0.07, 0.03, 0.15), m["dark"])
     g.box((0, -0.04, -0.075), (0.045, 0.06, 0.12), m["wood"], rot=(0.25, 0, 0))
     _trigger_guard(g, m, y=0.03)
-    export("shotgun", [g.build(), empty("Muzzle", (0, 1.04, 0.045))])
+    if charge:
+        coil = material("charge_coil", (1.0, 0.78, 0.15), rough=0.3, emit=(1.0, 0.7, 0.1), emit_strength=1.2)
+        for yy in (0.40, 0.55, 0.70, 0.85, 1.0):
+            g.cone((0, yy, 0.045), 0.04, 0.04, 0.04, coil, segments=10, axis="Y")
+    export(variant, [g.build(), empty("Muzzle", (0, 1.04, 0.045))])
 
 
 def make_rocket_launcher():
     # A shoulder-fired tube: grip origin, barrel along +Y (Godot -Z), the rocket's warhead poking out of the front.
     m = _gun_mats()
+    red = material("rl_red", (0.85, 0.10, 0.10), rough=0.4)
+    navy = material("rl_navy", (0.12, 0.16, 0.26), rough=0.5)
     g = Part("RocketLauncher")
-    g.cone((0, 0.34, 0.07), 0.095, 0.095, 1.05, m["dark"], segments=12, axis="Y")          # launch tube
+    g.cone((0, 0.34, 0.07), 0.095, 0.095, 1.05, m["olive"], segments=12, axis="Y")          # launch tube
     g.cone((0, 0.86, 0.07), 0.115, 0.115, 0.10, m["steel"], segments=12, axis="Y")         # muzzle flare ring
     g.cone((0, -0.18, 0.07), 0.12, 0.12, 0.12, m["steel"], segments=12, axis="Y")          # rear blast cone
-    g.cone((0, 0.95, 0.07), 0.07, 0.0, 0.22, m["orange"], segments=10, axis="Y")           # the warhead
+    g.cone((0, 0.95, 0.07), 0.07, 0.0, 0.22, red, segments=10, axis="Y")           # the warhead
     g.box((0, 0.32, 0.20), (0.05, 0.22, 0.07), m["dark"])                                  # sight rail
     g.box((0, 0.58, 0.215), (0.02, 0.02, 0.05), m["brass"])                                # front post
     g.box((0, 0.12, 0.215), (0.05, 0.04, 0.05), m["steel"])                                # rear sight
-    g.box((0, 0.20, -0.07), (0.05, 0.10, 0.18), m["dark"], rot=(0.2, 0, 0))                # pistol grip
+    g.box((0, 0.20, -0.07), (0.05, 0.10, 0.18), navy, rot=(0.2, 0, 0))                # pistol grip
     g.box((0, 0.46, -0.05), (0.05, 0.08, 0.14), m["dark"], rot=(0.15, 0, 0))               # front handle
     for yy in (0.10, 0.45, 0.80):                                                          # warning stripes round the tube
-        g.cone((0, yy, 0.07), 0.099, 0.099, 0.05, m["orange"], segments=12, axis="Y")
+        g.cone((0, yy, 0.07), 0.099, 0.099, 0.05, navy, segments=12, axis="Y")
     g.box((0, 0.34, 0.166), (0.03, 0.9, 0.012), m["accent"])
     export("rocket_launcher", [g.build(), empty("Muzzle", (0, 1.08, 0.07))])
 
@@ -535,6 +550,8 @@ def make_sniper():
 
 def make_pistol():
     m = _gun_mats()
+    m["slide"] = material("pistol_slide", (0.07, 0.075, 0.09), rough=0.25)      # a black polymer pistol with a gunmetal slide
+    m["poly"] = material("pistol_poly", (0.03, 0.03, 0.035), rough=0.6)
     g = Part("Pistol")
     g.box((0, 0.10, 0.05), (0.04, 0.30, 0.055), m["slide"])                       # slide
     for yy in (-0.02, 0.005, 0.03):                                               # rear serrations
@@ -776,25 +793,54 @@ def make_medkit():
 
 
 def make_potion(name, color, size):
+    """Round glass flasks like the icons: a ball of liquid, a neck, a cork. The Chug Jug is a big jar with a silver lid and gold rings."""
     glass = material(name + "_liquid", color, rough=0.15, emit=color, emit_strength=0.25)
     cork = material(name + "_cork", (0.45, 0.30, 0.15))
+    bubble = material(name + "_bubble", tuple(min(1.0, c + 0.35) for c in color), rough=0.1, emit=color, emit_strength=0.6)
+    s_ = size
     p = Part(name)
-    p.cone((0, 0, 0.18 * size), 0.17 * size, 0.17 * size, 0.30 * size, glass, segments=10)
-    p.cone((0, 0, 0.38 * size), 0.07 * size, 0.07 * size, 0.14 * size, glass, segments=8)
-    p.cone((0, 0, 0.48 * size), 0.075 * size, 0.075 * size, 0.06 * size, cork, segments=8)
+    p.blob((0, 0, 0.17 * s_), 0.17 * s_, glass, squash=1.0, jitter=0.0, subdiv=2)
+    p.cone((0, 0, 0.375 * s_), 0.075 * s_, 0.06 * s_, 0.14 * s_, glass, segments=8)
+    if name == "chug_jug":
+        silver = material("jug_silver", (0.75, 0.78, 0.85), rough=0.25)
+        gold = material("jug_gold", (0.95, 0.75, 0.2), rough=0.3)
+        p.cone((0, 0, 0.47 * s_), 0.085 * s_, 0.085 * s_, 0.05 * s_, silver, segments=10)
+        p.cone((0, 0, 0.50 * s_), 0.06 * s_, 0.06 * s_, 0.04 * s_, silver, segments=10)
+        _ring_xy(p, (0, 0, 0.42 * s_), 0.075 * s_, 0.016 * s_, 0.02 * s_, gold, n=10)
+        _ring_xz(p, (0.2 * s_, 0, 0.22 * s_), 0.045 * s_, 0.012 * s_, 0.012 * s_, gold, n=8)
+        _ring_xz(p, (-0.2 * s_, 0, 0.22 * s_), 0.045 * s_, 0.012 * s_, 0.012 * s_, gold, n=8)
+    else:
+        p.cone((0, 0, 0.455 * s_), 0.08 * s_, 0.08 * s_, 0.03 * s_, glass, segments=8)           # the lip
+        p.cone((0, 0, 0.50 * s_), 0.062 * s_, 0.075 * s_, 0.07 * s_, cork, segments=8)
+    if name in ("slurp_juice", "mini_shield"):
+        for (x, y, z, r) in ((0.06, -0.14, 0.16, 0.022), (-0.05, -0.15, 0.22, 0.016), (0.02, -0.16, 0.10, 0.014)):
+            p.blob((x * s_, y * s_, z * s_), r * s_, bubble, squash=1.0, jitter=0.0)
+    if name == "shield_potion":                                                                  # a shield badge on the front and the back
+        badge = material("shield_badge", (0.9, 0.95, 1.0), rough=0.2, emit=(0.6, 0.8, 1.0), emit_strength=0.4)
+        for sgn in (-1, 1):
+            y = sgn * 0.168 * s_
+            p.box((0, y, 0.19 * s_), (0.10 * s_, 0.012, 0.09 * s_), badge)
+            p.box((0, y, 0.135 * s_), (0.07 * s_, 0.012, 0.07 * s_), badge, rot=(0.0, 0.785, 0.0))
     export(name, [p.build()])
 
 
 def make_grenade():
     olive = material("gren_olive", (0.22, 0.30, 0.14), rough=0.6)
+    ridge = material("gren_ridge", (0.14, 0.20, 0.09), rough=0.7)
     steel = material("gren_steel", (0.55, 0.57, 0.60), rough=0.3)
     ring = material("gren_ring", (0.85, 0.7, 0.2), rough=0.3)
     g = Part("Grenade")
-    g.blob((0, 0, 0.12), 0.11, olive, squash=1.2, jitter=0.0)                    # faceted body
-    g.cone((0, 0, 0.255), 0.04, 0.04, 0.05, steel, segments=8)                   # fuse cap
-    g.box((0.03, 0, 0.285), (0.075, 0.014, 0.012), steel)                        # spoon lever
-    g.box((0.07, 0, 0.215), (0.012, 0.014, 0.14), steel, rot=(0.0, 0.25, 0.0))
-    g.cone((-0.035, 0, 0.29), 0.022, 0.022, 0.012, ring, segments=10, axis="Y")  # pull ring
+    g.blob((0, 0, 0.13), 0.115, olive, squash=1.22, jitter=0.0, subdiv=2)                  # the "pineapple" body
+    for z in (0.07, 0.11, 0.15, 0.19):                                           # grooves round it
+        r = 0.115 * math.sqrt(max(0.0, 1.0 - ((z - 0.13) / (0.115 * 1.22)) ** 2)) + 0.004
+        _ring_xy(g, (0, 0, z), r, 0.012, 0.008, ridge, n=12)
+    for i in range(8):                                                           # and the vertical ridges
+        a = i * math.pi / 4
+        g.box((0.11 * math.cos(a), 0.11 * math.sin(a), 0.13), (0.012, 0.014, 0.17), ridge, rot_z=a)
+    g.cone((0, 0, 0.275), 0.04, 0.04, 0.05, steel, segments=8)                   # fuse cap
+    g.box((0.04, 0, 0.30), (0.09, 0.016, 0.014), steel)                          # spoon lever, hugging the body
+    g.box((0.105, 0, 0.215), (0.014, 0.03, 0.17), steel, rot=(0.0, 0.12, 0.0))
+    g.cone((-0.04, 0, 0.305), 0.03, 0.03, 0.014, ring, segments=10, axis="Y")    # pull ring
     export("grenade", [g.build()])
 
 
@@ -1349,7 +1395,193 @@ def make_boat():
     export("boat", [b.build()])
 
 
+# --------------------------------------------------------------------------- items that match their icons
+
+def _ring_xy(g, center, r, thick, h, mat, n=14):
+    """A horizontal ring of boxes round a centre."""
+    for i in range(n):
+        a = 2 * math.pi * i / n
+        g.box((center[0] + r * math.cos(a), center[1] + r * math.sin(a), center[2]),
+              (2 * math.pi * r / n * 1.15, thick, h), mat, rot_z=a + math.pi / 2)
+
+
+def _ring_xz(g, center, r, thick, depth, mat, n=14):
+    """A vertical ring (in the XZ plane, facing +/-Y) of boxes round a centre."""
+    for i in range(n):
+        a = 2 * math.pi * i / n
+        g.box((center[0] + r * math.cos(a), center[1], center[2] + r * math.sin(a)),
+              (2 * math.pi * r / n * 1.15, depth, thick), mat, rot=(0.0, -(a + math.pi / 2), 0.0))
+
+
+def _grenade_top(g, steel, ring, z):
+    g.cone((0, 0, z), 0.04, 0.04, 0.05, steel, segments=8)
+    g.box((0.03, 0, z + 0.03), (0.075, 0.014, 0.012), steel)
+    g.box((0.07, 0, z - 0.04), (0.012, 0.014, 0.14), steel, rot=(0.0, 0.25, 0.0))
+    g.cone((-0.035, 0, z + 0.035), 0.022, 0.022, 0.012, ring, segments=10, axis="Y")
+
+
+def make_spike_trap():
+    dark = material("trap_dark", (0.22, 0.23, 0.27), rough=0.5)
+    steel = material("trap_steel", (0.50, 0.52, 0.56), rough=0.3)
+    spike = material("trap_spike", (0.84, 0.87, 0.94), rough=0.2)
+    g = Part("SpikeTrap")
+    g.box((0, 0, 0.02), (0.52, 0.52, 0.04), dark)
+    g.box((0, 0, 0.045), (0.48, 0.48, 0.012), steel)
+    for ix in range(4):
+        for iy in range(4):
+            g.cone((-0.165 + ix * 0.11, -0.165 + iy * 0.11, 0.12), 0.032, 0.0, 0.15, spike, segments=6)
+    export("spike_trap", [g.build()])
+
+
+def make_proximity_mine():
+    olive = material("mine_olive", (0.28, 0.36, 0.17), rough=0.6)
+    light_olive = material("mine_olive_light", (0.36, 0.45, 0.22), rough=0.6)
+    band = material("mine_band", (0.18, 0.2, 0.12), rough=0.7)
+    red = material("mine_red", (1.0, 0.1, 0.08), rough=0.3, emit=(1.0, 0.1, 0.05), emit_strength=2.0)
+    g = Part("ProximityMine")
+    g.cone((0, 0, 0.03), 0.20, 0.18, 0.06, olive, segments=14)
+    g.cone((0, 0, 0.065), 0.19, 0.19, 0.012, band, segments=14)
+    g.blob((0, 0, 0.075), 0.15, light_olive, squash=0.38, jitter=0.0)
+    g.blob((0, 0, 0.115), 0.034, red, squash=0.9, jitter=0.0)
+    for i in range(4):
+        a = i * math.pi / 2 + 0.4
+        g.box((0.11 * math.cos(a), 0.11 * math.sin(a), 0.085), (0.025, 0.025, 0.02), band, rot_z=a)
+    export("proximity_mine", [g.build()])
+
+
+def make_boogie_bomb():
+    pink = material("boogie_pink", (1.0, 0.25, 0.72), rough=0.3)
+    tile = material("boogie_tile", (1.0, 0.82, 0.96), rough=0.2, emit=(1.0, 0.6, 0.9), emit_strength=0.6)
+    steel = material("gren_steel", (0.55, 0.57, 0.60), rough=0.3)
+    ring = material("gren_ring", (0.85, 0.7, 0.2), rough=0.3)
+    g = Part("BoogieBomb")
+    g.blob((0, 0, 0.13), 0.125, pink, squash=1.05, jitter=0.0, subdiv=2)
+    rng = random.Random(4)
+    for i in range(16):                                                           # disco-ball tiles over the body
+        th = rng.uniform(0, 2 * math.pi)
+        ph = rng.uniform(-0.9, 1.1)
+        r = 0.122
+        g.box((r * math.cos(ph) * math.cos(th), r * math.cos(ph) * math.sin(th), 0.13 + r * math.sin(ph)),
+              (0.04, 0.04, 0.012), tile, rot=(0.0, 0.0, th + 0.7), rot_z=0.0)
+    _grenade_top(g, steel, ring, 0.27)
+    export("boogie_bomb", [g.build()])
+
+
+def make_stink_bomb():
+    green = material("stink_green", (0.40, 0.78, 0.12), rough=0.4)
+    white = material("stink_bone", (0.96, 0.95, 0.88), rough=0.5)
+    dark = material("stink_dark", (0.08, 0.1, 0.06), rough=0.5)
+    steel = material("gren_steel", (0.55, 0.57, 0.60), rough=0.3)
+    ring = material("gren_ring", (0.85, 0.7, 0.2), rough=0.3)
+    g = Part("StinkBomb")
+    g.blob((0, 0, 0.13), 0.125, green, squash=1.0, jitter=0.0, subdiv=2)
+    for sgn in (-1, 1):                                                           # a skull on the front and on the back
+        y = sgn * 0.118
+        g.blob((0, y, 0.14), 0.05, white, squash=1.0, jitter=0.0)
+        g.box((0, y + sgn * 0.035, 0.108), (0.05, 0.02, 0.03), white)
+        for sx in (-0.02, 0.02):
+            g.box((sx, y + sgn * 0.04, 0.15), (0.022, 0.01, 0.024), dark)
+        g.box((0, y + sgn * 0.045, 0.125), (0.012, 0.01, 0.014), dark)
+    _grenade_top(g, steel, ring, 0.27)
+    export("stink_bomb", [g.build()])
+
+
+def make_shockwave_grenade():
+    blue = material("shock_blue", (0.15, 0.45, 1.0), rough=0.3)
+    glow = material("shock_glow", (0.5, 0.9, 1.0), rough=0.2, emit=(0.4, 0.85, 1.0), emit_strength=2.0)
+    steel = material("gren_steel", (0.55, 0.57, 0.60), rough=0.3)
+    ring = material("gren_ring", (0.85, 0.7, 0.2), rough=0.3)
+    g = Part("ShockwaveGrenade")
+    g.blob((0, 0, 0.13), 0.115, blue, squash=1.1, jitter=0.0, subdiv=2)
+    _ring_xy(g, (0, 0, 0.13), 0.17, 0.014, 0.014, glow, n=18)
+    _ring_xz(g, (0, 0, 0.13), 0.17, 0.014, 0.014, glow, n=18)
+    _grenade_top(g, steel, ring, 0.265)
+    export("shockwave_grenade", [g.build()])
+
+
+def make_bouncer():
+    blue = material("bouncer_blue", (0.10, 0.45, 0.95), rough=0.4)
+    coil = material("bouncer_coil", (0.55, 0.62, 0.72), rough=0.25)
+    yellow = material("bouncer_yellow", (1.0, 0.82, 0.18), rough=0.4, emit=(1.0, 0.65, 0.05), emit_strength=0.5)
+    g = Part("Bouncer")
+    g.cone((0, 0, 0.025), 0.25, 0.23, 0.05, blue, segments=16)
+    for k in range(28):                                                          # the spring: four turns of a helix
+        a = k * 2 * math.pi / 7
+        z = 0.07 + k * 0.0055
+        g.box((0.095 * math.cos(a), 0.095 * math.sin(a), z), (0.10, 0.022, 0.022), coil, rot_z=a + math.pi / 2)
+    g.cone((0, 0, 0.255), 0.22, 0.20, 0.045, yellow, segments=16)
+    g.cone((0, 0, 0.228), 0.20, 0.2, 0.014, blue, segments=16)
+    export("bouncer", [g.build()])
+
+
+def make_meat():
+    brown = material("meat_brown", (0.80, 0.42, 0.15), rough=0.55)
+    golden = material("meat_golden", (0.92, 0.58, 0.22), rough=0.5)
+    bone = material("meat_bone", (0.97, 0.94, 0.84), rough=0.5)
+    g = Part("Meat")
+    g.blob((0, -0.03, 0.11), 0.11, brown, squash=0.9, jitter=0.0)
+    g.blob((0, 0.05, 0.105), 0.08, brown, squash=0.9, jitter=0.0)
+    g.blob((0, -0.05, 0.145), 0.055, golden, squash=0.5, jitter=0.0)
+    g.box((0, 0.17, 0.10), (0.032, 0.14, 0.032), bone)
+    g.blob((-0.022, 0.25, 0.10), 0.032, bone, squash=1.0, jitter=0.0)
+    g.blob((0.022, 0.25, 0.10), 0.032, bone, squash=1.0, jitter=0.0)
+    export("meat", [g.build()])
+
+
+def make_rift_to_go():
+    wood = material("rift_wood", (0.45, 0.28, 0.14), rough=0.8)
+    purple = material("rift_purple", (0.45, 0.2, 0.75), rough=0.35, emit=(0.4, 0.15, 0.7), emit_strength=0.6)
+    swirl = material("rift_swirl", (0.5, 0.2, 0.95), rough=0.3, emit=(0.6, 0.25, 1.0), emit_strength=2.0)
+    gold = material("rift_gold", (1.0, 0.8, 0.2), rough=0.3)
+    g = Part("RiftToGo")
+    g.cone((0, 0, 0.1), 0.024, 0.03, 0.2, wood, segments=8)
+    g.cone((0, 0, 0.0), 0.032, 0.032, 0.03, gold, segments=8)
+    _ring_xz(g, (0, 0, 0.31), 0.13, 0.034, 0.034, purple, n=16)
+    g.cone((0, 0, 0.31), 0.115, 0.115, 0.012, swirl, segments=16, axis="Y")
+    for i in range(4):
+        a = i * math.pi / 2 + math.pi / 4
+        g.box((0.13 * math.cos(a), 0, 0.31 + 0.13 * math.sin(a)), (0.045, 0.05, 0.045), gold, rot=(0.0, -a, 0.0))
+    export("rift_to_go", [g.build()])
+
+
+def make_junk_rift():
+    iron = material("anvil_iron", (0.20, 0.21, 0.25), rough=0.4)
+    iron_hi = material("anvil_top", (0.34, 0.35, 0.40), rough=0.3)
+    purple = material("rift_purple", (0.45, 0.2, 0.75), rough=0.35, emit=(0.4, 0.15, 0.7), emit_strength=0.6)
+    swirl = material("rift_swirl", (0.5, 0.2, 0.95), rough=0.3, emit=(0.6, 0.25, 1.0), emit_strength=2.0)
+    g = Part("JunkRift")
+    _ring_xz(g, (0, -0.07, 0.2), 0.15, 0.025, 0.025, purple, n=16)
+    g.cone((0, -0.07, 0.2), 0.13, 0.13, 0.01, swirl, segments=16, axis="Y")
+    g.box((0, 0, 0.03), (0.17, 0.09, 0.05), iron)
+    g.box((0, 0, 0.075), (0.09, 0.07, 0.05), iron)
+    g.box((0, 0, 0.125), (0.21, 0.10, 0.05), iron_hi)
+    g.cone((0.15, 0, 0.125), 0.05, 0.0, 0.10, iron_hi, segments=8, axis="X")
+    export("junk_rift", [g.build()])
+
+
+def make_item_models():
+    for fn in (make_spike_trap, make_proximity_mine, make_boogie_bomb, make_stink_bomb, make_shockwave_grenade, make_bouncer,
+               make_meat, make_rift_to_go, make_junk_rift):
+        reset_scene()
+        fn()
+    reset_scene()
+    make_assault("burst_assault")
+    reset_scene()
+    make_shotgun("charge_shotgun")
+    for fn in (make_pistol, make_rocket_launcher, make_grenade):
+        reset_scene()
+        fn()
+    for name, color, size in (("mini_shield", (0.25, 0.55, 1.0), 0.8), ("shield_potion", (0.20, 0.45, 1.0), 1.25),
+                              ("slurp_juice", (0.20, 0.90, 0.85), 0.95), ("chug_jug", (0.55, 0.80, 1.0), 1.5)):
+        reset_scene()
+        make_potion(name, color, size)
+
+
+
 def main():
+    if os.environ.get("ONLY") == "items":          # ONLY=items blender -b -P tools/blender/generate_assets.py
+        make_item_models()
+        return
     if os.environ.get("ONLY") == "rocket":
         reset_scene()
         make_rocket_launcher()
@@ -1412,6 +1644,7 @@ def main():
     make_gold_bars()
     reset_scene()
     make_vending()
+    make_item_models()
 
 
 if __name__ == "__main__":

@@ -41,3 +41,14 @@ Still pending from before: `heal_grenade`, `heal_slurp_juice`, `heal_chug_jug`, 
 ## Icons added by the main agent as plain placeholders (please redraw in the house style)
 
 `heal_spike_trap`, `heal_proximity_mine`, `heal_boogie_bomb`, `heal_stink_bomb`, `weapon_rocket_launcher`, `weapon_burst_assault`, `heal_bouncer`.
+
+## Status (updated)
+
+Delivered by the audio agent: rain_loop, thunder, trap_set, spike_pop, mine_arm, mine_beep, boogie_pop, stink_hiss, llama_pop,
+reboot_van, quest_accept, quest_complete, pump_fill, chicken_cluck, boar_grunt, out_of_fuel (all wired in the code).
+Delivered by the image agent: heal_spike_trap, heal_proximity_mine, heal_boogie_bomb, heal_stink_bomb, heal_meat, heal_bouncer,
+weapon_rocket_launcher, weapon_burst_assault, ui_quest, ui_reboot_card, ui_llama, ui_fuel.
+3D models were redone in Blender (`ONLY=items blender -b -P tools/blender/generate_assets.py`) to look like their icons:
+spike trap, proximity mine, boogie / stink / shockwave bombs, bouncer, roast meat, rift-to-go, junk rift (anvil), burst rifle,
+charge shotgun, plus the grenade (ridged), round flask potions, chug jug, pistol colours and rocket launcher colours.
+`tools/render_models.gd` renders any item model for a side-by-side check against its icon.

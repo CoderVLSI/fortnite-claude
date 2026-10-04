@@ -88,5 +88,5 @@ func interact(by) -> void:
 		by.emit_signal("picked_up", "The tank is already full")
 	else:
 		v.fuel = 100.0
-		Audio.play3d("chest_open", global_transform.origin + Vector3(0, 1.0, 0), -4.0, 0.6)
+		Audio.play3d("pump_fill", global_transform.origin + Vector3(0, 1.0, 0), 0.0)
 		by.emit_signal("picked_up", "Refuelled the %s" % v.title)

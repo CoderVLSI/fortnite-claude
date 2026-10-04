@@ -151,6 +151,7 @@ static func burn_fuel(v, thr: float, boost: bool, delta: float) -> bool:
 	v.fuel = max(0.0, v.fuel - (FUEL_IDLE + abs(thr) * FUEL_THROTTLE * (1.8 if boost else 1.0)) * delta)
 	if v.fuel <= 0.0:
 		var d = v.occupants[0] if v.occupants.size() > 0 else null
+		Audio.play3d("out_of_fuel", v.global_transform.origin, 2.0)
 		if d != null and is_instance_valid(d):
 			d.emit_signal("picked_up", "OUT OF FUEL - find a pump")
 		return false

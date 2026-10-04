@@ -113,8 +113,7 @@ func burst(source = null, from_net: bool = false) -> void:
 		return
 	is_dead = true
 	var pos := global_transform.origin + Vector3(0, 2.0, 0)
-	Audio.play3d("chest_open", pos, 2.0, 0.8)
-	Audio.play3d("explosion", pos, -4.0, 1.8)
+	Audio.play3d("llama_pop", pos, 2.0)
 	_confetti(pos)
 	for w in get_tree().get_nodes_in_group("world"):
 		if not from_net:

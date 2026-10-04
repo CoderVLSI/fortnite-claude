@@ -99,14 +99,14 @@ func interact(by) -> void:
 	var claimed: String = q.claim_all()
 	if claimed != "":
 		by.emit_signal("picked_up", claimed)
-		Audio.play2d("rarity_4", -4.0)
+		Audio.play2d("quest_complete", -2.0)
 		return
 	var offer: Dictionary = q.next_offer(seed_n)
 	if offer.empty():
 		by.emit_signal("picked_up", "%s: that is all I have for you" % npc_name)
 	elif q.accept(offer):
 		by.emit_signal("picked_up", "New quest: %s" % offer.desc)
-		Audio.play2d("ui_select", -4.0)
+		Audio.play2d("quest_accept", -2.0)
 	else:
 		by.emit_signal("picked_up", "%s: finish your current quests first" % npc_name)
 		Audio.play2d("ui_error", -4.0)

@@ -37,7 +37,7 @@ func _ready() -> void:
 	sh.radius = 0.13
 	cs.shape = sh
 	add_child(cs)
-	var scene = load("res://assets/models/grenade.glb")
+	var scene = load("res://assets/models/%s.glb" % ("shockwave_grenade" if shock else ("boogie_bomb" if boogie else ("stink_bomb" if stink else "grenade"))))
 	var model: Spatial
 	if scene != null:
 		model = scene.instance()
@@ -131,7 +131,7 @@ const BOOGIE_TIME := 5.0
 func _boogie_burst() -> void:
 	_done = true
 	var pos := global_transform.origin
-	Audio.play3d("shockwave_boom", pos + Vector3(0, 0.5, 0), -6.0, 1.6)
+	Audio.play3d("boogie_pop", pos + Vector3(0, 0.5, 0), 0.0)
 	for f in get_tree().get_nodes_in_group("fighters"):
 		if f.is_dead or f.net_owner != 0:          # a puppet dances on its own machine (and we see it through its pose flags)
 			continue
@@ -145,7 +145,7 @@ func _boogie_burst() -> void:
 func _stink_burst() -> void:
 	_done = true
 	var pos := global_transform.origin
-	Audio.play3d("explosion", pos + Vector3(0, 0.5, 0), -8.0, 2.0)
+	Audio.play3d("stink_hiss", pos + Vector3(0, 0.5, 0), 0.0)
 	var cloud := preload("res://scripts/GasCloud.gd").new()
 	cloud.thrower = thrower
 	get_parent().add_child(cloud)

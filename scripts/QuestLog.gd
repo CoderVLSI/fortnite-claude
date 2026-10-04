@@ -146,3 +146,4 @@ func _process(delta: float) -> void:
 			emit_signal("completed", e.def)
 			emit_signal("changed")
 			player.emit_signal("picked_up", "Quest done: %s - tell a Keeper" % e.def.title)
+			Audio.play2d("quest_complete", -6.0)

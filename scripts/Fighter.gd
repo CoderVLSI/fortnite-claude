@@ -701,7 +701,7 @@ func _place_trap(kind: String, pos: Vector3, visual_only: bool = false) -> void:
 	t.visual_only = visual_only
 	get_parent().add_child(t)
 	t.global_transform.origin = pos
-	Audio.play3d("build_place", pos, -2.0, 1.1)
+	Audio.play3d("trap_set", pos, -2.0)
 
 
 # A Boogie Bomb went off near us.
@@ -1712,7 +1712,7 @@ func reboot(pos: Vector3) -> void:
 	_apply_selected()
 	if has_method("_on_reboot"):
 		call("_on_reboot")
-	Audio.play3d("heal_up", pos + Vector3(0, 1.2, 0), 0.0, 1.4)
+	Audio.play3d("reboot_van", pos + Vector3(0, 1.2, 0), 0.0)
 	emit_signal("slot_changed")
 	emit_signal("downed_changed", false)
 	emit_signal("picked_up", "REBOOTED - back in the fight")
