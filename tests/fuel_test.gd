@@ -43,7 +43,7 @@ func _run() -> void:
 	var y: float = world.terrain.height_at(0.0, 30.0)
 	p.global_transform.origin = Vector3(8.0, y + 1.0, 30.0)
 	p.velocity = Vector3.ZERO
-	var buggy = world.spawn_vehicle("buggy", Vector3(0.0, y + 1.0, 30.0), PI / 2.0)
+	var buggy = world.spawn_vehicle("buggy", Vector3(0.0, y + 1.0, 30.0), -PI / 2.0)
 	yield(_frames(100), "completed")
 	buggy.fuel = 100.0
 	p.global_transform.origin = buggy.global_transform.origin + Vector3(0.0, 0.2, 2.6)
