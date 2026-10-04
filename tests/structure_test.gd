@@ -44,9 +44,9 @@ func _run() -> void:
 		x += 6.0
 	check(peak > 30.0, "the island has tall mountains (peak %.0f m)" % peak)
 	var MapColors = load("res://scripts/ui/MapColors.gd")
-	var snow: Color = MapColors.color_at(terrain, 200.0 * cos(deg2rad(315.0)), 200.0 * sin(deg2rad(315.0)))
-	var lava: Color = MapColors.color_at(terrain, 200.0 * cos(deg2rad(232.0)), 200.0 * sin(deg2rad(232.0)))
-	var desert: Color = MapColors.color_at(terrain, 200.0 * cos(deg2rad(62.0)), 200.0 * sin(deg2rad(62.0)))
+	var snow: Color = MapColors.color_at(terrain, terrain.half * 0.56 * cos(deg2rad(315.0)), terrain.half * 0.56 * sin(deg2rad(315.0)))
+	var lava: Color = MapColors.color_at(terrain, terrain.half * 0.56 * cos(deg2rad(232.0)), terrain.half * 0.56 * sin(deg2rad(232.0)))
+	var desert: Color = MapColors.color_at(terrain, terrain.half * 0.56 * cos(deg2rad(62.0)), terrain.half * 0.56 * sin(deg2rad(62.0)))
 	check(snow.v > 0.65 and snow.v > lava.v + 0.12 and lava.v < 0.6 and desert.r > desert.b + 0.2, "map colours: snow bright, lava dark, desert tan (%s %s %s)" % [snow, lava, desert])
 	check(world.hud.minimap._tex != null, "the minimap draws the biome texture")
 

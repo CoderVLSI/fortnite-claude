@@ -49,7 +49,8 @@ func _run() -> void:
 			count0 += 1
 	check(count0 == 2, "a team has two members (%d)" % count0)
 	var total: int = get_nodes_in_group("fighters").size()
-	check(world.alive_teams() == int(ceil(total / 2.0)), "%d fighters make %d teams" % [total, world.alive_teams()])
+	var wardens: int = world.bosses.size()           # each Warden stands alone
+	check(world.alive_teams() == int(ceil((total - wardens) / 2.0)) + wardens, "%d fighters make %d teams" % [total, world.alive_teams()])
 	p.max_health = 1000.0
 	p.health = 1000.0
 	var h0: float = mate.health
