@@ -109,8 +109,7 @@ func _run() -> void:
 	if srv.empty():
 		_finish()
 		return
-	net.join_code = ""
-	var err: String = net.join_game(srv.ip, "PLAYER" + role.to_upper(), settings.loadout, srv.port)
+	var err: String = net.join_game(srv.ip, "PLAYER" + role.to_upper(), settings.loadout, srv.port, "")
 	check(err == "", "connecting starts")
 	var in_lobby: bool = yield(wait_for(self, "in_party", 15.0), "completed")
 	check(in_lobby, "the server accepts us into its lobby")

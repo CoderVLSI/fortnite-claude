@@ -198,8 +198,9 @@ static func instance_of_code(code: String) -> int:
 	return c if c >= 0 and c < 26 else -1
 
 
-func join_game(ip: String, player_name: String, loadout: Dictionary, port: int = PORT) -> String:
+func join_game(ip: String, player_name: String, loadout: Dictionary, port: int = PORT, code: String = "") -> String:
 	leave("")
+	join_code = code
 	if ip.strip_edges() == "":
 		return "Enter the host's IP address."
 	_peer = NetworkedMultiplayerENet.new()
@@ -246,7 +247,6 @@ func leave(reason: String = "") -> void:
 	dedicated = false
 	room_code = ""
 	room_leader = 0
-	join_code = ""
 	_close_status()
 	max_players = MAX_PLAYERS
 	members = {}
