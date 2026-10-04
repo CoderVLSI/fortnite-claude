@@ -20,6 +20,7 @@ const Npc = preload("res://scripts/Npc.gd")
 const QuestLog = preload("res://scripts/QuestLog.gd")
 const RebootVan = preload("res://scripts/RebootVan.gd")
 const RebootCard = preload("res://scripts/RebootCard.gd")
+const GasPump = preload("res://scripts/GasPump.gd")
 const Pois = preload("res://scripts/Pois.gd")
 const BuildPiece = preload("res://scripts/BuildPiece.gd")
 const Vehicle = preload("res://scripts/Vehicle.gd")
@@ -148,6 +149,7 @@ func _ready() -> void:
 	_spawn_vending()
 	_spawn_npcs()
 	_spawn_vans()
+	_spawn_pumps()
 	_spawn_rifts_and_sprites()
 	if profile.use_bus:
 		_start_bus()
@@ -669,6 +671,30 @@ func _spawn_vending() -> void:
 			n += 1
 
 
+# ------------------------------------------------------------------ fuel pumps
+
+const PUMP_SPOTS := [Vector2(14, 16), Vector2(-14, 16), Vector2(22, -10), Vector2(-22, -10), Vector2(10, -24)]
+
+
+func _spawn_pumps() -> void:
+	for pp in [Vector2(-18, 8), Vector2(20, 6)]:
+		if not _near_building(pp, 6.0):
+			add_pump(pp)
+	for poi in pois:
+		if poi.def.get("vehicles", []).empty():
+			continue                                     # pumps only where there is something to fill
+		var spot := _vending_spot(poi, PUMP_SPOTS)
+		if spot != Vector2.INF:
+			add_pump(spot)
+
+
+func add_pump(pos: Vector2) -> Node:
+	var pump := GasPump.new()
+	pump.translation = Vector3(pos.x, terrain.height_at(pos.x, pos.y), pos.y)
+	add_child(pump)
+	return pump
+
+
 # ------------------------------------------------------------------ Reboot Vans (team modes)
 
 const VAN_SPOTS := [Vector2(-18, -6), Vector2(20, 12), Vector2(-8, -22), Vector2(18, -14), Vector2(-20, 14)]
@@ -854,6 +880,7 @@ func spawn_vehicle(kind: String, pos: Vector3, yaw: float) -> Node:
 	v.translation = pos
 	v.rotation.y = yaw
 	v.net_id = "v%d" % _veh_seq
+	v.fuel = 45.0 + float(_veh_seq * 37 % 56)                    # parked vehicles hold between about half and a full tank
 	net_nodes[v.net_id] = v
 	_veh_seq += 1
 	add_child(v)

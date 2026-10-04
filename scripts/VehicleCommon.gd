@@ -135,3 +135,30 @@ static func explode(v, from_net: bool = false) -> void:
 	tw.interpolate_property(mat, "albedo_color:a", 0.85, 0.0, 0.9)
 	tw.start()
 	v.get_tree().create_timer(1.0).connect("timeout", fire, "queue_free")
+
+
+# --- fuel ----------------------------------------------------------------------
+# Every wheeled vehicle and boat has a tank (0..100). Driving burns it (more with the throttle down and the boost on); with an
+# empty tank the engine is dead and you coast. Fuel pumps (GasPump.gd) fill it.
+
+const FUEL_IDLE := 0.04
+const FUEL_THROTTLE := 0.55
+
+
+static func burn_fuel(v, thr: float, boost: bool, delta: float) -> bool:
+	if v.fuel <= 0.0:
+		return false
+	v.fuel = max(0.0, v.fuel - (FUEL_IDLE + abs(thr) * FUEL_THROTTLE * (1.8 if boost else 1.0)) * delta)
+	if v.fuel <= 0.0:
+		var d = v.occupants[0] if v.occupants.size() > 0 else null
+		if d != null and is_instance_valid(d):
+			d.emit_signal("picked_up", "OUT OF FUEL - find a pump")
+		return false
+	if v.fuel < 15.0 and not v.low_warned:
+		v.low_warned = true
+		var d2 = v.occupants[0] if v.occupants.size() > 0 else null
+		if d2 != null and is_instance_valid(d2):
+			d2.emit_signal("picked_up", "Low fuel")
+	elif v.fuel > 25.0:
+		v.low_warned = false
+	return true

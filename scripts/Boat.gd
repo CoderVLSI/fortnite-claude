@@ -16,6 +16,8 @@ var last_attacker = null
 var occupants := [null, null]
 var seat_offsets := [Vector3(-0.4, 0.55, 0.55), Vector3(0.4, 0.55, 0.55)]
 var input_move := Vector2.ZERO
+var fuel := 100.0
+var low_warned := false
 var handbrake := false
 var boost := false
 var top_speed := 20.0
@@ -102,6 +104,8 @@ func _physics_process(delta: float) -> void:
 		_engine_snd.unit_db = -60.0
 		return
 	var thr := -input_move.y if driven else 0.0
+	if driven and not Common.burn_fuel(self, thr, boost, delta):
+		thr = 0.0
 	var st := input_move.x if driven else 0.0
 	if in_water:
 		# buoyancy with vertical damping

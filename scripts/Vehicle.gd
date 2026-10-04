@@ -29,6 +29,8 @@ var net_owner := 0                 # another machine is driving: we only follow 
 var _net_xf := Transform()
 var _net_has := false
 var steer_visual := 0.0
+var fuel := 100.0                   # see VehicleCommon.burn_fuel
+var low_warned := false
 
 var _engine_snd: AudioStreamPlayer3D
 var _prev_speed := 0.0
@@ -168,6 +170,8 @@ func _physics_process(delta: float) -> void:
 		thr = -input_move.y
 		st = input_move.x
 		hb = handbrake
+		if not Common.burn_fuel(self, thr, boost, delta):
+			thr = 0.0                                    # the tank is empty: coast
 	var fwd := forward_speed()
 	var boost_mult := 1.5 if (boost and driven) else 1.0
 	var br := 0.0
