@@ -5,7 +5,7 @@ Effects", Turbo Building, weapon and item lists). Storm Island is an original ga
 
 | Area | Fortnite | Storm Island |
 |---|---|---|
-| Match flow | Battle Bus, jump, freefall, glider, shrinking storm in many phases, last one standing | Same (Sky Ferry, 5 faster phases, 50 fighters) |
+| Match flow | Battle Bus, jump, freefall, glider, shrinking storm in many phases, last one standing | Same (Sky Ferry, 5 faster phases, 100 fighters) |
 | **Glider redeploy** | Reopen the glider when falling from a height | **Added**: press jump while falling fast, 9 m or more up |
 | Storm | Damage grows per phase (1% to 10% of max health) | 1 / 2 / 4 / 7 / 10 per second, scaled to the island |
 | Building | Wall / floor / ramp / roof, edit, 3 materials | Same, Fortnite-style edit, auto material routing |
@@ -28,7 +28,7 @@ Effects", Turbo Building, weapon and item lists). Storm Island is an original ga
 | Progression | Battle Pass, quests, XP | Level and stats per account (local), **12+ quests from Keepers (gold + XP)**; no battle pass |
 | World life | NPCs, wildlife, vehicles with fuel, trains, weather | Boss, wild Sprites, **Keeper NPCs, chickens and boars (Roast Meat), vehicles with fuel + pumps, rain storms**. No trains |
 | Loot | Chests, floor loot, vending machines, supply drops, llamas | All, **including Supply Llamas** (burst them for loot) |
-| Players per match | 100 | 50 (the map is 720 m) |
+| Players per match | 100 | 100 (humans + bots; the map is 1 km) |
 | Servers | Dedicated, matchmaking, voice chat | LAN only, no voice |
 
 ## Still to do
@@ -53,3 +53,10 @@ and any script errors.
 * Building: wood 200, stone 300, metal 400 HP; material cap 500; pickaxe 20 on players, 75 on player-built pieces.
 * Mantling: grab and pull yourself onto a ledge by jumping at it and holding forward; reach is about one storey (we allow up to 2.8 m).
 * Anti-cheat v1 (`scripts/Guard.gd`): server-side speed, fire-rate, damage, range, flood and impersonation checks; damage is routed through the dedicated server (`docs/SERVER.md`).
+
+## Map expansion, vaults and 100 players (Chapter 2 Season 2 as the reference)
+* The island is now about 1 km across (was 720 m). Storm phases scale with it.
+* Named places went from 20 to 28. Chapter 2 Season 2 counterparts (original names): THE BUREAU (the Agency), STEALTH STRONGHOLD, LAZY LAGOON (Lazy Lake), MURKY MIRE (Slurpy Swamp), MARKET STREET (Retail Row), SULFUR SPRINGS (Salty Springs), CRAFTY CORNER (Catty Corner), BRAMBLE HEDGES (Holly Hedges); the existing docks / farm / lighthouse / foundry / dunes cover Dirty Docks, Frenzy Farm, Lockie's, Steamy Stacks and Sweaty Sands.
+* Vaults: a sealed concrete room at Iron Bunker, The Bureau and Stealth Stronghold. The steel door opens with a Vault Keycard dropped by that place's Warden (three bosses, each guarding a mythic); three mythic chests are inside. Door state is synced over the network. Vaults show on the big map.
+* 100 fighters per match (humans + bots): bots far from every human send their pose 2-3 times a second instead of 10 to keep traffic down. Mobile runs 40 bots.
+* Not done: a real lake (Loot Lake) and the Agency's helicopter ride.

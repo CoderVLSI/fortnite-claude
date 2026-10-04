@@ -60,3 +60,8 @@ Update: the SMG, shotgun, sniper, assault rifle, burst rifle, charge shotgun, me
 NOTE FOR THE IMAGE AGENT: this project's Godot build cannot import JPG files (`valid=false`, "Error loading image"). Keep
 everything in `assets/ui/` and `assets/icons/` as PNG. To save space, quantise big backgrounds to a 256-colour PNG
 (Pillow: `im.quantize(256, dither=Image.FLOYDSTEINBERG).save(path, optimize=True)`).
+
+
+## Vaults and keycards (new)
+* `assets/ui/ui_vault.png` (map marker for vault doors, same style as `ui_fuel.png`) and `assets/ui/ui_keycard.png` (HUD / pickup icon). The game falls back to a coloured dot until they exist.
+* Optional 3D: `assets/models/keycard.glb` (credit-card sized, orange stripe) to replace the glowing cube; `vault_door.glb` to replace the grey box door.
