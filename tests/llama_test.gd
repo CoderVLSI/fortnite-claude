@@ -41,6 +41,15 @@ func _run() -> void:
 		ids[l.net_id] = true
 	check(ids.size() == llamas.size() and world.net_nodes.has(llamas[0].net_id), "each has its own network id")
 	var l = llamas[0]
+	# the UI icons exist, and the maps draw the markers (Keepers, llamas, vans, pumps) without trouble
+	var MapMarkers = load("res://scripts/ui/MapMarkers.gd")
+	var cache := {}
+	for icon in ["ui_llama", "ui_quest", "ui_reboot_card", "ui_fuel"]:
+		check(MapMarkers.tex(cache, icon) != null, "%s loads for the map" % icon)
+	world.hud.map_screen.visible = true
+	yield(_frames(4), "completed")
+	world.hud.map_screen.visible = false
+	check(true, "the big map and the minimap draw the markers")
 	var items_before := get_nodes_in_group("interactable").size()
 	var hits := 0
 	while not l.is_dead and hits < 100:

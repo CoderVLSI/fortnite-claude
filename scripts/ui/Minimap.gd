@@ -1,6 +1,8 @@
 extends Control
 
 const MapColors = preload("res://scripts/ui/MapColors.gd")
+const MapMarkers = preload("res://scripts/ui/MapMarkers.gd")
+var _ui_icons := {}
 # North-up island map: storm circles, buildings, the player and nearby enemies.
 
 const RADAR_RANGE := 45.0   # enemies are only shown when this close
@@ -44,6 +46,7 @@ func _draw() -> void:
 			var sp := Vector2(sup.global_transform.origin.x, sup.global_transform.origin.z)
 			draw_rect(Rect2(mid + sp * s - Vector2(4, 4), Vector2(8, 8)), Color(1.0, 0.3, 0.25))
 			draw_rect(Rect2(mid + sp * s - Vector2(4, 4), Vector2(8, 8)), Color.white, false, 1.5)
+	MapMarkers.draw(self, _ui_icons, get_tree(), mid, s, false)
 	if world.bus != null and is_instance_valid(world.bus):
 		var bp := Vector2(world.bus.global_transform.origin.x, world.bus.global_transform.origin.z)
 		var bd := Vector2(world.bus.direction.x, world.bus.direction.z)

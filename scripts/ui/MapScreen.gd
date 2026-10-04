@@ -1,6 +1,7 @@
 extends Control
 
 const MapColors = preload("res://scripts/ui/MapColors.gd")
+const MapMarkers = preload("res://scripts/ui/MapMarkers.gd")
 # Full map overlay (M key / tap the minimap): terrain heat-map, roads, named POIs, storm
 # circles, supply drops, the bus route, the boss and the player.
 
@@ -93,6 +94,7 @@ func _draw() -> void:
 				draw_texture_rect(vt, Rect2(mid + vp * s - Vector2(15, 15), Vector2(30, 30)), false)
 			else:
 				draw_rect(Rect2(mid + vp * s - Vector2(3, 3), Vector2(6, 6)), Color(0.4, 0.9, 1.0))
+	MapMarkers.draw(self, _icons, get_tree(), mid, s, true)          # Keepers, llamas, vans, pumps
 	if world.bus != null and is_instance_valid(world.bus):
 		var bus_p := Vector2(world.bus.global_transform.origin.x, world.bus.global_transform.origin.z)
 		var bd := Vector2(world.bus.direction.x, world.bus.direction.z)

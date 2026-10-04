@@ -768,7 +768,7 @@ func show_end(victory: bool, placement: int, kills: int) -> void:
 	end_title.text = "LAST ONE STANDING!" if victory else "ELIMINATED"
 	end_title.add_color_override("font_color", Color(1.0, 0.85, 0.3) if victory else Color(1.0, 0.45, 0.4))
 	end_stats.text = "Placed #%d\nEliminations: %d" % [placement, kills]
-	end_bg.texture = _tex("res://assets/ui/victory_bg.jpg" if victory else "res://assets/ui/eliminated_bg.jpg")
+	end_bg.texture = _tex("res://assets/ui/victory_bg.png" if victory else "res://assets/ui/eliminated_bg.png")
 	end_bg.visible = end_bg.texture != null
 	end_bg.modulate = Color(1, 1, 1, 0)
 	end_panel.visible = true

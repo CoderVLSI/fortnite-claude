@@ -34,7 +34,7 @@ func _ready() -> void:
 	_bg.stretch_mode = TextureRect.STRETCH_SCALE
 	_bg.set_anchors_and_margins_preset(Control.PRESET_WIDE)
 	_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var tex = load("res://assets/ui/loading_bg.jpg")
+	var tex = load("res://assets/ui/loading_bg.png")
 	if tex != null:
 		_bg.texture = tex
 	add_child(_bg)
