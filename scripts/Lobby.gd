@@ -177,7 +177,7 @@ func apply_loadout(d: Dictionary, wave_it: bool = false) -> void:
 # the 3D renderer like everything else (a canvas-layer backdrop covered the character). Without the image the lobby
 # falls back to drifting rocks, clouds and the bus in the normal sky.
 func _build_backdrop() -> void:
-	var tex = load("res://assets/ui/lobby_bg.png")
+	var tex = load("res://assets/ui/lobby_bg.jpg")
 	if tex == null:
 		_build_sky()
 		return
