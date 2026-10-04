@@ -1444,6 +1444,8 @@ func _discharge(aim_from: Vector3, aim_dir: Vector3, item) -> void:
 	if not is_in_group("player"):
 		Audio.note("gun", muzzle_position())
 	_net_tracers = []
+	if is_in_group("player"):
+		_add_bloom()
 	if def.has("projectile"):
 		_fire_projectile(aim_from, aim_dir)
 	else:
@@ -1534,6 +1536,23 @@ func _swing_pickaxe(aim_from: Vector3, aim_dir: Vector3) -> bool:
 	return true
 
 
+var _bloom := 0.0
+var _bloom_at := 0.0
+
+
+func def_auto_bloom(item) -> bool:
+	return item != null and item.kind == "weapon" and Items.WEAPONS[item.id].get("pellets", 1) == 1 and Items.WEAPONS[item.id].get("auto", false)
+
+
+func _bloom_now() -> float:
+	return max(0.0, _bloom - (OS.get_ticks_msec() / 1000.0 - _bloom_at) * 1.6)
+
+
+func _add_bloom() -> void:
+	_bloom = min(_bloom_now() + 0.14, 0.9)
+	_bloom_at = OS.get_ticks_msec() / 1000.0
+
+
 func _spread(dir: Vector3) -> Vector3:
 	var deg := spread_deg
 	var item = selected_item()
@@ -1542,6 +1561,8 @@ func _spread(dir: Vector3) -> Vector3:
 		deg = deg * sc.spread if aiming else deg + sc.get("hip_spread", 0.0)    # aiming tightens; a sniper hip-fires wide
 		if crouching:
 			deg *= 0.7                                                          # crouching steadies the shot
+		if def_auto_bloom(item):
+			deg *= 1.0 + _bloom_now()                                           # spraying widens the cone; it settles when you let go
 	if deg <= 0.0:
 		return dir
 	deg *= 1.0 - 0.55 * charge_used
