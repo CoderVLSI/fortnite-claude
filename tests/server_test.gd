@@ -147,6 +147,10 @@ func _run() -> void:
 	check(seen.distance_to(op) < 3.0, "we see them where they are (%.1f m off)" % seen.distance_to(op))
 	check(world.fighter_by_key(1) == null, "the server has no character in the match")
 	check(get_nodes_in_group("fighters").size() >= 40, "bots fill the match (%d fighters)" % get_nodes_in_group("fighters").size())
+	var warden_ok := world.bosses.size() > 0
+	for wb in world.bosses:
+		warden_ok = warden_ok and wb.net_owner == 1 and typeof(wb.net_key_v) == TYPE_STRING
+	check(warden_ok, "the Wardens are server-run puppets here (%d)" % world.bosses.size())
 	put(role + "_checked")
 	yield(fetch(("b" if role == "a" else "a") + "_checked"), "completed")
 	# leave: the server notices and recycles itself
