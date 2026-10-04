@@ -15,6 +15,7 @@ var _rng := RandomNumberGenerator.new()
 
 func _ready() -> void:
 	add_to_group("llamas")
+	add_to_group("wildlife")
 	collision_layer = 1
 	collision_mask = 0
 	_rng.randomize()
@@ -75,6 +76,8 @@ func _build() -> void:
 
 
 func _process(delta: float) -> void:
+	if not visible:
+		return
 	_t += delta
 	_wobble = max(0.0, _wobble - delta * 3.0)
 	_model.rotation_degrees.z = sin(_t * 30.0) * _wobble * 6.0

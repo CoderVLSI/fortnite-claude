@@ -31,6 +31,7 @@ var _rng := RandomNumberGenerator.new()
 
 func _ready() -> void:
 	add_to_group("animals")
+	add_to_group("wildlife")
 	_rng.randomize()
 	health = KINDS[kind].hp
 	collision_layer = 2                     # shots land on it, like on a fighter
@@ -149,8 +150,8 @@ func _nearest_fighter(max_d: float):
 
 
 func _physics_process(delta: float) -> void:
-	if is_dead or terrain == null:
-		return
+	if is_dead or terrain == null or (not visible and _angry <= 0.0):
+		return                                   # far away (Perf.gd hides it): not worth simulating
 	_t += delta
 	_acc += delta
 	_model.translation.y = lerp(_model.translation.y, 0.0, clamp(10.0 * delta, 0.0, 1.0))

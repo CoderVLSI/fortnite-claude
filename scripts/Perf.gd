@@ -15,7 +15,7 @@ var _cull_t := 0.0
 var _gov_t := 0.0
 var _gov_frames := 0
 var _grace := 6.0                 # ignore the first seconds (loading hitches)
-var radius := {"interactable": 130.0, "fighters": 170.0, "rifts": 220.0, "structures": 330.0, "scenery": 260.0}
+var radius := {"interactable": 130.0, "fighters": 170.0, "rifts": 220.0, "structures": 330.0, "scenery": 260.0, "wildlife": 110.0}
 
 
 func setup(w) -> void:

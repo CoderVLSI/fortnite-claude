@@ -113,6 +113,8 @@ func interact(by) -> void:
 
 
 func _process(delta: float) -> void:
+	if not visible:
+		return
 	_t += delta
 	if model == null or animator == null or animator.nodes.empty():
 		return
