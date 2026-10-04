@@ -149,7 +149,8 @@ func check_event(id: int, kind: String, data) -> String:
 			if typeof(data) == TYPE_ARRAY and data.size() > 0 and str(data[0]) != str(id):
 				return "killed somebody remotely"
 		"kill":
-			if typeof(data) == TYPE_ARRAY and data.size() > 1 and str(data[1]) != str(id):
+			# sent by the victim's machine to the killer's ("you were killed by ..."), or by the killer's machine for bots
+			if typeof(data) == TYPE_ARRAY and data.size() > 1 and str(data[1]) != str(id) and str(data[0]) != str(id):
 				return "kill credited to somebody else"
 		"storm":
 			return "host-only event"

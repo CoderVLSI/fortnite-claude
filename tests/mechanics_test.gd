@@ -150,10 +150,10 @@ func _run() -> void:
 	p.select_slot(4)
 	yield(_frames(3), "completed")
 	var used := 0.0
-	while p.slots[4] != null and used < 12.0:
+	while p.slots[4] != null and used < 17.0:
 		p.use_selected(1.0 / 60.0)
 		used += 1.0 / 60.0
-	check(p.health >= 99.9 and p.shield >= 99.9 and used > 9.0, "Chug Jug takes ~10 s and restores everything (%.1f s)" % used)
+	check(p.health >= 99.9 and p.shield >= 99.9 and used > 14.0, "Chug Jug takes ~15 s and restores everything (%.1f s)" % used)
 	check(p.slots[4] == null, "the Chug Jug is consumed")
 
 	# --- floating damage numbers

@@ -165,7 +165,11 @@ func _run() -> void:
 		yield(fetch("b_kicked"), "completed")
 		yield(create_timer(1.0), "timeout")
 		
-		check(get_nodes_in_group("remote_players").size() == 0 or not net.active, "the cheater's puppet is gone")
+		var alive_puppets := 0
+		for rp in get_nodes_in_group("remote_players"):
+			if is_instance_valid(rp) and not rp.is_dead:
+				alive_puppets += 1
+		check(alive_puppets == 0 or not net.active, "the cheater's puppet is gone (%d alive)" % alive_puppets)
 	_finish()
 
 

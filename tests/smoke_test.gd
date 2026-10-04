@@ -231,7 +231,7 @@ func _run() -> void:
 	p.select_slot(4)
 	p.shield = 0.0
 	check(p.can_use_selected(), "shield potion is usable when shield is low")
-	for i in range(280):
+	for i in range(340):
 		p.use_selected(1.0 / 60.0)
 	check(abs(p.shield - 50.0) < 0.1 and p.slots[4].count == 1, "shield potion adds 50 shield and uses up one (shield %.0f)" % p.shield)
 	p.shield = 100.0
@@ -240,11 +240,11 @@ func _run() -> void:
 	p._apply_selected()
 	p.health = 50.0
 	p.max_health = 100.0
-	for i in range(190):
+	for i in range(260):
 		p.use_selected(1.0 / 60.0)
 	check(abs(p.health - 65.0) < 0.1, "bandage heals 15 (health %.0f)" % p.health)
 	p.health = 70.0
-	for i in range(190):
+	for i in range(260):
 		p.use_selected(1.0 / 60.0)
 	check(abs(p.health - 75.0) < 0.1, "bandage stops at 75 health (health %.0f)" % p.health)
 	check(p.slots[4] == null and p.selected == 0, "empty stack frees the slot and falls back to the pickaxe")

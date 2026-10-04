@@ -51,6 +51,7 @@ func _init() -> void:
 	check(g.check_event(9, "died", [10]) != "", "claiming somebody else died is caught")
 	check(g.check_event(9, "died", [9]) == "", "dying yourself is fine")
 	check(g.check_event(9, "kill", ["Bot_3", 12]) != "", "credit for somebody else's kill is caught")
+	check(g.check_event(9, "kill", [9, 12]) == "", "a victim reporting who killed them is fine")
 	check(g.check_event(9, "storm", []) != "", "a client sending storm data is caught")
 	# strikes kick
 	var kicked := false
