@@ -42,6 +42,7 @@ run farm_test --no-bus --skip-menu
 run vault_test --no-bus --skip-menu
 run team_test --no-bus --skip-menu
 run qol_test --no-bus --skip-menu
+run a11y_test --no-bus --skip-menu
 run arsenal_test --no-bus --skip-menu
 run revive_test --no-bus --skip-menu
 run emote_test --no-bus --skip-menu

@@ -751,9 +751,27 @@ func show_end(victory: bool, placement: int, kills: int) -> void:
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 
+var _applied_scale := -1.0
+var _applied_size := Vector2.ZERO
+
+
+# HUD size slider: the whole HUD is scaled about its top-left corner and its box shrinks / grows so the anchors still land on the screen edges.
+func _apply_hud_scale() -> void:
+	var s: float = clamp(float(Settings.pref("hud_scale")), 0.5, 2.0)
+	var v: Vector2 = get_viewport().get_visible_rect().size
+	if is_equal_approx(s, _applied_scale) and v == _applied_size:
+		return
+	_applied_scale = s
+	_applied_size = v
+	root.rect_scale = Vector2(s, s)
+	root.margin_right = v.x / s - v.x
+	root.margin_bottom = v.y / s - v.y
+
+
 func _process(delta: float) -> void:
 	if player == null or world == null:
 		return
+	_apply_hud_scale()
 	_t += delta
 	health_bar.max_value = player.max_health
 	health_bar.value = player.health
