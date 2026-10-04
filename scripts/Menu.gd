@@ -373,6 +373,7 @@ func _build_title() -> Control:
 	_style_button(play, _flat(gold, Color(0.10, 0.08, 0.02), 4, 3), _flat(Color(1.0, 0.94, 0.45), Color(0.10, 0.08, 0.02), 4, 3), Color(0.08, 0.07, 0.02), 40)
 	mode.add_child(play)
 	play_button = play
+	_build_party_strip(p)
 
 	# tips + hint
 	tip_label = _label(TIPS[0], 17, Color(1, 1, 1, 0.9))
@@ -1066,7 +1067,7 @@ func _party_view() -> void:
 		var addr := "  /  ".join(Net.local_addresses())
 		_pt_label("You are hosting.  Friends join with:  %s   (port %d)" % [addr if addr != "" else "your IP", Net.PORT], 14, Vector2(24, 54), Color(0.85, 0.9, 1.0))
 	else:
-		_pt_label("Connected. Waiting for the host to start the match.", 14, Vector2(24, 54), Color(0.85, 0.9, 1.0))
+		_pt_label("Connected. Press READY, then the party leader starts the match for everybody.", 14, Vector2(24, 54), Color(0.85, 0.9, 1.0))
 	var y := 96.0
 	var ids := Net.members.keys()
 	ids.sort()
@@ -1084,7 +1085,9 @@ func _party_view() -> void:
 	_pt_label("%d player%s + %d bots" % [Net.human_count(), "" if Net.human_count() == 1 else "s", max(Net.TOTAL_FIGHTERS - Net.human_count(), 0)], 15, Vector2(24, y + 6), Color(0.65, 0.78, 1.0))
 	party_error = _pt_label("", 15, Vector2(24, 520), Color(1.0, 0.45, 0.4))
 	if Net.is_host:
-		_pt_button("START MATCH", Vector2(24, 460), Vector2(492, 56), "party_start")
+		_pt_button("QUEUE UP" if not Net.is_queueing() else "CANCEL", Vector2(24, 460), Vector2(492, 56), "party_start")
+	else:
+		_pt_button("NOT READY" if Net.my_ready() else "READY", Vector2(24, 460), Vector2(492, 56), "party_ready")
 	_pt_button("LEAVE PARTY", Vector2(24, 536), Vector2(492, 52), "party_leave")
 
 
@@ -1117,7 +1120,16 @@ func party_join_ip(ip: String, port: int) -> void:
 
 
 func party_start() -> void:
-	Net.start_match()
+	if Net.is_queueing():
+		Net.cancel_queue()
+	else:
+		Net.queue_up()
+	party_show("party")
+
+
+func party_ready() -> void:
+	Net.set_ready(not Net.my_ready())
+	party_show("party")
 
 
 func party_leave() -> void:
@@ -1147,6 +1159,8 @@ func _on_party_failed(reason: String) -> void:
 
 
 func _on_party_left(reason: String) -> void:
+	if mode_title != null:
+		_refresh_lobby()
 	if party_panel != null and party_panel.visible:
 		party_show("home")
 		if party_error != null and reason != "":
@@ -1592,6 +1606,89 @@ func _refresh_lobby() -> void:
 	mode_prev.disabled = not can_pick
 	mode_next.disabled = not can_pick
 	mode_info.text = "%d players  -  %s  -  shrinking storm" % [bots + 1, "everyone for themselves" if size == 1 else "teams of %d, no friendly fire" % size]
+	_refresh_play_button()
+	_refresh_party_strip()
+	if lobby != null:
+		lobby.set_party(Net.members if Net.active else {}, Net.my_id)
+
+
+# ------------------------------------------------------------------ party in the lobby: PLAY / READY, the party card, the countdown
+
+var party_strip: Panel
+var party_strip_title: Label
+var party_strip_rows: VBoxContainer
+var party_strip_button: Button
+var queue_banner: Label
+
+
+func _build_party_strip(parent: Control) -> void:
+	party_strip = Panel.new()
+	party_strip.add_stylebox_override("panel", _flat(Color(0.04, 0.07, 0.17, 0.80), Color(1, 1, 1, 0.18), 10, 2))
+	_place(party_strip, 0.0, 1.0, Vector2(26, -430), Vector2(460, 180))
+	party_strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(party_strip)
+	party_strip_title = _label("PARTY", 16, Color(0.65, 0.78, 1.0))
+	party_strip_title.rect_position = Vector2(20, 10)
+	party_strip.add_child(party_strip_title)
+	party_strip_rows = VBoxContainer.new()
+	party_strip_rows.rect_position = Vector2(20, 34)
+	party_strip_rows.rect_size = Vector2(420, 100)
+	party_strip.add_child(party_strip_rows)
+	party_strip_button = Button.new()
+	party_strip_button.rect_position = Vector2(20, 134)
+	party_strip_button.rect_size = Vector2(420, 36)
+	party_strip_button.connect("pressed", self, "_on_button", ["party"])
+	party_strip.add_child(party_strip_button)
+	queue_banner = _label("", 44, Color(1.0, 0.9, 0.35))
+	queue_banner.align = Label.ALIGN_CENTER
+	_place(queue_banner, 0.5, 0.0, Vector2(-420, 150), Vector2(840, 70))
+	queue_banner.visible = false
+	parent.add_child(queue_banner)
+	Net.connect("queue_changed", self, "_refresh_lobby")
+
+
+func _refresh_party_strip() -> void:
+	if party_strip == null:
+		return
+	for ch in party_strip_rows.get_children():
+		party_strip_rows.remove_child(ch)
+		ch.queue_free()
+	if not Net.active:
+		party_strip_title.text = "PLAY WITH FRIENDS"
+		var l := _label("Start a party, or join your friend's, and queue up together.", 15, Color(0.85, 0.9, 1.0))
+		party_strip_rows.add_child(l)
+		party_strip_button.text = "PARTY  /  INVITE FRIENDS"
+		return
+	var ids := Net.members.keys()
+	ids.sort()
+	party_strip_title.text = "PARTY  %d/4   -   %s" % [ids.size(), MODE_NAMES[Net.team_size - 1]]
+	for id in ids:
+		var m: Dictionary = Net.members[id]
+		var leader: bool = id == 1
+		var ok: bool = leader or bool(m.get("ready", false))
+		var row := _label("%s %s%s%s" % ["READY" if ok else "...  ", m.name, "   (leader)" if leader else "", "   (you)" if id == Net.my_id else ""], 20,
+			Color(0.55, 1.0, 0.65) if ok else Color(1, 1, 1, 0.75))
+		party_strip_rows.add_child(row)
+	party_strip_button.text = "PARTY SCREEN  /  INVITE MORE"
+
+
+func _refresh_play_button() -> void:
+	if play_button == null:
+		return
+	if not Net.active:
+		play_button.text = "PLAY"
+		play_button.disabled = false
+		return
+	if Net.is_queueing():
+		play_button.text = "CANCEL" if Net.is_host else "STARTING..."
+		play_button.disabled = not Net.is_host
+	elif Net.is_host:
+		var n: int = Net.members.size()
+		play_button.text = "PLAY" if n <= 1 else "QUEUE UP  (%d/%d ready)" % [Net.ready_count(), n]
+		play_button.disabled = false
+	else:
+		play_button.text = "NOT READY" if Net.my_ready() else "READY"
+		play_button.disabled = false
 
 
 # The very first screen: the lightning title splash. Press the interact key (E) / tap to continue to the lobby.
@@ -1697,7 +1794,17 @@ func _on_button(id: String) -> void:
 	Audio.play2d("ui_click")
 	match id:
 		"play":
-			start_game()
+			if Net.active and not Net.in_match:
+				if Net.is_host:
+					if Net.is_queueing():
+						Net.cancel_queue()
+					else:
+						Net.queue_up()                       # the leader's PLAY queues the whole party
+				else:
+					Net.set_ready(not Net.my_ready())        # a member's PLAY is READY
+				_refresh_lobby()
+			else:
+				start_game()
 		"lobby":
 			_title_tab = 0
 			_side_panels(null)
@@ -1795,6 +1902,10 @@ func _process(delta: float) -> void:
 		var P = Performance
 		fps_label.text = "%d FPS   script %.1f ms  physics %.1f ms  draws %d\n%s" % [Engine.get_frames_per_second(), P.get_monitor(P.TIME_PROCESS) * 1000.0,
 			P.get_monitor(P.TIME_PHYSICS_PROCESS) * 1000.0, P.get_monitor(P.RENDER_DRAW_CALLS_IN_FRAME), VisualServer.get_video_adapter_name()]
+	if queue_banner != null:
+		queue_banner.visible = Net.active and Net.is_queueing() and state == "title"
+		if queue_banner.visible:
+			queue_banner.text = "MATCH STARTING IN %d" % int(ceil(Net.queue_left))
 	if state == "title" and lobby != null:
 		orbit_cam.global_transform = lobby.camera_transform()
 		_tip_t += delta

@@ -1787,6 +1787,13 @@ func net_apply(s: Dictionary) -> void:
 	var was_down := downed
 	downed = (f & 4096) != 0
 	if downed != was_down:
+		if downed and _revive_spot == null:               # a downed team-mate on another machine: give our side something to revive
+			_revive_spot = preload("res://scripts/ReviveSpot.gd").new()
+			_revive_spot.fighter = self
+			add_child(_revive_spot)
+		elif not downed and _revive_spot != null:
+			_revive_spot.queue_free()
+			_revive_spot = null
 		emit_signal("downed_changed", downed)
 	vehicle_seat = s.vs
 	vehicle_steer = s.st

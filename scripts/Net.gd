@@ -19,12 +19,14 @@ signal match_starting                # the host started the match: load the worl
 signal match_go                      # all worlds are built: start now
 signal games_found                   # LAN discovery list changed
 signal invited(ip, host_name, port)  # a friend invited us to their party
+signal queue_changed                 # the leader queued up (or cancelled): everybody sees the same countdown
 
 const VERSION := "storm-island-lan-2"
 const PORT := 7777
 const DISCOVERY_PORT := 7778
 const MAX_PLAYERS := 8
 const TOTAL_FIGHTERS := 50           # humans + bots
+const QUEUE_SECONDS := 3.0           # the shared "match starting" countdown after the leader presses PLAY
 
 var active := false                  # a party or a networked match exists
 var is_host := false
@@ -41,6 +43,7 @@ var peer_ips := {}                   # peer id -> address (host side)
 var _joined_ip := ""
 var sessions := {}                   # LAN discovery: ip -> {"name", "players", "port", "seen"}
 var last_error := ""
+var queue_left := -1.0               # seconds until the match starts for the whole party (-1 = not queueing)
 
 var _peer: NetworkedMultiplayerENet
 var _udp_out: PacketPeerUDP
@@ -63,6 +66,13 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	if queue_left >= 0.0:
+		queue_left -= delta
+		if queue_left < 0.0:
+			queue_left = -1.0
+			emit_signal("queue_changed")
+			if is_host and active and not in_match:
+				start_match()                       # the leader's machine launches it; everybody else follows
 	_retry_t = max(0.0, _retry_t - delta)
 	if listen_for_invites and _udp_in == null and not in_match and _retry_t <= 0.0:
 		_retry_t = 2.0
@@ -122,7 +132,7 @@ func host_game(player_name: String, loadout: Dictionary, port: int = PORT) -> St
 	my_id = 1
 	_my_name = player_name
 	_my_loadout = loadout.duplicate()
-	members = {1: {"name": player_name, "loadout": loadout.duplicate(), "ready": false}}
+	members = {1: {"name": player_name, "loadout": loadout.duplicate(), "ready": true}}      # the leader is always ready
 	_start_announce()
 	emit_signal("party_changed")
 	return ""
@@ -171,6 +181,7 @@ func leave(reason: String = "") -> void:
 	active = false
 	is_host = false
 	in_match = false
+	queue_left = -1.0
 	members = {}
 	order = []
 	peer_ips = {}
@@ -246,6 +257,8 @@ func _on_peer_disconnected(id: int) -> void:
 		order.erase(id)
 		if is_host:
 			rpc("_party_update", members)
+			if is_queueing() and not in_match:
+				cancel_queue()                       # somebody dropped out while the countdown ran
 		emit_signal("party_changed")
 		if in_match and handler != null and handler.has_method("net_peer_left"):
 			handler.net_peer_left(id, nm)
@@ -332,6 +345,67 @@ func human_count() -> int:
 	return members.size()
 
 
+func is_queueing() -> bool:
+	return queue_left >= 0.0
+
+
+func my_ready() -> bool:
+	return members.has(my_id) and bool(members[my_id].get("ready", false))
+
+
+# How many party members (the leader counts) have pressed READY.
+func ready_count() -> int:
+	var n := 0
+	for id in members:
+		if bool(members[id].get("ready", false)):
+			n += 1
+	return n
+
+
+# A member (not the leader) says they are ready / not ready to go.
+func set_ready(r: bool) -> void:
+	if not active or in_match or is_host:
+		return
+	if members.has(my_id):
+		members[my_id].ready = r
+	rpc_id(1, "_set_ready", r)
+	emit_signal("party_changed")
+
+
+remote func _set_ready(r: bool) -> void:
+	var id := get_tree().get_rpc_sender_id()
+	if is_host and members.has(id) and not in_match:
+		members[id].ready = r
+		rpc("_party_update", members)
+		emit_signal("party_changed")
+
+
+# Leader: press PLAY for the whole party. Everybody sees "match starting" and the same countdown, then the match loads.
+func queue_up() -> void:
+	if not active or not is_host or in_match or is_queueing():
+		return
+	rpc("_queue", QUEUE_SECONDS)
+	_queue(QUEUE_SECONDS)
+
+
+remote func _queue(secs: float) -> void:
+	queue_left = secs
+	emit_signal("queue_changed")
+
+
+func cancel_queue() -> void:
+	if not active or not is_host or not is_queueing():
+		return
+	rpc("_queue_cancel")
+	_queue_cancel()
+
+
+remote func _queue_cancel() -> void:
+	if queue_left >= 0.0:
+		queue_left = -1.0
+		emit_signal("queue_changed")
+
+
 # Host: everyone loads the world with the same seed.
 func start_match(seed_value: int = 0) -> void:
 	if not is_host or in_match:
@@ -350,6 +424,7 @@ remote func _begin_match(seed_v: int, bots: int, ids: Array, tsize: int = 1) -> 
 	bot_count = bots
 	order = ids.duplicate()
 	in_match = true
+	queue_left = -1.0
 	_ready_peers = {}
 	_loot_seq = 0
 	_stop_announce()
@@ -394,7 +469,11 @@ func end_match() -> void:
 	in_match = false
 	handler = null
 	_ready_peers = {}
+	queue_left = -1.0
 	if is_host and active:
+		for id in members:
+			members[id].ready = (id == 1)               # a new round: everybody readies up again
+		rpc("_party_update", members)
 		_start_announce()
 
 

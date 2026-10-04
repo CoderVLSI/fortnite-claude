@@ -268,7 +268,78 @@ func _process(delta: float) -> void:
 		f[0].translation = f[1] + Vector3(0, sin(_t * 0.7 + f[2]) * 0.35, 0)
 
 
+# Party members stand beside you on the lobby island: their skin and back bling, a name, idle breathing.
+var _buddies := {}              # peer id -> {"root": Spatial, "nodes": Dictionary, "skin": String, "phase": float, "tag": Sprite3D}
+const BUDDY_SLOTS := [Vector3(-1.45, 0.0, -0.35), Vector3(-2.55, 0.0, -1.1), Vector3(1.55, 0.0, -1.5)]
+
+
+func set_party(members: Dictionary, my_id: int) -> void:
+	var others := []
+	for id in members.keys():
+		if id != my_id:
+			others.append(id)
+	others.sort()
+	for id in _buddies.keys():
+		if not (id in others):
+			_buddies[id].root.queue_free()
+			_buddies.erase(id)
+	var slot := 0
+	for id in others:
+		if slot >= BUDDY_SLOTS.size():
+			break
+		var lo: Dictionary = Cosmetics.sanitize(members[id].get("loadout", {}))
+		if not _buddies.has(id):
+			var res = load(MODEL)
+			if res == null:
+				continue
+			var root := Spatial.new()
+			var model: Spatial = res.instance()
+			root.add_child(model)
+			add_child(root)
+			var d := {"root": root, "model": model, "nodes": {}, "skin": "", "phase": randf() * 6.0, "bb": null}
+			for n in ["Hips", "Spine", "Head", "ShoulderL", "ElbowL", "ShoulderR", "ElbowR", "HipL", "HipR"]:
+				var node: Node = model.find_node(n, true, false)
+				if node:
+					d.nodes[n] = node
+			_buddies[id] = d
+		var b: Dictionary = _buddies[id]
+		b.root.translation = BUDDY_SLOTS[slot]
+		b.root.rotation_degrees = Vector3(0, 168.0 - (12.0 if BUDDY_SLOTS[slot].x < 0.0 else -12.0), 0)
+		if b.skin != lo.skin:
+			b.skin = lo.skin
+			Skins.apply(b.model, lo.skin, Color(0.95, 0.45, 0.2))
+			if b.bb != null:
+				b.bb.queue_free()
+				b.bb = null
+			var bb = Cosmetics.build_backbling(lo.backbling)
+			var spine: Node = b.model.find_node("Spine", true, false)
+			if bb != null and spine != null:
+				b.bb = bb
+				spine.add_child(bb)
+		slot += 1
+
+
+func _pose_buddies() -> void:
+	for id in _buddies:
+		var b: Dictionary = _buddies[id]
+		var breathe := sin(_t * 1.7 + b.phase)
+		var nd: Dictionary = b.nodes
+		if nd.has("Spine"):
+			nd["Spine"].rotation = Vector3(-0.03 + breathe * 0.012, sin(_t * 0.5 + b.phase) * 0.05, 0)
+		if nd.has("Head"):
+			nd["Head"].rotation = Vector3(sin(_t * 0.7 + b.phase) * 0.04, sin(_t * 0.35 + b.phase) * 0.25, 0)
+		if nd.has("ShoulderL"):
+			nd["ShoulderL"].rotation = Vector3(0.06 + breathe * 0.02, 0, 0.12)
+		if nd.has("ShoulderR"):
+			nd["ShoulderR"].rotation = Vector3(0.06 - breathe * 0.02, 0, -0.12)
+		if nd.has("ElbowL"):
+			nd["ElbowL"].rotation = Vector3(0.22, 0, 0)
+		if nd.has("ElbowR"):
+			nd["ElbowR"].rotation = Vector3(0.22, 0, 0)
+
+
 func _pose(delta: float) -> void:
+	_pose_buddies()
 	if nodes.empty():
 		return
 	var breathe := sin(_t * 1.8)
