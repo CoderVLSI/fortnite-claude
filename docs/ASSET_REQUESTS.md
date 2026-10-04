@@ -1,67 +1,61 @@
-# Assets still needed (hand-off to the audio and image agents)
+# Asset requests (2D art)
 
-The game plays silently / falls back to drawn shapes when a file is missing, so nothing breaks while these are pending.
-Sounds are mono 22050 Hz 16-bit WAV in `assets/audio/` (same as the existing ones; `*_loop` names loop). Icons are 128x128 PNG
-in `assets/icons/` on the usual transparent-with-tile style (see `tools/images/README.md`).
+Owner: image agent. Files live in `assets/icons/` and `assets/ui/`; the generator is `tools/images/openrouter_generate.py`
+(see `tools/images/README.md`). **PNG only** (this Godot build cannot import JPG) and **each file under 300 KB**.
+Icons are 128x128 transparent PNGs in a flat, bold-navy-outline style, readable at 24-48 px on a dark map.
 
-## Sounds (`assets/audio/<name>.wav`)
+## Vaults and keycards
 
-| name | length | what it is |
-|---|---|---|
-| `charge_start` | 0.3 s | click-and-whine as the Charge Shotgun starts charging |
-| `charge_full` | 0.4 s | bright "ready" ping when the Charge Shotgun hits full charge |
-| `shot_charge_shotgun` | 0.9 s | the Charge Shotgun's blast: heavier and more electric than the pump shotgun |
-| `jetpack_thrust` | 0.35 s | one puff of a rocket-pack burst (played repeatedly while thrusting) |
-| `board_mount` | 0.4 s | skateboard dropped and hopped onto: clack + wheels |
-| `board_roll` | 0.5 s | skateboard wheels rolling over ground (played repeatedly while riding) |
-| `shockwave_boom` | 1.2 s | deep concussive air-blast thump with a sweeping whoosh outward |
-| `junk_rift_open` | 1.0 s | a cartoon portal tearing open high in the sky: rising crackle and hum |
-| `junk_impact` | 2.0 s | something enormous slamming into the ground: crash, metal clang, debris |
-| `rift_enter` | 0.9 s | stepping into a portal: rising whoosh and a sparkle, being flung skyward |
-| `building_collapse` | 2.5 s | a wooden house collapsing: creaks, snapping beams, rumbling dust |
-| `sprite_equip` | 0.6 s | a cute magical chime as a little spirit joins you |
-| `sprite_levelup` | 0.8 s | an upbeat rising arpeggio, "level up" |
-| `rain_loop` | 8 s loop | steady rain on grass and leaves, soft, no thunder |
-| `thunder` | 3.5 s | a distant rolling thunderclap |
+- [x] `assets/ui/ui_vault.png` 128x128, transparent. Steel vault door, round wheel handle, orange accent (#FF5A1A).
+- [x] `assets/ui/ui_keycard.png` 128x128, transparent. Orange keycard, black stripe, gold chip, tilted 15 degrees (HUD "VAULT KEYCARD x1").
+- [x] `assets/icons/keycard.png` 256x256, transparent. Same card with a soft orange glow (inventory and pickups).
+- [x] `assets/ui/ui_warden.png` 128x128, transparent. Gold and black armoured helmet with visor (boss map marker).
 
-## Icons (`assets/icons/<name>.png`)
+`ui_keycard` and `keycard` come from one generated image: the card is generated once at 256, `ui_keycard` is that card
+downscaled to 128 (no glow), and `keycard` is the card centred at ~76 % of the canvas with an orange Gaussian glow
+(Pillow: MaxFilter(9) + GaussianBlur(14) on the alpha) so the glow fades out inside the canvas.
 
-| name | what it shows |
-|---|---|
-| `heal_shockwave_grenade` | a round grenade in cyan/blue with a shock ring around it |
-| `heal_junk_rift` | a purple swirling portal with an anvil falling out of it |
-| `heal_jetpack` | a twin-tank red jetpack with orange flames |
-| `heal_skateboard` | a cyan skateboard with yellow wheels, tilted |
-| `heal_rift_to_go` | a small glowing violet portal ring, handheld gadget look |
-| `weapon_charge_shotgun` | a chunky shotgun with glowing blue-yellow charge coils along the barrel |
-| `sprite_earth` `sprite_fire` `sprite_water` `sprite_duck` `sprite_ghost` `sprite_demon` `sprite_king` `sprite_dream` `sprite_punk` `sprite_aegis` `sprite_lucky` | the eleven Sprite companions: round, glowing little ghosts with a face and tiny arms, coloured by element (earth green, fire orange, water blue, duck yellow with a bill, ghost pale white-blue, demon red with horns, king lilac with a gold crown, dream purple with stars, punk pink with a green mohawk, aegis teal with a halo, lucky gold with a green bow tie) |
+## New places (THE BUREAU, STEALTH STRONGHOLD, LAZY LAGOON, MURKY MIRE, MARKET STREET, SULFUR SPRINGS, CRAFTY CORNER, BRAMBLE HEDGES)
 
-Still pending from before: `heal_grenade`, `heal_slurp_juice`, `heal_chug_jug`, `gold_bar` (optional).
+- [x] Per-place banners: **none exist.** `assets/ui/` has only the shared lobby / victory / eliminated / loading
+  backdrops and the logo, no per-place art, so nothing was added. (`docs/pois.png` and `docs/town.png` are
+  documentation screenshots, not game assets.)
 
-## Icons added by the main agent as plain placeholders (please redraw in the house style)
+## Weapons, ammo, materials
 
-`heal_spike_trap`, `heal_proximity_mine`, `heal_boogie_bomb`, `heal_stink_bomb`, `weapon_rocket_launcher`, `weapon_burst_assault`, `heal_bouncer`.
+- [x] Weapon icons: unchanged. Only damage and rarity numbers changed, not the weapons. (The icons were not compared
+  side by side with the 3D models.)
+- [x] Ammo and material icons: checked. None of them draws a quantity or any text, so the larger packs
+  (light 60, medium 60, shells 12, heavy 10) need no icon change.
 
-## Status (updated)
+## Earlier batch (transparent item and UI icons, no inventory tile)
 
-Delivered by the audio agent: rain_loop, thunder, trap_set, spike_pop, mine_arm, mine_beep, boogie_pop, stink_hiss, llama_pop,
-reboot_van, quest_accept, quest_complete, pump_fill, chicken_cluck, boar_grunt, out_of_fuel (all wired in the code).
-Delivered by the image agent: heal_spike_trap, heal_proximity_mine, heal_boogie_bomb, heal_stink_bomb, heal_meat, heal_bouncer,
-weapon_rocket_launcher, weapon_burst_assault, ui_quest, ui_reboot_card, ui_llama, ui_fuel.
-3D models were redone in Blender (`ONLY=items blender -b -P tools/blender/generate_assets.py`) to look like their icons:
-spike trap, proximity mine, boogie / stink / shockwave bombs, bouncer, roast meat, rift-to-go, junk rift (anvil), burst rifle,
-charge shotgun, plus the grenade (ridged), round flask potions, chug jug, pistol colours and rocket launcher colours.
-`tools/render_models.gd` renders any item model for a side-by-side check against its icon.
+- [x] `heal_spike_trap`, `heal_proximity_mine`, `heal_boogie_bomb`, `heal_stink_bomb`, `heal_meat`, `heal_bouncer`,
+  `weapon_rocket_launcher`, `weapon_burst_assault` in `assets/icons/`.
+- [x] `ui_quest`, `ui_reboot_card`, `ui_llama`, `ui_fuel` in `assets/ui/`.
+- [x] Gadget icons on the green slot tile: `heal_shockwave_grenade`, `heal_junk_rift`, `heal_jetpack`,
+  `heal_skateboard`, `heal_rift_to_go`, `heal_grenade`, `heal_slurp_juice`, `heal_chug_jug`;
+  `weapon_charge_shotgun`; `sprite_*` (earth, fire, water, duck, ghost, demon, king, dream, punk, aegis, lucky).
 
-Update: the SMG, shotgun, sniper, assault rifle, burst rifle, charge shotgun, medkit and bandage models were redone too
-(black bodies, thicker barrels, rolled-gauze bandage, case with latches and a red handle). The gun materials were renamed
-(`gun_black`, `gun_gunmetal`, `gun_walnut`, ...) so Godot writes fresh `.material` files.
+## Format fixes
 
-NOTE FOR THE IMAGE AGENT: this project's Godot build cannot import JPG files (`valid=false`, "Error loading image"). Keep
-everything in `assets/ui/` and `assets/icons/` as PNG. To save space, quantise big backgrounds to a 256-colour PNG
-(Pillow: `im.quantize(256, dither=Image.FLOYDSTEINBERG).save(path, optimize=True)`).
+- [x] `lobby_bg`, `victory_bg`, `eliminated_bg`, `loading_bg` converted from JPG to 256-colour PNG at 1280x720
+  (all under 300 KB); the `.jpg` files were removed.
+- [x] `logo.png` (was 1.1 MB), `launcher_fg_432.png` and `launcher_bg_432.png` palette-quantised to stay under 300 KB.
 
+## Storm Island audio pass: vaults, Wardens, far-field, weapons (done)
 
-## Vaults and keycards (new)
-* `assets/ui/ui_vault.png` (map marker for vault doors, same style as `ui_fuel.png`) and `assets/ui/ui_keycard.png` (HUD / pickup icon). The game falls back to a coloured dot until they exist.
-* Optional 3D: `assets/models/keycard.glb` (credit-card sized, orange stripe) to replace the glowing cube; `vault_door.glb` to replace the grey box door.
+Format of this batch: mono, **44.1 kHz**, 16-bit, peak -3 dBFS (3D-sound spec for Storm Island; the older sounds above are still 22.05 kHz).
+Generated by `python3 tools/audio/generate_storm_island_sfx.py` (numpy only, deterministic; `--verify` measures the files).
+
+- [x] `vault_unlock.wav` 1.6 s: keycard beep, heavy clunk, pneumatic hiss
+- [x] `vault_door.wav` 2.2 s: steel door sliding up, servo grind, scrape, final thud, sub-bass
+- [x] `keycard_pickup.wav` 0.6 s: bright chirp, plastic click, sparkle
+- [x] `keycard_deny.wav` 0.5 s: two short low error buzzes
+- [x] `vault_alarm.wav` 3.0 s: muffled distant klaxon, seamless loop, peak -9 dBFS (mid-quiet). Not named `*_loop`, so `Audio.gd` will not loop it by itself
+- [x] `warden_spawn.wav` 2.0 s: low horn sting, one swell
+- [x] `warden_down.wav` 1.5 s: body drop, armour clatter, rising shimmer
+- [x] `distant_gunfire_a.wav`, `distant_gunfire_b.wav`, `distant_gunfire_c.wav` 1.2 s each: far-off firefights with lots of reverb
+- [x] `bus_horn_far.wav` 1.5 s: distant two-tone bus horn, slight pitch fall
+- [x] `players_left_ping.wav` 0.4 s: soft UI ping (play it with pitch changes for 75 / 50 / 25 / 10)
+- [x] Weapon pass: `shot_smg.wav` and `shot_pistol.wav` were 0.8 s / 1.0 s, now cut to 0.15 s (50 ms fade, 44.1 kHz, -3 dBFS), overwritten in place. The assault rifle (0.18 s between shots), shotgun and sniper are unchanged. `shot_mythic.wav` (2 s, used for every mythic weapon) is unchanged.
