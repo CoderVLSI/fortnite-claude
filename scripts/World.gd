@@ -2305,6 +2305,17 @@ func spectate_name() -> String:
 	return _spec_target.display_name if _spec_target != null and is_instance_valid(_spec_target) else ""
 
 
+# A click anywhere takes the mouse back for playing (after an alt-tab), except while the inventory, map, build editor or an end
+# screen is up: those are used with the mouse, so the click must reach them.
+func _screen_open() -> bool:
+	if hud != null:
+		if hud.inventory.visible or hud.map_screen.visible or hud.editor.visible or hud.end_panel.visible:
+			return true
+		if hud.emote_wheel != null and hud.emote_wheel.open:
+			return true
+	return menu != null and menu.state != "hidden"
+
+
 func _input(event: InputEvent) -> void:
 	if spectating and event is InputEventKey and event.pressed and not event.echo:
 		if event.scancode == KEY_RIGHT or event.scancode == KEY_D:
@@ -2313,5 +2324,5 @@ func _input(event: InputEvent) -> void:
 			cycle_spectate(-1)
 	if Controls.touch_mode or match_over or get_tree().paused:
 		return
-	if event is InputEventMouseButton and event.pressed and Input.get_mouse_mode() != Input.MOUSE_MODE_CAPTURED:
+	if event is InputEventMouseButton and event.pressed and Input.get_mouse_mode() != Input.MOUSE_MODE_CAPTURED and not _screen_open():
 		Controls.capture_mouse(true)

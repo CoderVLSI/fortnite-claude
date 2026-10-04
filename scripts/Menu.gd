@@ -1072,7 +1072,7 @@ func _online_view() -> void:
 	party_body.add_child(se)
 	party_fields["server"] = se
 	_pt_button("SAVE", Vector2(376, 398), Vector2(140, 46), "online_save_server")
-	var hint := "Connects to %s" % ep.host if not ep.empty() else "No server set yet: ask whoever runs the game's server for its address."
+	var hint: String = "Connects to %s" % ep.host if not ep.empty() else "No server set yet: ask whoever runs the game's server for its address."
 	_pt_label(hint, 14, Vector2(24, 452), Color(0.7, 0.75, 0.9))
 	party_error = _pt_label("", 15, Vector2(24, 566), Color(1.0, 0.45, 0.4))
 

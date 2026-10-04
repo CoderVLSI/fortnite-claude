@@ -24,7 +24,7 @@ func _draw() -> void:
 	var mid := rect_size / 2.0
 
 	if _tex == null:
-		_tex = MapColors.make_texture(world.terrain, 96)
+		_tex = MapColors.make_texture(world.terrain, 160)
 	if Settings.pref("minimap_rotate"):             # the map turns so the way you face is always up, with you in the middle
 		var p0 = world.player
 		var f0 := Vector2(-sin(p0.rotation.y), -cos(p0.rotation.y))

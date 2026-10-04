@@ -11,6 +11,11 @@ const SLOW_FPS := 30.0
 var world
 var level := 0                    # 0 = as chosen, 1 = shadows off, 2 = + no antialiasing, 3 = + short view, 4 = + tight culling
 var scale := 1.0                  # multiplies every culling radius
+# The view distance as chosen (and shortened by the governor); the higher you are, the further you can see (_apply_altitude).
+var base_far := 460.0
+var base_begin := 150.0
+var base_end := 380.0
+var _alt_a := -1.0
 var _cull_t := 0.0
 var _gov_t := 0.0
 var _gov_frames := 0
@@ -35,6 +40,7 @@ func _check_adapter() -> void:
 func _process(delta: float) -> void:
 	if world == null or world.player == null:
 		return
+	_apply_altitude()
 	_cull_t -= delta
 	if _cull_t <= 0.0:
 		_cull_t = CULL_INTERVAL
@@ -104,9 +110,26 @@ func step_down(fps: float = 0.0) -> void:
 
 
 func _set_view(far: float) -> void:
-	if world.player != null and world.player.camera != null:
-		world.player.camera.far = far + 40.0
+	base_far = far + 40.0
+	base_begin = far * 0.35
+	base_end = far
+	_alt_a = -1.0                      # re-apply with the new base
+	_apply_altitude()
+
+
+# From the battle bus, or gliding, the whole island has to be visible: fog and the far plane grow with height above the ground.
+func _apply_altitude() -> void:
+	var p = world.player
+	if p == null or p.camera == null or world.terrain == null:
+		return
+	var o: Vector3 = p.global_transform.origin
+	var alt: float = o.y - world.terrain.height_at(o.x, o.z)
+	var a: float = clamp((alt - 20.0) / 120.0, 0.0, 1.0)
+	if is_equal_approx(a, _alt_a):
+		return
+	_alt_a = a
+	p.camera.far = base_far + a * 1400.0
 	for c in world.get_children():
 		if c is WorldEnvironment and c.environment != null:
-			c.environment.fog_depth_begin = far * 0.35
-			c.environment.fog_depth_end = far
+			c.environment.fog_depth_begin = base_begin + a * 900.0
+			c.environment.fog_depth_end = base_end + a * 1700.0

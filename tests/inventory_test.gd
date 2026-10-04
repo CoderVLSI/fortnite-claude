@@ -211,6 +211,24 @@ func _run() -> void:
 			dropped_metal = true
 	check(dropped_wood and dropped_metal, "an eliminated fighter drops the materials they carried")
 
+	# a click while the inventory (or the map) is open must not grab the mouse back: they are used with the pointer
+	hud.open_inventory()
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	var grab := InputEventMouseButton.new()
+	grab.button_index = BUTTON_LEFT
+	grab.pressed = true
+	grab.position = Vector2(300, 300)
+	world._input(grab)
+	check(Input.get_mouse_mode() == Input.MOUSE_MODE_VISIBLE, "a click inside the inventory does not take the mouse for the game")
+	hud.close_inventory()
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	hud.map_screen.visible = true
+	world._input(grab)
+	check(Input.get_mouse_mode() == Input.MOUSE_MODE_VISIBLE, "nor does a click on the map")
+	hud.map_screen.visible = false
+	world._input(grab)
+	check(Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED, "but a click in the game still takes the mouse back (after an alt-tab)")
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	print("INVENTORY_RESULT failures=", failures.size())
 	quit(1 if failures.size() > 0 else 0)
 

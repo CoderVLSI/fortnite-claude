@@ -12,6 +12,11 @@ func check(cond: bool, msg: String) -> void:
 		failures.append(msg)
 
 
+func _frames(n: int) -> void:
+	for i in range(n):
+		yield(self, "idle_frame")
+
+
 func _init() -> void:
 	call_deferred("_run")
 
@@ -64,6 +69,22 @@ func _run() -> void:
 	check(p.camera.far < far0 and perf.scale < 1.0, "and shortens the view and the culling radius")
 	settings.quality = q
 
+	# the view grows with height (the battle bus must not be lost in fog), and shrinks back on the ground
+	var env = null
+	for c in world.get_children():
+		if c is WorldEnvironment:
+			env = c.environment
+	var y0: float = world.terrain.height_at(p.global_transform.origin.x, p.global_transform.origin.z)
+	p.global_transform.origin.y = y0 + 1.0
+	yield(_frames(5), "completed")
+	var far_ground: float = p.camera.far
+	var fog_ground: float = env.fog_depth_end
+	p.global_transform.origin.y = y0 + 220.0
+	yield(_frames(5), "completed")
+	check(p.camera.far > far_ground + 1000.0 and env.fog_depth_end > fog_ground + 1200.0, "high up the view is long (far %.0f, fog %.0f)" % [p.camera.far, env.fog_depth_end])
+	p.global_transform.origin.y = y0 + 1.0
+	yield(_frames(5), "completed")
+	check(abs(p.camera.far - far_ground) < 5.0 and abs(env.fog_depth_end - fog_ground) < 5.0, "and back on the ground it is short again")
 	print("PERF_RESULT failures=%d" % failures.size())
 	for f in failures:
 		print("  - ", f)
