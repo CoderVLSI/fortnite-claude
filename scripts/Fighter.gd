@@ -45,9 +45,9 @@ const BODY_MASK := 1 | 2 | 8          # world, fighters, vehicles
 const SWIM_ENTER := -0.75          # feet below this -> swimming (depth > 0.75 m)
 const SWIM_EXIT := -0.55           # feet above this while on the floor -> wading again
 const SWIM_FEET_Y := -1.05         # swimmers float with their feet this far below the surface
-const MANTLE_MAX := 2.3
+const MANTLE_MAX := 2.8        # Fortnite: jump at a ledge about one storey up and hold forward to pull up
 const MANTLE_MIN := 0.7
-const MANTLE_MAX_FROM_GROUND := 2.6   # a jump does not let you climb a higher wall
+const MANTLE_MAX_FROM_GROUND := 3.0   # a jump does not let you climb a higher wall
 
 export var max_health := 100.0
 export var max_shield := 100.0

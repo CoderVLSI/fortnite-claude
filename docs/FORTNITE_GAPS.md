@@ -45,3 +45,11 @@ Effects", Turbo Building, weapon and item lists). Storm Island is an original ga
 Linux build** and lets a monkey player play whole matches in it (drops from the bus, glides, loots, fights, builds, heals, vaults,
 emotes, pings, opens the map / inventory / menus, changes settings, in solo and team modes) and reports frame times, node growth
 and any script errors.
+
+
+## Fortnite-accurate numbers (this round)
+* Weapons: per-rarity damage and reload tables, fire intervals and magazine sizes follow Fortnite (AR 30-36 dmg, mag 30; pump ~97-119 total, mag 4; SMG mag 30; sniper 95-116; rocket 105-121).
+* Ammo: bigger pickup packs (light 60, medium 60, shells 12, heavy 10) and Fortnite carry caps (500 / 500 / 150 / 50).
+* Building: wood 200, stone 300, metal 400 HP; material cap 500; pickaxe 20 on players, 75 on player-built pieces.
+* Mantling: grab and pull yourself onto a ledge by jumping at it and holding forward; reach is about one storey (we allow up to 2.8 m).
+* Anti-cheat v1 (`scripts/Guard.gd`): server-side speed, fire-rate, damage, range, flood and impersonation checks; damage is routed through the dedicated server (`docs/SERVER.md`).

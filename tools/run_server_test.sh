@@ -4,7 +4,7 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 GODOT="${GODOT:-godot3}"
 PORT="${PORT:-7790}"
-TEST="${TEST:-server_test}"     # server_test (quick play) or server_room_test (private rooms)
+TEST="${TEST:-server_test}"     # server_test, server_room_test (private rooms) or server_cheat_test (anti-cheat)
 pkill -f "[g]odot3 .*--server" 2>/dev/null; pkill -f "[g]odot3 .*server_test" 2>/dev/null; sleep 1
 mkdir -p /tmp/claude-0/server
 rm -f /tmp/claude-0/server/*.json

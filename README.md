@@ -120,6 +120,7 @@ Headless: `tools/import_assets.sh` imports assets without a display.
 |---|---|
 | `smoke_test` | spawning, movement, weapons, reload, kills, loot, inventory, consumables, harvesting, chests, supply drop, storm, bots, touch input, audio events |
 | `bus_test` | bus -> freefall -> glider -> landing, bots dropping, storm start, music changes |
+| `guard_test` | anti-cheat rules (speed, damage, rate limits, impersonation) |
 | `movement_test` | sprint + FOV, mantle (accept / reject), swimming in / out |
 | `vehicle_test` | buggy / quad / boat, passengers, run-over, destruction |
 | `build_test` | build mode, costs, tiers, ramps, destroying pieces |

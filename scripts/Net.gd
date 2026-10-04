@@ -52,6 +52,8 @@ var room_code := ""                  # dedicated: the private room code ("" = a 
 var room_leader := 0                 # dedicated private room: the peer that created it (only they can start)
 var instance_index := 0              # dedicated: which of the consecutive ports this server is
 var server_port := PORT
+var via_server := false              # client: the other end is a dedicated server (damage is routed through it)
+var guard = preload("res://scripts/Guard.gd").new()   # anti-cheat v1: only used by the host
 var queue_left := -1.0               # seconds until the match starts for the whole party (-1 = not queueing)
 
 var _peer: NetworkedMultiplayerENet
@@ -245,6 +247,7 @@ func leave(reason: String = "") -> void:
 	in_match = false
 	queue_left = -1.0
 	dedicated = false
+	via_server = false
 	room_code = ""
 	room_leader = 0
 	_close_status()
@@ -504,6 +507,8 @@ func _dedicated_admit(code: String) -> String:
 
 
 remote func _room_info(code: String, leader: int) -> void:
+	if not is_host:
+		via_server = true
 	room_code = code
 	room_leader = leader
 	emit_signal("party_changed")
@@ -635,6 +640,7 @@ func start_match(seed_value: int = 0) -> void:
 	ids.sort()
 	var seed_v: int = seed_value if seed_value != 0 else int(randi() % 2000000000) + 1
 	var bots: int = int(max(TOTAL_FIGHTERS - ids.size(), 0))
+	guard.reset()
 	rpc("_begin_match", seed_v, bots, ids, team_size)
 	_begin_match(seed_v, bots, ids, team_size)
 
@@ -730,7 +736,30 @@ func send_pose(state: Array) -> void:
 		rpc_unreliable("_pose", state)
 
 
+# Throw a cheater out (host only).
+func kick(id: int, why: String) -> void:
+	if not is_host or _peer == null or not members.has(id):
+		return
+	rpc_id(id, "_bye", "Disconnected: " + why)
+	_peer.disconnect_peer(id)
+
+
+func _guard_pose(id: int, state) -> bool:
+	if not is_host or not in_match:
+		return true
+	var why: String = guard.check_pose(id, state)
+	if why == "" and not guard.allow(id, "pose"):
+		why = "pose flood"
+	if why != "":
+		if guard.strike(id, why):
+			kick(id, why)
+		return false
+	return true
+
+
 remote func _pose(state: Array) -> void:
+	if not _guard_pose(get_tree().get_rpc_sender_id(), state):
+		return
 	if handler != null and handler.has_method("net_pose"):
 		handler.net_pose(get_tree().get_rpc_sender_id(), state)
 
@@ -741,6 +770,8 @@ func send_bots(chunk: Array) -> void:
 
 
 remote func _bots(chunk: Array) -> void:
+	if get_tree().get_rpc_sender_id() != 1:
+		return                         # only the host simulates bots
 	if handler != null and handler.has_method("net_bots"):
 		handler.net_bots(chunk)
 
@@ -767,19 +798,68 @@ func send_event_to(id: int, kind: String, data = null) -> void:
 
 
 remote func _event(kind: String, data) -> void:
+	var sender := get_tree().get_rpc_sender_id()
+	if is_host and in_match and sender != 1:
+		var why: String = guard.check_event(sender, kind, data)
+		if why != "":
+			if guard.strike(sender, why):
+				kick(sender, why)
+			return
+		if kind == "reboot" and typeof(data) == TYPE_ARRAY and data.size() > 0:
+			guard.forgive(data[0])
+	elif not is_host and sender != 1 and kind == "storm":
+		return
 	if handler != null and handler.has_method("net_event"):
 		handler.net_event(get_tree().get_rpc_sender_id(), kind, data)
 
 
 # Damage dealt to a character this peer does not own: the owner applies it.
 func send_damage(owner_id: int, target, amount: float, source, headshot: bool) -> void:
-	if active and in_match:
+	if not (active and in_match):
+		return
+	if via_server and not is_host:
+		rpc_id(1, "_damage_req", owner_id, target, amount, source, headshot)       # the server checks it, then passes it on
+	else:
+		rpc_id(owner_id, "_damage", target, amount, source, headshot)
+
+
+# Server: a client says it hit somebody. Validate, then forward to whoever owns the target.
+remote func _damage_req(owner_id: int, target, amount, source, headshot: bool) -> void:
+	var sender := get_tree().get_rpc_sender_id()
+	if not is_host or not in_match or not members.has(sender):
+		return
+	var tpos = null
+	if handler != null and handler.has_method("guard_pos"):
+		tpos = handler.guard_pos(target)
+	var why: String = ""
+	if not guard.allow(sender, "damage"):
+		why = "damage flood"
+	else:
+		why = guard.check_damage(sender, source, amount, tpos)
+	if why == "" and owner_id != 1 and not members.has(owner_id):
+		why = "damage to nobody"
+	if why != "":
+		if guard.strike(sender, why):
+			kick(sender, why)
+		return
+	if owner_id == 1:
+		_damage_in(sender, target, amount, source, headshot)
+	else:
 		rpc_id(owner_id, "_damage", target, amount, source, headshot)
 
 
 remote func _damage(target, amount: float, source, headshot: bool) -> void:
+	var sender := get_tree().get_rpc_sender_id()
+	if via_server and sender != 1:
+		return                         # with a server, damage only counts when the server vouches for it
+	if (not via_server) and str(source) != str(sender) and sender != 1:
+		return
+	_damage_in(sender, target, amount, source, headshot)
+
+
+func _damage_in(sender: int, target, amount: float, source, headshot: bool) -> void:
 	if handler != null and handler.has_method("net_damage"):
-		handler.net_damage(get_tree().get_rpc_sender_id(), target, amount, source, headshot)
+		handler.net_damage(sender, target, amount, source, headshot)
 
 
 # The network key of a character: a peer id (humans) or a name (bots). null for "nobody" (the storm, fall damage).

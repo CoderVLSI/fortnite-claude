@@ -2021,6 +2021,12 @@ func fighter_by_key(key):
 	return null
 
 
+# Where a character is (anti-cheat range checks); null if unknown.
+func guard_pos(key):
+	var f = fighter_by_key(key)
+	return f.global_transform.origin if f != null and is_instance_valid(f) else null
+
+
 func _net_process(delta: float) -> void:
 	if not Net.active or not Net.in_match:
 		return
