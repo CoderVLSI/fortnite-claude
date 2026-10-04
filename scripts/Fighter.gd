@@ -525,6 +525,8 @@ func pickup(item: Dictionary) -> Dictionary:
 
 func add_material(kind: String, amount: int) -> void:
 	materials[kind] = int(min(materials[kind] + amount, 999))
+	if amount > 0:
+		stat_add("mats", amount)
 
 
 # ------------------------------------------------------------------ consumables
@@ -567,6 +569,7 @@ func use_selected(delta: float) -> void:
 			health = min(c.heal_cap, health + c.heal)
 		if c.shield > 0.0:
 			shield = min(c.shield_cap, shield + c.shield)
+		stat_add("heals")
 		if has_sprite("aegis") and (c.heal > 0.0 or c.shield > 0.0):
 			bubble_t = 3.0 + sprite_level()
 			emit_signal("picked_up", "Aegis bubble up!")

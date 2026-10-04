@@ -277,7 +277,7 @@ func record_match(info: Dictionary) -> void:
 	if place > 0 and (s.best_placement == 0 or place < s.best_placement):
 		s.best_placement = place
 	s.longest_survival = int(max(s.longest_survival, survival))
-	var gained: int = 25 + kills * 20 + (150 if info.get("victory", false) else 0) + (40 if place > 0 and place <= 3 else 0) + int(survival / 20)
+	var gained: int = 25 + kills * 20 + (150 if info.get("victory", false) else 0) + (40 if place > 0 and place <= 3 else 0) + int(survival / 20) + int(info.get("bonus_xp", 0))
 	p.xp += gained
 	save()
 	emit_signal("changed")

@@ -58,6 +58,8 @@ var storm_label: Label
 var warn_label: Label
 var down_label: Label
 var stats_label: Label
+var quest_label: Label
+var _quest_t := 0.0
 var hint_label: Label
 var toast_label: Label
 var feed_box: VBoxContainer
@@ -173,6 +175,9 @@ func _build() -> void:
 	minimap.rect_clip_content = true
 	root.add_child(minimap)
 
+	quest_label = _label("", Label.ALIGN_RIGHT, Color(1.0, 0.9, 0.5))
+	_place(quest_label, 1.0, 0.0, Vector2(-336, MAP_SIZE + 52), Vector2(320, 90))
+	root.add_child(quest_label)
 	stats_label = _label("", Label.ALIGN_RIGHT)
 	_place(stats_label, 1.0, 0.0, Vector2(-296, MAP_SIZE + 20), Vector2(280, 30))
 	root.add_child(stats_label)
@@ -773,6 +778,10 @@ func _process(delta: float) -> void:
 		return
 	_apply_hud_scale()
 	_t += delta
+	_quest_t -= delta
+	if _quest_t <= 0.0:
+		_quest_t = 0.4
+		_update_quests()
 	health_bar.max_value = player.max_health
 	health_bar.value = player.health
 	shield_bar.max_value = player.max_shield
@@ -879,6 +888,15 @@ func _ammo_base() -> String:
 				return "SKATEBOARD  " + ("RIDING" if player.board_on else "FIRE TO RIDE")
 			return cd.name.to_upper()
 	return "PICKAXE"
+
+
+func _update_quests() -> void:
+	var q = world.quests
+	if q == null:
+		return
+	var ls: Array = q.lines()
+	quest_label.text = ("QUESTS\n" + "\n".join(ls)) if not ls.empty() else ""
+	quest_label.visible = not ls.empty() and not player.is_dead
 
 
 func _update_poi(delta: float) -> void:

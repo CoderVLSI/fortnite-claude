@@ -16,6 +16,8 @@ const HUD = preload("res://scripts/HUD.gd")
 const Menu = preload("res://scripts/Menu.gd")
 const Lobby = preload("res://scripts/Lobby.gd")
 const VendingMachine = preload("res://scripts/VendingMachine.gd")
+const Npc = preload("res://scripts/Npc.gd")
+const QuestLog = preload("res://scripts/QuestLog.gd")
 const Pois = preload("res://scripts/Pois.gd")
 const BuildPiece = preload("res://scripts/BuildPiece.gd")
 const Vehicle = preload("res://scripts/Vehicle.gd")
@@ -142,6 +144,7 @@ func _ready() -> void:
 	_spawn_boss()
 	_spawn_vehicles()
 	_spawn_vending()
+	_spawn_npcs()
 	_spawn_rifts_and_sprites()
 	if profile.use_bus:
 		_start_bus()
@@ -663,6 +666,42 @@ func _spawn_vending() -> void:
 			n += 1
 
 
+# ------------------------------------------------------------------ Keepers (quest givers)
+
+const NPC_SPOTS := [Vector2(-9, 12), Vector2(11, -12), Vector2(15, 15), Vector2(-15, -15), Vector2(0, 21), Vector2(-21, 0)]
+const NPC_NAMES := ["Bram", "Odette", "Fennick", "Marta", "Quill", "Tobias", "Ione", "Garrick", "Sable", "Wren"]
+const NPC_SKINS := ["cowboy", "pirate", "knight", "astronaut", "ninja"]
+var quests
+
+
+func _spawn_npcs() -> void:
+	quests = QuestLog.new()
+	quests.name = "Quests"
+	quests.world = self
+	quests.player = player
+	add_child(quests)
+	add_npc(Vector2(-9, -4), Vector2.ZERO, 0)
+	var n := 1
+	for poi in pois:
+		var spot := _vending_spot(poi, NPC_SPOTS)
+		if spot != Vector2.INF:
+			add_npc(spot, poi.center, n)
+			n += 1
+
+
+func add_npc(pos: Vector2, face_to: Vector2, n: int) -> Node:
+	var npc := Npc.new()
+	npc.npc_name = "Keeper " + NPC_NAMES[n % NPC_NAMES.size()]
+	npc.skin = NPC_SKINS[n % NPC_SKINS.size()]
+	npc.seed_n = n * 5
+	npc.translation = Vector3(pos.x, terrain.height_at(pos.x, pos.y), pos.y)
+	var to := face_to - pos
+	if to.length() > 0.1:
+		npc.rotation.y = atan2(-to.x, -to.y)
+	add_child(npc)
+	return npc
+
+
 # Rifts (single-use portals to the sky) and wild Sprites. Own random stream, so the rest of the island is unchanged.
 func _spawn_rifts_and_sprites() -> void:
 	var rr := RandomNumberGenerator.new()
@@ -728,8 +767,8 @@ func add_rift(pos: Vector3, lifetime: float, nid: String = "") -> Node:
 
 
 # A free spot around a POI: on land, away from its buildings and props.
-func _vending_spot(poi: Dictionary) -> Vector2:
-	for c in VENDING_SPOTS:
+func _vending_spot(poi: Dictionary, spots: Array = VENDING_SPOTS) -> Vector2:
+	for c in spots:
 		var p3 := _poi_point(poi, c)
 		var p := Vector2(p3.x, p3.z)
 		if p3.y < 1.0 or _near_building(p, 6.0):
@@ -1729,7 +1768,7 @@ func _record_match(victory: bool, placement: int) -> void:
 	var ms: Dictionary = player.match_stats
 	Accounts.record_match({"victory": victory, "placement": placement, "kills": player.kills, "damage": ms.get("damage", 0),
 		"headshots": ms.get("headshots", 0), "chests": ms.get("chests", 0), "builds": ms.get("builds", 0),
-		"survival": int((OS.get_ticks_msec() - _match_start_ms) / 1000.0)})
+		"survival": int((OS.get_ticks_msec() - _match_start_ms) / 1000.0), "bonus_xp": quests.bonus_xp if quests != null else 0})
 
 
 # ------------------------------------------------------------------ network match (see Net.gd)

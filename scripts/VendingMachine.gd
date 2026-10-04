@@ -66,6 +66,8 @@ func interact(by) -> void:
 		Audio.play2d("ui_error", -4.0)
 		return
 	by.gold -= price
+	if by.has_method("stat_add"):
+		by.stat_add("buys")
 	uses += 1
 	price = int(ceil(price * 1.3 / 5.0)) * 5
 	var out := global_transform.origin + (-global_transform.basis.z) * 1.2 + Vector3(0, 0.5, 0)
