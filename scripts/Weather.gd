@@ -93,7 +93,6 @@ func _process(delta: float) -> void:
 	rain.emitting = k > 0.05
 	if cam != null and rain.emitting:
 		rain.global_transform.origin = cam.global_transform.origin + Vector3(0, 12, 0)
-	rain.amount = int(clamp(float(rain.amount), 10.0, 600.0))
 	# the sky goes grey (the Perf governor may have shortened the view: build on whatever it set)
 	if abs(env.fog_depth_end - _last_end) > 0.01:
 		_perf_end = env.fog_depth_end

@@ -58,6 +58,18 @@ func _flat_spot(near: Vector2, radius: float = 80.0) -> Vector2:
 	return best
 
 
+# Back on foot at `at`: no glider, no vehicle, standing still.
+func _ground(at: Vector3) -> void:
+	if p.mode == p.Mode.VEHICLE and p.vehicle != null:
+		p.vehicle.release_seat(0)
+	p.mode = p.Mode.GROUND
+	if p.glider:
+		p.glider.visible = false
+	p.velocity = Vector3.ZERO
+	p.global_transform.origin = at
+	p.emoting = false
+
+
 func _look(pos: Vector3, target: Vector3) -> void:
 	cam.look_at_from_position(pos, target, Vector3.UP)
 
@@ -177,9 +189,7 @@ func _shot4() -> void:
 	_fog(false)
 	var c := _flat_spot(Vector2(10, 45))
 	var base := Vector3(c.x, _h(c.x, c.y) + 1.0, c.y)
-	p.mode = p.Mode.GROUND
-	p.global_transform.origin = base
-	p.velocity = Vector3.ZERO
+	_ground(base)
 	p.give_weapon("assault", 3)
 	var bots := []
 	for f in get_nodes_in_group("fighters"):
@@ -214,9 +224,7 @@ func _shot4() -> void:
 func _shot5() -> void:
 	_fog(false)
 	var c := _flat_spot(Vector2(-10, 45))
-	p.mode = p.Mode.GROUND
-	p.global_transform.origin = Vector3(c.x, _h(c.x, c.y) + 1.0, c.y)
-	p.velocity = Vector3.ZERO
+	_ground(Vector3(c.x, _h(c.x, c.y) + 1.0, c.y))
 	p.rotation.y = 0.0
 	p.materials.wood = 900
 	p.materials.stone = 900
@@ -272,9 +280,7 @@ func _shot6() -> void:
 			break
 	print("TRAILER rocket target ", best, " found=", found)
 	var side := (cam_pos - target).cross(Vector3.UP).normalized()
-	p.mode = p.Mode.GROUND
-	p.global_transform.origin = Vector3(from_pos.x, from_pos.y - 0.6, from_pos.z)
-	p.velocity = Vector3.ZERO
+	_ground(Vector3(from_pos.x, from_pos.y - 0.6, from_pos.z))
 	yield(_wait(20), "completed")
 	for n in range(180):
 		if n in [14, 60, 104]:
@@ -319,9 +325,7 @@ func _shot7() -> void:
 		b.global_transform.origin = Vector3(pos.x, _h(pos.x, pos.z) + 1.0, pos.z)
 		b.rotation.y = a
 		b.set_physics_process(true)
-	p.mode = p.Mode.GROUND
-	p.global_transform.origin = lp + Vector3(0, 0, 16)
-	p.global_transform.origin.y = _h(lp.x, lp.z + 16.0) + 1.0
+	_ground(Vector3(lp.x, _h(lp.x, lp.z + 16.0) + 1.0, lp.z + 16.0))
 	yield(_wait(12), "completed")
 	var gren = load("res://scripts/Grenade.gd").new()
 	gren.boogie = true
@@ -344,9 +348,7 @@ func _shot7() -> void:
 func _shot8() -> void:
 	_fog(false)
 	var y: float = _h(-60.0, 30.0)
-	p.mode = p.Mode.GROUND
-	p.global_transform.origin = Vector3(-52.0, y + 1.0, 30.0)
-	p.velocity = Vector3.ZERO
+	_ground(Vector3(-52.0, y + 1.0, 30.0))
 	var buggy = world.spawn_vehicle("buggy", Vector3(-60.0, y + 1.0, 30.0), -PI / 2.0)     # nose towards +X
 	buggy.fuel = 100.0
 	yield(_wait(60), "completed")
@@ -374,9 +376,8 @@ func _shot9() -> void:
 	buggy_cleanup()
 	var c := _flat_spot(Vector2(60, -30), 120.0)
 	var base := Vector3(c.x, _h(c.x, c.y) + 1.0, c.y)
-	p.mode = p.Mode.GROUND
-	p.global_transform.origin = base
-	p.velocity = Vector3.ZERO
+	print("TRAILER rain spot ", c, " h=", _h(c.x, c.y))
+	_ground(base)
 	world.weather.set_process(true)
 	world.weather.clock = world.weather.timetable[0][0] + 20.0
 	world.weather.intensity = 1.0
@@ -394,6 +395,8 @@ func _shot9() -> void:
 	for n in range(150):
 		p.emoting = true
 		p.emote_t = 0.0
+		if n % 30 == 0:
+			print("TRAILER dbg ", p.global_transform.origin, " vel ", p.velocity, " mode ", p.mode, " emoting ", p.emoting, " id ", p.emote_id)
 		var o: Vector3 = p.global_transform.origin
 		var a: float = lerp(0.3, 2.6, float(n) / 149.0)
 		_look(o + Vector3(sin(a) * 4.2, 1.1 + float(n) * 0.012, cos(a) * 4.2), o + Vector3(0, 1.1, 0))

@@ -28,7 +28,10 @@ $(cap 'BREAK EVERYTHING.' 64 25.3 30.8 80),\
 $(cap 'LLAMAS. BOOGIE BOMBS. CHAOS.' 58 31.3 35.8 80),\
 $(cap 'DRIVE. EXPLORE.' 64 36.3 39.8 80),\
 $(cap 'SOLO - DUOS - TRIOS - SQUADS' 50 40.3 44.8 80),\
+$(cap 'WINDOWS - LINUX - ANDROID' 46 46.2 49.2 560),\
 fade=t=in:st=0:d=0.8,fade=t=out:st=49:d=1"
-ffmpeg -y -loglevel error -framerate 30 -i "$FR/f%05d.png" -i /tmp/trailer_music.wav \
-  -vf "$VF" -c:v libx264 -preset medium -crf 20 -pix_fmt yuv420p -c:a aac -b:a 160k -shortest "$OUT"
+# the end card: the game's logo fades in over the pulled-back island
+ffmpeg -y -loglevel error -framerate 30 -i "$FR/f%05d.png" -loop 1 -t 50 -i assets/ui/logo.png -i /tmp/trailer_music.wav \
+  -filter_complex "[1:v]scale=620:-1,format=rgba,fade=t=in:st=45.3:d=0.8:alpha=1[logo];[0:v][logo]overlay=(W-w)/2:140:enable='gte(t,45.3)',$VF[v]" -map "[v]" -map 2:a \
+  -c:v libx264 -preset medium -crf 20 -pix_fmt yuv420p -c:a aac -b:a 160k -shortest "$OUT"
 ls -la "$OUT"
