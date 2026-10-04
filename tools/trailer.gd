@@ -62,6 +62,10 @@ func _flat_spot(near: Vector2, radius: float = 80.0) -> Vector2:
 func _ground(at: Vector3) -> void:
 	if p.mode == p.Mode.VEHICLE and p.vehicle != null:
 		p.vehicle.release_seat(0)
+	p.vehicle = null
+	p.vehicle_seat = -1
+	p.collision_mask = p.BODY_MASK
+	p.collision_layer = 2
 	p.mode = p.Mode.GROUND
 	if p.glider:
 		p.glider.visible = false
@@ -377,7 +381,11 @@ func _shot9() -> void:
 	var c := _flat_spot(Vector2(60, -30), 120.0)
 	var base := Vector3(c.x, _h(c.x, c.y) + 1.0, c.y)
 	print("TRAILER rain spot ", c, " h=", _h(c.x, c.y))
-	_ground(base)
+	for act in InputMap.get_actions():
+		Input.action_release(act)
+	for k in range(30):                              # hold still until the ground under the new spot exists
+		_ground(base)
+		yield(_wait(1), "completed")
 	world.weather.set_process(true)
 	world.weather.clock = world.weather.timetable[0][0] + 20.0
 	world.weather.intensity = 1.0
