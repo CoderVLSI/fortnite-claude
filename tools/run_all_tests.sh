@@ -41,6 +41,7 @@ run perf_test --no-bus --skip-menu
 run farm_test --no-bus --skip-menu
 run vault_test --no-bus --skip-menu
 run zerobuild_test --no-bus --skip-menu
+run weapons2_test --no-bus --skip-menu
 run team_test --no-bus --skip-menu
 run qol_test --no-bus --skip-menu
 run a11y_test --no-bus --skip-menu
@@ -60,6 +61,7 @@ run party_ui_test
 run guard_test
 run vault_test --no-bus --skip-menu
 run zerobuild_test --no-bus --skip-menu
+run weapons2_test --no-bus --skip-menu
 run pad_test
 RES=844x390 run mobile_test --touch
 exit $fail

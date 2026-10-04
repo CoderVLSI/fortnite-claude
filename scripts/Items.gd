@@ -44,6 +44,22 @@ const WEAPONS := {
 	"rocket_launcher": {"name": "Rocket Launcher", "damage": 105.0, "dmg": [105.0, 110.0, 113.0, 116.0, 121.0], "interval": 1.3, "mag": 1, "reload": 3.7,
 		"rel": [3.7, 3.5, 3.3, 3.1, 2.9], "spread": 0.0, "pellets": 1, "auto": false, "ammo": "heavy", "range": 240.0, "head": 1.0,
 		"projectile": "rocket", "sound": "sniper"},
+	# Tactical Shotgun: a fast-pumping short-range shotgun (8 shells, about 2 shots a second).
+	"tactical_shotgun": {"name": "Tactical Shotgun", "damage": 7.7, "dmg": [7.7, 8.1, 8.5, 8.9, 9.4], "interval": 0.5, "mag": 8, "reload": 5.5,
+		"rel": [5.5, 5.2, 4.95, 4.7, 4.4], "spread": 5.2, "pellets": 10, "auto": false, "ammo": "shells", "range": 34.0, "head": 1.5,
+		"model": "shotgun", "mesh": "shotgun", "icon": "shotgun"},
+	# Revolver: six heavy rounds, slow to cock, hits hard at range.
+	"revolver": {"name": "Revolver", "damage": 58.0, "dmg": [58.0, 61.0, 63.0, 66.0, 69.0], "interval": 0.55, "mag": 6, "reload": 2.9,
+		"rel": [2.9, 2.8, 2.7, 2.55, 2.4], "spread": 0.7, "pellets": 1, "auto": false, "ammo": "medium", "range": 130.0, "head": 2.0,
+		"model": "pistol", "mesh": "pistol", "icon": "pistol"},
+	# Semi-Auto Sniper: ten rounds, a shot a second, less punch than the bolt sniper.
+	"dmr": {"name": "Semi-Auto Sniper", "damage": 63.0, "dmg": [63.0, 66.0, 69.0, 72.0, 75.0], "interval": 0.85, "mag": 10, "reload": 3.4,
+		"rel": [3.4, 3.3, 3.1, 2.9, 2.7], "spread": 0.1, "pellets": 1, "auto": false, "ammo": "heavy", "range": 240.0, "head": 2.5,
+		"model": "sniper", "mesh": "sniper", "icon": "sniper"},
+	# Grenade Launcher: lobs a bouncing grenade that blows up after about a second; heavy splash, hurts you too.
+	"grenade_launcher": {"name": "Grenade Launcher", "damage": 100.0, "dmg": [100.0, 105.0, 110.0, 115.0, 120.0], "interval": 0.85, "mag": 6, "reload": 3.3,
+		"rel": [3.3, 3.2, 3.0, 2.8, 2.6], "spread": 0.0, "pellets": 1, "auto": false, "ammo": "heavy", "range": 200.0, "head": 1.0,
+		"projectile": "grenade", "sound": "sniper", "model": "rocket_launcher", "mesh": "rocket_launcher", "icon": "rocket_launcher"},
 	"sniper": {"name": "Bolt Sniper", "damage": 95.0, "dmg": [95.0, 100.0, 105.0, 110.0, 116.0], "interval": 1.5, "mag": 1, "reload": 3.3,
 		"rel": [3.3, 3.2, 3.0, 2.5, 2.3], "spread": 0.0, "pellets": 1, "auto": false, "ammo": "heavy", "range": 260.0, "head": 2.5},
 }
@@ -58,6 +74,10 @@ const SCOPES := {
 	"burst_assault": {"kind": "holo", "fov": 52.0, "spread": 0.35, "move": 0.75, "sens": 0.62, "dist": 1.9, "hip": "cross"},
 	"rocket_launcher": {"kind": "irons", "fov": 62.0, "spread": 1.0, "move": 0.7, "sens": 0.8, "dist": 1.9, "hip": "dot"},
 	"charge_shotgun": {"kind": "bead", "fov": 58.0, "spread": 0.60, "move": 0.80, "sens": 0.75, "dist": 1.9, "hip": "ring"},
+	"tactical_shotgun": {"kind": "bead", "fov": 58.0, "spread": 0.70, "move": 0.80, "sens": 0.75, "dist": 1.9, "hip": "ring"},
+	"revolver": {"kind": "irons", "fov": 58.0, "spread": 0.40, "move": 0.85, "sens": 0.78, "dist": 1.9, "hip": "dot"},
+	"dmr": {"kind": "scope", "fov": 22.0, "spread": 0.0, "move": 0.60, "sens": 0.35, "dist": 0.2, "hip": "cross_far", "hip_spread": 2.0},
+	"grenade_launcher": {"kind": "irons", "fov": 62.0, "spread": 1.0, "move": 0.7, "sens": 0.8, "dist": 1.9, "hip": "dot"},
 	"sniper": {"kind": "scope", "fov": 14.0, "spread": 0.0, "move": 0.50, "sens": 0.22, "dist": 0.2, "hip": "cross_far",
 		"hip_spread": 2.2},
 }
@@ -285,11 +305,13 @@ static func roll_rarity(rng: RandomNumberGenerator, bonus: int = 0) -> int:
 
 
 static func random_weapon(rng: RandomNumberGenerator, bonus: int = 0) -> Dictionary:
-	var table := ["assault", "assault", "burst_assault", "burst_assault", "smg", "smg", "shotgun", "shotgun", "charge_shotgun", "pistol", "pistol", "sniper", "rocket_launcher"]
+	var table := ["assault", "assault", "burst_assault", "burst_assault", "smg", "smg", "shotgun", "shotgun", "tactical_shotgun", "charge_shotgun", "pistol", "pistol", "revolver", "sniper", "dmr", "rocket_launcher", "grenade_launcher"]
 	var id: String = table[rng.randi() % table.size()]
 	var rarity := roll_rarity(rng, bonus)
 	if id == "rocket_launcher":
 		rarity = int(max(rarity, 3))                 # rockets are epic or better
+	elif id == "grenade_launcher":
+		rarity = int(max(rarity, 2))                 # launchers are rare or better
 	return make_weapon(id, rarity)
 
 

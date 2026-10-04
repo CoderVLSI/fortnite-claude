@@ -63,3 +63,5 @@ and any script errors.
 
 ## Overnight additions
 * **Zero Build**: a toggle on the lobby mode card (ZERO BUILD / BUILDING ON). The host decides for the party and the choice reaches everyone; dedicated servers take `--zero-build` (`tools/run_server.sh --zero-build`). Build mode, build keys and phone build buttons all refuse with a message. Tested in `zerobuild_test`.
+* **Four more weapons**: Tactical Shotgun (10 pellets, ~77+ per shot, 2 shots/s, 8 shells), Revolver (58-69, 6 rounds), Semi-Auto Sniper (63-75, 10 rounds), **Grenade Launcher** (lobs a bouncing grenade, 100-120 splash, 6 rounds, rare+). They borrow existing models, sounds and icons until the agents deliver dedicated ones (see `docs/ASSET_REQUESTS.md`). Tested in `weapons2_test`.
+* Soak test with 100 fighters on the 1 km island (native Linux build, software rendering): full match to the victory screen, 0 script errors, no node growth.

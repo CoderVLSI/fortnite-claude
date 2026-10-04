@@ -1465,6 +1465,18 @@ func _fire_projectile(aim_from: Vector3, aim_dir: Vector3) -> void:
 	if hit:
 		target = hit.position
 	var dir: Vector3 = (target - muzzle).normalized() if target.distance_to(muzzle) > 1.0 else aim_dir
+	if Items.WEAPONS[selected_item().id].get("projectile", "") == "grenade":     # Grenade Launcher: a short lob that bounces and blows up
+		var g := Grenade.new()
+		g.thrower = self
+		g.fuse = 1.15
+		g.damage_mult = gun_damage / 115.0
+		get_parent().add_child(g)
+		g.global_transform.origin = muzzle
+		g.linear_velocity = dir * 26.0 + Vector3(0, 3.0, 0)
+		g.angular_velocity = Vector3(rand_range(-6, 6), rand_range(-6, 6), rand_range(-6, 6))
+		if net_owner == 0 and Net.active and Net.in_match:
+			Net.send_event("throw", [net_key_v, "frag", muzzle, g.linear_velocity])
+		return
 	var r := Rocket.new()
 	r.thrower = self
 	r.velocity = dir * Rocket.SPEED

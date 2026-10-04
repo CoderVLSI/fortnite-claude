@@ -51,7 +51,7 @@ func icon_name_of(item: Dictionary) -> String:
 			var mythic: String = "weapon_%s_mythic" % item.id
 			if item.rarity == Items.MYTHIC and ResourceLoader.exists("res://assets/icons/%s.png" % mythic):
 				return mythic
-			return "weapon_" + str(item.id)
+			return "weapon_" + str(Items.WEAPONS[item.id].get("icon", item.id))
 		"consumable":
 			return "heal_" + str(item.id)
 	return ""
