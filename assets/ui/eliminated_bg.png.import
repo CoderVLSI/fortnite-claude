@@ -2,11 +2,16 @@
 
 importer="texture"
 type="StreamTexture"
-valid=false
+path="res://.import/eliminated_bg.png-44cf8466102f112d87a2bcf2de08fe68.stex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
-source_file="res://assets/ui/victory_bg.jpg"
+source_file="res://assets/ui/eliminated_bg.png"
+dest_files=[ "res://.import/eliminated_bg.png-44cf8466102f112d87a2bcf2de08fe68.stex" ]
+
 [params]
 
 compress/mode=0
