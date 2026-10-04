@@ -1,0 +1,47 @@
+time_s  sound                     gain  event
+  0.00  trailer_opening_rise     0.85  fade in on the island aerial, dark swell then climbing riser to the first cut
+  1.00  trailer_title_hit        1.00  STORM ISLAND title is fully visible
+  4.70  trailer_whoosh_short     0.80  whoosh into cut 1 (aerial -> town fly-through)
+  5.00  trailer_hit              0.70  cut 1: '50 FIGHTERS. ONE ISLAND.' fly-through begins
+  8.50  trailer_whoosh_big       0.90  whoosh into cut 2 (fly-through -> sky dive)
+  9.00  trailer_hit              0.85  cut 2: 'DROP IN. LOOT UP.' the dive begins
+  9.00  trailer_dive_wind        0.80  free-fall wind rush builds
+ 11.83  trailer_glider_open      0.95  the glider opens
+ 13.70  trailer_whoosh_short     0.80  whoosh into the firefight
+ 14.00  trailer_hit              0.95  cut 3: 'FIGHT.' firefight begins
+ 15.20  trailer_whoosh_short     0.55  camera angle change
+ 15.50  trailer_hit              0.60  firefight angle 2
+ 16.70  trailer_whoosh_short     0.55  camera angle change
+ 17.00  trailer_hit              0.65  firefight angle 3
+ 18.20  trailer_whoosh_short     0.55  camera angle change
+ 18.50  trailer_hit              0.70  firefight angle 4
+ 19.70  trailer_whoosh_short     0.65  whoosh into the build shot
+ 20.00  trailer_hit              0.80  cut: 'BUILD.' begins
+ 20.17  trailer_build_thunk      0.85  first wall placed
+ 20.63  trailer_build_thunk      0.85  wall placed
+ 21.10  trailer_build_thunk      0.90  wall placed
+ 21.57  trailer_build_thunk      0.90  ramp placed
+ 22.03  trailer_build_thunk      0.90  wall placed
+ 22.50  trailer_riser            0.85  riser into the next cut
+ 22.97  trailer_build_thunk      0.95  last piece placed
+ 24.70  trailer_whoosh_big       0.85  whoosh into cut 'BREAK EVERYTHING.'
+ 25.00  trailer_hit              0.90  cut: 'BREAK EVERYTHING.' begins
+ 27.20  trailer_riser            0.60  tension riser into the rocket hit
+ 28.55  trailer_rocket_whoosh    0.95  rocket launched at the house
+ 29.70  trailer_explosion        1.00  the rocket hits: house explodes and collapses
+ 30.70  trailer_whoosh_short     0.70  whoosh into the llama cut
+ 31.00  trailer_hit              0.80  cut: 'LLAMAS. BOOGIE BOMBS. CHAOS.'
+ 32.33  trailer_boogie_burst     0.95  boogie bomb bursts, pink flash
+ 33.00  trailer_portal_hum       0.85  portal ring appears, hum swirls and crackles until the cut
+ 35.70  trailer_whoosh_short     0.80  whoosh into the driving shot
+ 36.00  trailer_hit              0.85  cut: 'DRIVE. EXPLORE.' buggy
+ 36.20  trailer_engine_rev       0.60  buggy engine: pull away, jump, in-air rev
+ 38.05  trailer_whoosh_short     0.85  buggy launches off the ramp
+ 39.40  trailer_landing_crash    1.00  buggy lands hard
+ 39.70  trailer_whoosh_big       0.80  whoosh into the rain shot
+ 40.00  trailer_hit              0.95  cut: 'SOLO - DUOS - TRIOS - SQUADS' in the rain
+ 40.00  trailer_rain_bed         0.30  rain begins
+ 41.00  trailer_thunder_crack    1.00  lightning flash
+ 42.50  trailer_riser            0.90  riser into the end card
+ 44.45  trailer_thunder_crack    0.60  second flash
+ 45.00  trailer_title_sting      1.00  cut: STORM ISLAND logo end card
