@@ -12,35 +12,32 @@ Effects", Turbo Building, weapon and item lists). Storm Island is an original ga
 | **Turbo building** | Hold fire to keep placing | **Added** (Settings > Comfort) |
 | Farming | Pickaxe, weak points | Pickaxe, **weak points** (double materials), buildings break piece by piece |
 | Weapons | Pistol, SMG, AR, burst AR, shotgun, sniper, rocket launcher... | Pistol, SMG, AR, **Burst AR (new)**, pump + charge shotgun, bolt sniper, **Rocket Launcher (new, breaks buildings)**, Mythic variants |
-| Explosives | Grenade, shockwave, boogie bomb, rockets | Grenade, shockwave, junk rift, **rockets**; no boogie bomb / stink bomb / grenade launcher yet |
+| Explosives and traps | Grenade, shockwave, boogie bomb, stink bomb, traps, rockets | Grenade, shockwave, junk rift, **rockets, Boogie Bomb, Stink Bomb, Spike Trap, Proximity Mine** (all new); no grenade launcher yet |
 | Mobility items | Bouncer, launch pad, jetpack, skateboard-like, rift | **Bouncer (new)**, jetpack, skateboard, Rift-to-Go, rifts, vehicles, slide, vault windows, mantle |
 | Healing | Bandage, med kit, mini / big shield, slurp, chug jug | Same set |
 | **Down but not out** | Squad modes: you go down, a teammate revives you | **Added**: duos / trios / squads, bleed-out 30 s, hold E to revive, bots revive you too |
-| Reboot Vans | Bring a fallen teammate back with their card | Not yet |
+| **Reboot Vans** | Bring a fallen teammate back with their card | **Added** (team modes): fallen team-mates leave a card, carry it to a van (vans in town and at named places), they drop back in with a pistol; bots can be rebooted too |
 | Team modes | Duos, trios, squads | **Added**, no friendly fire, team win, ally tags |
 | Pings | Ping enemy / loot / place | **Added** (T / middle mouse / map click / phone button) |
 | Emotes | Emote wheel, music | **Added** (8 emotes with music, Locker slot) |
-| Accessibility | Visualize sound effects, reticle options, HUD scale, toggle sprint... | **Added**: visualize sound effects, crosshair colour / size, toggle sprint / crouch, FOV, ADS sensitivity, low health / ammo warnings, rumble, button size; no colour-blind modes or HUD scale yet |
+| Accessibility | Visualize sound effects, reticle options, HUD scale, toggle sprint... | **Added**: visualize sound effects, crosshair colour / size, toggle sprint / crouch, FOV, ADS sensitivity, low health / ammo warnings, rumble, button size; **colour-blind modes (3) with strength, HUD size slider** |
 | Controller | Full gamepad | Auto-detected Xbox / PlayStation / Switch pads, remappable, menu navigation |
 | Phone | Full touch HUD | Touch HUD, auto run, auto fire, edit button, ping, emote, 6-slot hotbar |
 | Social | Friends, party, invites | LAN party, friends (saved name + IP), invites, recent players; no internet matchmaking |
 | Locker | Skins, pickaxes, back blings, gliders, contrails, emotes | All of those, plus Sprites as companions |
-| Progression | Battle Pass, quests, XP | Level and stats per account (local). **No quests / battle pass yet** |
-| World life | NPCs, wildlife, vehicles with fuel, trains | Boss, wild Sprites, vehicles (no fuel). No NPCs, wildlife or trains yet |
-| Loot | Chests, floor loot, vending machines, supply drops, llamas | All except llamas |
+| Progression | Battle Pass, quests, XP | Level and stats per account (local), **12+ quests from Keepers (gold + XP)**; no battle pass |
+| World life | NPCs, wildlife, vehicles with fuel, trains, weather | Boss, wild Sprites, **Keeper NPCs, chickens and boars (Roast Meat), vehicles with fuel + pumps, rain storms**. No trains |
+| Loot | Chests, floor loot, vending machines, supply drops, llamas | All, **including Supply Llamas** (burst them for loot) |
 | Players per match | 100 | 50 (the map is 720 m) |
 | Servers | Dedicated, matchmaking, voice chat | LAN only, no voice |
 
-## Still to do (ranked)
+## Still to do
 
-1. Quests + NPCs (gold, XP, weekly challenges) and a simple battle-pass style track.
-2. Reboot Vans and reboot cards in team modes.
-3. Vehicle fuel and gas stations.
-4. More explosives / traps: grenade launcher, boogie bomb, stink bomb, trap floors.
-5. Colour-blind modes and a HUD scale slider.
-6. Wildlife (chickens, boars) that drop healing meat.
-7. A relay server so friends can play over the internet.
-8. Llamas, a train, weather.
+1. A relay server so friends can play over the internet without port forwarding (needs a machine to host it; until then see
+   "Playing over the internet" in the README: Tailscale / ZeroTier or forwarding UDP 7777).
+2. A train that circles the island (a moving platform that carries riders).
+3. A grenade launcher, boogie / stink bomb variants, a battle-pass style reward track.
+4. Voice chat and dedicated servers.
 
 ## How it is tested
 

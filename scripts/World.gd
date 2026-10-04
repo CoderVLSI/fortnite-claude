@@ -22,6 +22,9 @@ const RebootVan = preload("res://scripts/RebootVan.gd")
 const RebootCard = preload("res://scripts/RebootCard.gd")
 const GasPump = preload("res://scripts/GasPump.gd")
 const Animal = preload("res://scripts/Animal.gd")
+const Llama = preload("res://scripts/Llama.gd")
+const Weather = preload("res://scripts/Weather.gd")
+var weather
 const Pois = preload("res://scripts/Pois.gd")
 const BuildPiece = preload("res://scripts/BuildPiece.gd")
 const Vehicle = preload("res://scripts/Vehicle.gd")
@@ -152,6 +155,11 @@ func _ready() -> void:
 	_spawn_vans()
 	_spawn_pumps()
 	_spawn_wildlife()
+	_spawn_llamas()
+	weather = Weather.new()
+	weather.world = self
+	weather.name = "Weather"
+	add_child(weather)
 	_spawn_rifts_and_sprites()
 	if profile.use_bus:
 		_start_bus()
@@ -671,6 +679,38 @@ func _spawn_vending() -> void:
 		if spot != Vector2.INF:
 			add_vending(VENDING_KINDS[n % 3], spot, poi.center)
 			n += 1
+
+
+# ------------------------------------------------------------------ supply llamas
+
+func _spawn_llamas() -> void:
+	var rr := RandomNumberGenerator.new()
+	rr.seed = SEED + 999
+	var n := 0
+	var want: int = 4 if profile.mobile else 6
+	var tries := 0
+	while n < want and tries < 600:
+		tries += 1
+		var p := Vector2(rr.randf_range(-1.0, 1.0), rr.randf_range(-1.0, 1.0)) * MAP_HALF * 0.75
+		if p.length() < 70.0 or terrain.height_at(p.x, p.y) < 3.0 or not terrain.is_free(p.x, p.y, 5.0) or _near_building(p, 12.0) or _near_tree(p, 3.5):
+			continue
+		var far := true
+		for l in get_tree().get_nodes_in_group("llamas"):
+			if Vector2(l.translation.x, l.translation.z).distance_to(p) < 120.0:
+				far = false
+		if far:
+			add_llama(p, "L%d" % n)
+			n += 1
+
+
+func add_llama(pos: Vector2, nid: String) -> Node:
+	var l := Llama.new()
+	l.net_id = nid
+	l.translation = Vector3(pos.x, terrain.height_at(pos.x, pos.y), pos.y)
+	l.rotation.y = float(hash(nid) % 628) / 100.0
+	net_nodes[nid] = l
+	add_child(l)
+	return l
 
 
 # ------------------------------------------------------------------ wildlife
@@ -2083,6 +2123,10 @@ func net_event(from: int, kind: String, data) -> void:
 			var rv = fighter_by_key(data)
 			if rv != null and is_instance_valid(rv) and rv.net_owner == 0:
 				rv.revive()
+		"llama_pop":                     # [llama id]: somebody else burst it, so ours goes too (the loot comes as normal drops)
+			var lp = net_nodes.get(data)
+			if lp != null and is_instance_valid(lp):
+				lp.burst(null, true)
 		"reboot":                        # [fighter key, pos]
 			var rf = fighter_by_key(data[0])
 			if rf != null and rf.is_dead:

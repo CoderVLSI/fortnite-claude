@@ -39,6 +39,9 @@ storm closes in. Last one standing wins.
 | **Friends** | FRIENDS tab: saved LAN friends (name + IP), live HOSTING status, JOIN, INVITE (UDP popup on their lobby screen), recent players |
 | **Comfort** | Settings > DISPLAY / COMFORT: FOV, crosshair colour + size, FPS limit, VSync, rotating minimap, control hints, low health / ammo warnings, toggle sprint / crouch, ADS sensitivity, master volume, rumble, focus pause, touch button size; keys H = quick heal, Y = previous item. Phones get AUTO RUN and AUTO FIRE buttons |
 | **Arsenal and survival** | New weapons: **Burst Assault Rifle** (3-round bursts) and **Rocket Launcher** (splash damage that knocks out building pieces); new item **Bouncer** (launch pad, throw it down). In team modes a shot-down player is **downed** (crawls, bleeds out in 30 s) and teammates revive them by holding E for 3.5 s. Redeploy your glider after jumping, turbo building, **visualize sound** (footsteps and shots show on screen), `=` toggles auto-run on PC |
+| **World life** | **Keepers** (NPCs, a gold ! over their head) hand out quests (hunt, gather, build, explore...) for gold and XP; **chickens and boars** (boars fight back) drop Roast Meat; **Supply Llamas** burst into loot; **rain storms** roll in (Settings > Display to turn off); vehicles burn **fuel**, **fuel pumps** refill them |
+| **Traps and bombs** | **Spike Trap**, **Proximity Mine**, **Boogie Bomb** (forced dance), **Stink Bomb** (poison cloud); in team modes **Reboot Vans** bring fallen team-mates back (take their card from where they fell) |
+| **Accessibility** | **Colour-blind modes** (red / green / blue, adjustable strength) and a **HUD size** slider in Settings > Display |
 | **Editing** | Fortnite style: press G once on a piece, aim at tiles and click / drag, press G again to confirm (or turn on hold-to-edit in Settings), Reset Edit (bindable, wheel too) restores the piece |
 | **Accounts** | Create an account (email + password) or play as a guest; stats (matches, wins, K/D, damage, play time...), level and your Locker are saved per account on the device. PROFILE tab in the lobby. See `docs/ACCOUNTS.md` for adding a cloud backend |
 | **Platforms** | Keyboard + mouse, gamepad, and full touch controls; mobile quality profile |
@@ -171,3 +174,10 @@ The APK is debug-signed. Make a release keystore before publishing.
   not by ear.
 * Not included: internet matchmaking / relay servers, NPCs and quests, vehicle fuel.
 * The Android preset ships arm64 only (keeps the APK ~16 MB; every phone since ~2019 is 64-bit). Set `architectures/armeabi-v7a=true` in `export_presets.cfg` for 32-bit devices.
+
+
+## Playing over the internet
+
+Multiplayer is peer to peer (UDP port 7777 on the host). To play with a friend who is not on your network, either put both PCs on
+a free virtual LAN (**Tailscale** or **ZeroTier**, then join the host's virtual IP from the FRIENDS tab) or forward UDP 7777 on the
+host's router and join the router's public IP. A relay server (no setup) is on the wish list in `docs/FORTNITE_GAPS.md`.

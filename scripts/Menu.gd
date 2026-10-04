@@ -565,6 +565,7 @@ func _build_settings() -> Control:
 		["fps_cap", "Frame rate limit", "option", ["No limit", "30", "60", "120", "144"], Settings.FPS_CAPS],
 		["vsync", "Vertical sync (smoother, caps at your screen's rate)", "check"],
 		["minimap_rotate", "Minimap turns with you", "check"],
+		["weather", "Rain storms (pure scenery)", "check"],
 		["show_hints", "Show the control hints at the bottom", "check"],
 		["visual_sound", "Visualize sound effects (footsteps, gunfire, chests, cars)", "check"],
 		["warn_health", "Low health warning (red edges)", "check"],

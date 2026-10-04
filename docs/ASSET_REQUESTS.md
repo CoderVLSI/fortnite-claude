@@ -21,6 +21,8 @@ in `assets/icons/` on the usual transparent-with-tile style (see `tools/images/R
 | `building_collapse` | 2.5 s | a wooden house collapsing: creaks, snapping beams, rumbling dust |
 | `sprite_equip` | 0.6 s | a cute magical chime as a little spirit joins you |
 | `sprite_levelup` | 0.8 s | an upbeat rising arpeggio, "level up" |
+| `rain_loop` | 8 s loop | steady rain on grass and leaves, soft, no thunder |
+| `thunder` | 3.5 s | a distant rolling thunderclap |
 
 ## Icons (`assets/icons/<name>.png`)
 
