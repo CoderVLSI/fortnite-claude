@@ -1886,6 +1886,8 @@ func net_spawn_throw(data: Array) -> void:
 			var g := GrenadeScript.new()
 			g.thrower = thrower
 			g.shock = (data[1] == "shock")
+			g.boogie = (data[1] == "boogie")
+			g.stink = (data[1] == "stink")
 			g.visual_only = true
 			add_child(g)
 			g.global_transform.origin = data[2]
@@ -1967,6 +1969,10 @@ func net_event(from: int, kind: String, data) -> void:
 			var rv = fighter_by_key(data)
 			if rv != null and is_instance_valid(rv) and rv.net_owner == 0:
 				rv.revive()
+		"trap":                          # [owner key, kind, pos]: a copy so everybody sees it; the owner's machine does the damage
+			var tr_owner = fighter_by_key(data[0])
+			if tr_owner != null:
+				tr_owner._place_trap(data[1], data[2], true)
 		"pad":
 			var bp := preload("res://scripts/BouncePad.gd").new()
 			add_child(bp)

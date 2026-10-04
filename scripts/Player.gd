@@ -188,7 +188,7 @@ func _ground_process(delta: float) -> void:
 	var want_jump := false
 	if input_enabled:
 		move = Controls.get_move()
-		want_jump = Input.is_action_pressed("jump") and not downed
+		want_jump = Input.is_action_pressed("jump") and not downed and boogie_t <= 0.0
 		sprinting = _sprint_wanted(move) and not downed
 		_update_aim()
 		if Input.is_action_just_pressed("reload"):
@@ -278,7 +278,7 @@ func _update_stance(delta: float, move: Vector2, want_jump: bool) -> void:
 		sprinting = false
 	if emoting:
 		emote_t += delta
-		if move.length() > 0.2 or want_jump or Input.is_action_pressed("fire") or sliding or emote_t > Emotes.length_of(emote_id):
+		if boogie_t <= 0.0 and (move.length() > 0.2 or want_jump or Input.is_action_pressed("fire") or sliding or emote_t > Emotes.length_of(emote_id)):
 			emoting = false
 
 

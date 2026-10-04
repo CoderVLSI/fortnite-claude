@@ -101,6 +101,18 @@ const CONSUMABLES := {
 	# Bouncer: press fire to drop a spring pad a couple of metres ahead; whoever steps on it is flung into the air.
 	"bouncer": {"name": "Bouncer", "heal": 0.0, "heal_cap": 0.0, "shield": 0.0, "shield_cap": 0.0,
 		"time": 0.0, "stack": 3, "rarity": 2, "throw": true, "place": true, "model": "grenade", "color": Color(0.2, 0.6, 1.0)},
+	# Spike Trap: press fire to lay floor spikes ahead; enemies who step on them take damage and are thrown up (three stabs).
+	"spike_trap": {"name": "Spike Trap", "heal": 0.0, "heal_cap": 0.0, "shield": 0.0, "shield_cap": 0.0,
+		"time": 0.0, "stack": 3, "rarity": 2, "throw": true, "trap": "spike", "model": "grenade", "color": Color(0.8, 0.8, 0.9)},
+	# Proximity Mine: place it; it arms after 1.5 s and blows up when an enemy walks within a few metres.
+	"proximity_mine": {"name": "Proximity Mine", "heal": 0.0, "heal_cap": 0.0, "shield": 0.0, "shield_cap": 0.0,
+		"time": 0.0, "stack": 3, "rarity": 3, "throw": true, "trap": "mine", "model": "grenade", "color": Color(1.0, 0.5, 0.15)},
+	# Boogie Bomb: everybody in the blast (you too) has to dance for a few seconds and cannot shoot, build or move.
+	"boogie_bomb": {"name": "Boogie Bomb", "heal": 0.0, "heal_cap": 0.0, "shield": 0.0, "shield_cap": 0.0,
+		"time": 0.0, "stack": 4, "rarity": 2, "throw": true, "boogie": true, "model": "grenade", "color": Color(1.0, 0.4, 0.85)},
+	# Stink Bomb: a green cloud that hurts everybody inside it for seven seconds.
+	"stink_bomb": {"name": "Stink Bomb", "heal": 0.0, "heal_cap": 0.0, "shield": 0.0, "shield_cap": 0.0,
+		"time": 0.0, "stack": 4, "rarity": 2, "throw": true, "stink": true, "model": "grenade", "color": Color(0.5, 0.9, 0.2)},
 	# Rift-to-Go: a portable rift. Using it flings you into the sky; the rift stays open for a few seconds for friends.
 	"rift_to_go": {"name": "Rift-to-Go", "heal": 0.0, "heal_cap": 0.0, "shield": 0.0, "shield_cap": 0.0,
 		"time": 0.0, "stack": 2, "rarity": 3, "throw": true, "rift": true, "color": Color(0.7, 0.35, 1.0)},
@@ -256,7 +268,7 @@ static func random_weapon(rng: RandomNumberGenerator, bonus: int = 0) -> Diction
 
 
 static func random_consumable(rng: RandomNumberGenerator) -> Dictionary:
-	var table := ["bandage", "bandage", "bandage", "mini_shield", "mini_shield", "medkit", "shield_potion", "slurp_juice", "grenade", "grenade", "rift_to_go", "shockwave_grenade", "junk_rift", "jetpack", "skateboard", "bouncer"]
+	var table := ["bandage", "bandage", "bandage", "mini_shield", "mini_shield", "medkit", "shield_potion", "slurp_juice", "grenade", "grenade", "rift_to_go", "shockwave_grenade", "junk_rift", "jetpack", "skateboard", "bouncer", "spike_trap", "proximity_mine", "boogie_bomb", "stink_bomb"]
 	var id: String = table[rng.randi() % table.size()]
 	var count := 1
 	if id == "bandage":
@@ -265,7 +277,7 @@ static func random_consumable(rng: RandomNumberGenerator) -> Dictionary:
 		count = 1 + rng.randi() % 2
 	elif id == "grenade":
 		count = 2 + rng.randi() % 3
-	elif id == "bouncer":
+	elif id == "bouncer" or id == "spike_trap" or id == "proximity_mine" or id == "boogie_bomb" or id == "stink_bomb":
 		count = 1 + rng.randi() % 2
 	return make_consumable(id, count)
 

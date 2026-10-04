@@ -180,6 +180,10 @@ func _physics_process(delta: float) -> void:
 		move_body(delta, Vector3.ZERO, 0.0, false)
 		animate(delta)
 		return
+	if boogie_t > 0.0:                          # a Boogie Bomb: dancing on the spot
+		move_body(delta, Vector3.ZERO, 0.0, false)
+		animate(delta)
+		return
 	if _revive_task(delta):
 		return
 	if state == State.WANDER and target == null and not is_boss and health < 70.0 + skill * 10.0:

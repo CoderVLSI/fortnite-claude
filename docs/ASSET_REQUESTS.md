@@ -35,3 +35,7 @@ in `assets/icons/` on the usual transparent-with-tile style (see `tools/images/R
 | `sprite_earth` `sprite_fire` `sprite_water` `sprite_duck` `sprite_ghost` `sprite_demon` `sprite_king` `sprite_dream` `sprite_punk` `sprite_aegis` `sprite_lucky` | the eleven Sprite companions: round, glowing little ghosts with a face and tiny arms, coloured by element (earth green, fire orange, water blue, duck yellow with a bill, ghost pale white-blue, demon red with horns, king lilac with a gold crown, dream purple with stars, punk pink with a green mohawk, aegis teal with a halo, lucky gold with a green bow tie) |
 
 Still pending from before: `heal_grenade`, `heal_slurp_juice`, `heal_chug_jug`, `gold_bar` (optional).
+
+## Icons added by the main agent as plain placeholders (please redraw in the house style)
+
+`heal_spike_trap`, `heal_proximity_mine`, `heal_boogie_bomb`, `heal_stink_bomb`, `weapon_rocket_launcher`, `weapon_burst_assault`, `heal_bouncer`.

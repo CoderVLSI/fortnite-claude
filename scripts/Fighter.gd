@@ -25,6 +25,7 @@ enum Mode { GROUND, BUS, FREEFALL, GLIDE, SWIM, MANTLE, VEHICLE }
 
 const Rocket = preload("res://scripts/Rocket.gd")
 const BouncePad = preload("res://scripts/BouncePad.gd")
+const Trap = preload("res://scripts/Trap.gd")
 const Emotes = preload("res://scripts/Emotes.gd")
 const MODEL_PATH := "res://assets/models/player.glb"
 const Grenade = preload("res://scripts/Grenade.gd")
@@ -151,6 +152,7 @@ var _vault := false               # the current MANTLE-mode move is a window vau
 var _vault_mid := Vector3.ZERO
 var emoting := false              # dancing: cancelled by moving, firing or jumping
 var emote_t := 0.0
+var boogie_t := 0.0               # a Boogie Bomb got us: forced to dance, cannot shoot, build or move
 var _slide_t := 0.0
 var _slide_dir := Vector3.ZERO
 var aiming := false               # aim-down-sights (player only; see Player._update_aim)
@@ -599,6 +601,26 @@ func throw_grenade(aim_from: Vector3, aim_dir: Vector3, slot: int = -1, damage_m
 	if item.kind != "consumable" or not Items.CONSUMABLES[item.id].get("throw", false):
 		return false
 	var def: Dictionary = Items.CONSUMABLES[item.id]
+	if def.has("trap"):                             # Spike Trap / Proximity Mine: laid on the ground a couple of metres ahead
+		var tpos := _bouncer_spot(aim_dir)
+		if tpos == Vector3.INF:
+			emit_signal("picked_up", "No room to place a %s here" % def.name)
+			return false
+		_place_trap(def.trap, tpos)
+		if net_owner == 0 and Net.active and Net.in_match:
+			Net.send_event("trap", [net_key_v, def.trap, tpos])
+		_fire_cd = 0.6
+		item.count -= 1
+		if item.count <= 0:
+			slots[slot] = null
+			if selected == slot:
+				selected = 0
+				_apply_selected()
+			else:
+				emit_signal("slot_changed")
+		else:
+			emit_signal("slot_changed")
+		return true
 	if def.get("place", false):                     # Bouncer: a spring pad on the ground a couple of metres ahead
 		var pos := _bouncer_spot(aim_dir)
 		if pos == Vector3.INF:
@@ -639,13 +661,15 @@ func throw_grenade(aim_from: Vector3, aim_dir: Vector3, slot: int = -1, damage_m
 		var g := Grenade.new()
 		g.thrower = self
 		g.shock = def.get("shock", false)
+		g.boogie = def.get("boogie", false)
+		g.stink = def.get("stink", false)
 		g.damage_mult = damage_mult
 		get_parent().add_child(g)
 		g.global_transform.origin = hand
 		g.linear_velocity = aim_dir * 17.0 + Vector3(0, 4.0, 0) + Vector3(velocity.x, 0, velocity.z) * 0.6
 		g.angular_velocity = Vector3(rand_range(-6, 6), rand_range(-6, 6), rand_range(-6, 6))
 		if net_owner == 0 and Net.active and Net.in_match:
-			Net.send_event("throw", [net_key_v, "shock" if g.shock else "frag", hand, g.linear_velocity])
+			Net.send_event("throw", [net_key_v, "shock" if g.shock else ("boogie" if g.boogie else ("stink" if g.stink else "frag")), hand, g.linear_velocity])
 	item.count -= 1
 	if item.count <= 0:
 		slots[slot] = null
@@ -667,6 +691,24 @@ func _bouncer_spot(aim_dir: Vector3) -> Vector3:
 	if not hit or hit.normal.y < 0.7:
 		return Vector3.INF
 	return hit.position
+
+
+func _place_trap(kind: String, pos: Vector3, visual_only: bool = false) -> void:
+	var t := Trap.new()
+	t.kind = kind
+	t.owner_fighter = self
+	t.visual_only = visual_only
+	get_parent().add_child(t)
+	t.global_transform.origin = pos
+	Audio.play3d("build_place", pos, -2.0, 1.1)
+
+
+# A Boogie Bomb went off near us.
+func start_boogie(seconds: float) -> void:
+	if is_dead or downed or mode != Mode.GROUND:
+		return
+	boogie_t = max(boogie_t, seconds)
+	emit_signal("picked_up", "BOOGIE BOMB!")
 
 
 func _place_bouncer(pos: Vector3) -> void:
@@ -1290,6 +1332,19 @@ func tick_gadgets(delta: float) -> void:
 
 
 func tick_weapon(delta: float) -> void:
+	if boogie_t > 0.0:
+		boogie_t -= delta
+		if is_dead or downed:
+			boogie_t = 0.0
+		else:
+			emoting = true
+			emote_id = "boogie"
+			emote_t = 0.0
+			_fire_cd = max(_fire_cd, 0.2)
+			cancel_use()
+		if boogie_t <= 0.0:
+			boogie_t = 0.0
+			emoting = false
 	if downed and net_owner == 0 and not is_dead:
 		health -= DOWNED_HEALTH / BLEED_TIME * delta          # bleeding out
 		if health <= 0.0:
