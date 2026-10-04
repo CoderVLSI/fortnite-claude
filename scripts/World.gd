@@ -21,6 +21,7 @@ const QuestLog = preload("res://scripts/QuestLog.gd")
 const RebootVan = preload("res://scripts/RebootVan.gd")
 const RebootCard = preload("res://scripts/RebootCard.gd")
 const GasPump = preload("res://scripts/GasPump.gd")
+const Animal = preload("res://scripts/Animal.gd")
 const Pois = preload("res://scripts/Pois.gd")
 const BuildPiece = preload("res://scripts/BuildPiece.gd")
 const Vehicle = preload("res://scripts/Vehicle.gd")
@@ -150,6 +151,7 @@ func _ready() -> void:
 	_spawn_npcs()
 	_spawn_vans()
 	_spawn_pumps()
+	_spawn_wildlife()
 	_spawn_rifts_and_sprites()
 	if profile.use_bus:
 		_start_bus()
@@ -669,6 +671,39 @@ func _spawn_vending() -> void:
 		if spot != Vector2.INF:
 			add_vending(VENDING_KINDS[n % 3], spot, poi.center)
 			n += 1
+
+
+# ------------------------------------------------------------------ wildlife
+
+func _spawn_wildlife() -> void:
+	var rr := RandomNumberGenerator.new()
+	rr.seed = SEED + 777                      # its own random stream, so the rest of the island is unchanged
+	var chickens := 0
+	var boars := 0
+	var want_chickens: int = 9 if profile.mobile else 18
+	var want_boars: int = 4 if profile.mobile else 9
+	var tries := 0
+	while (chickens < want_chickens or boars < want_boars) and tries < 900:
+		tries += 1
+		var p := Vector2(rr.randf_range(-1.0, 1.0), rr.randf_range(-1.0, 1.0)) * MAP_HALF * 0.78
+		if p.length() < 55.0 or terrain.height_at(p.x, p.y) < 3.0 or not terrain.is_free(p.x, p.y, 3.0) or _near_building(p, 8.0) or _near_tree(p, 2.0):
+			continue
+		if chickens < want_chickens and (boars >= want_boars or rr.randf() < 0.65):
+			for k in range(1 + rr.randi() % 3):                       # a small flock
+				add_animal("chicken", p + Vector2(rr.randf_range(-3, 3), rr.randf_range(-3, 3)))
+				chickens += 1
+		elif boars < want_boars:
+			add_animal("boar", p)
+			boars += 1
+
+
+func add_animal(kind: String, pos: Vector2) -> Node:
+	var a := Animal.new()
+	a.kind = kind
+	a.terrain = terrain
+	a.translation = Vector3(pos.x, terrain.height_at(pos.x, pos.y), pos.y)
+	add_child(a)
+	return a
 
 
 # ------------------------------------------------------------------ fuel pumps

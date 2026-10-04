@@ -78,6 +78,8 @@ const CONSUMABLES := {
 		"time": 7.0, "stack": 3, "rarity": 2},
 	"mini_shield": {"name": "Mini Shield", "heal": 0.0, "heal_cap": 0.0, "shield": 25.0, "shield_cap": 50.0,
 		"time": 2.0, "stack": 6, "rarity": 1},
+	"meat": {"name": "Roast Meat", "heal": 25.0, "heal_cap": 100.0, "shield": 0.0, "shield_cap": 0.0,
+		"time": 1.6, "stack": 6, "rarity": 0, "color": Color(0.85, 0.5, 0.25)},
 	"shield_potion": {"name": "Shield Potion", "heal": 0.0, "heal_cap": 0.0, "shield": 50.0, "shield_cap": 100.0,
 		"time": 4.0, "stack": 2, "rarity": 2},
 	"slurp_juice": {"name": "Slurp Juice", "heal": 25.0, "heal_cap": 100.0, "shield": 25.0, "shield_cap": 100.0,

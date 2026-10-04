@@ -15,6 +15,7 @@ const LIST := [
 	{"id": "tourist", "title": "Tourist", "desc": "Visit 4 named places", "stat": "visits", "goal": 4, "gold": 80, "xp": 60},
 	{"id": "medic", "title": "Medic", "desc": "Use 3 healing items", "stat": "heals", "goal": 3, "gold": 50, "xp": 35},
 	{"id": "spender", "title": "Big Spender", "desc": "Buy something at a vending machine", "stat": "buys", "goal": 1, "gold": 40, "xp": 30},
+	{"id": "forager", "title": "Forager", "desc": "Hunt 3 wild animals", "stat": "hunts", "goal": 3, "gold": 70, "xp": 50},
 	{"id": "slayer", "title": "Slayer", "desc": "Eliminate 5 fighters", "stat": "kills", "goal": 5, "gold": 250, "xp": 200},
 	{"id": "tycoon", "title": "Demolition", "desc": "Gather 1000 building materials", "stat": "mats", "goal": 1000, "gold": 140, "xp": 100},
 ]
