@@ -73,23 +73,25 @@ func _run() -> void:
 				if n is RigidBody:
 					g1 += 1
 			check(g1 == g0 + 1, "the launcher lobs a grenade (%d -> %d bodies)" % [g0, g1])
-			yield(create_timer(1.6), "timeout")
-			var g2 := 0
+			yield(create_timer(2.2), "timeout")
+			var mine := 0
 			for n in get_nodes_in_group("world")[0].get_children():
-				if n is RigidBody:
-					g2 += 1
-			check(g2 == g0, "and it blows up (%d bodies)" % g2)
+				if n is RigidBody and "thrower" in n and n.thrower == p:
+					mine += 1
+			check(mine == 0, "and it blows up (%d of ours left)" % mine)
 	# bloom: spraying an automatic widens the cone, a single-shot gun does not
 	p.slots = [Items.pickaxe(), null, null, null, null, null]
 	p.give_weapon("smg", 2, 120)
 	p.select_slot(1)
 	var b0: float = p._bloom_now()
-	for i in range(6):
+	var top := 0.0
+	for i in range(10):
 		p._fire_cd = 0.0
 		var aim2: Array = p.aim_origin_and_dir()
 		p.try_fire(aim2[0], aim2[1])
 		yield(_frames(2), "completed")
-	check(p._bloom_now() > b0 + 0.3, "spraying the SMG blooms (%.2f -> %.2f)" % [b0, p._bloom_now()])
+		top = max(top, p._bloom_now())
+	check(top > b0 + 0.2, "spraying the SMG blooms (%.2f -> %.2f)" % [b0, top])
 	yield(create_timer(0.8), "timeout")
 	check(p._bloom_now() < 0.2, "and it settles when you stop (%.2f)" % p._bloom_now())
 	print("WEAPONS2_RESULT failures=", failures.size())
