@@ -24,6 +24,8 @@ const BUILD_ACTIONS := ["build_wall", "build_floor", "build_ramp", "build_roof"]
 
 var input_enabled := true
 var pitch := -0.12
+var _assist_t := 0.0
+var _assist_target = null
 var head: Spatial
 var spring: SpringArm
 var camera: Camera
@@ -639,6 +641,47 @@ func _look(delta: float) -> void:
 		_last_look_time = OS.get_ticks_msec() / 1000.0
 	rotation.y -= l.x
 	pitch = clamp(pitch - l.y, -1.15, 1.15)
+	if (Controls.touch_mode or Controls.using_pad) and Settings.pref("aim_assist") and selected_item() != null and selected_item().kind == "weapon" \
+			and (Input.is_action_pressed("fire") or aiming or Controls.auto_fire) and not builder.active:
+		_aim_assist(delta)
+
+
+# Aim assist: while you shoot (or aim) the view is eased towards the nearest enemy that is already close to the crosshair and in the open.
+func _aim_assist(delta: float) -> void:
+	if camera == null:
+		return
+	_assist_t -= delta
+	if _assist_t <= 0.0:
+		_assist_t = 0.12
+		_assist_target = null
+		var origin: Vector3 = camera.global_transform.origin
+		var fwd: Vector3 = -camera.global_transform.basis.z
+		var best := 0.13                                  # about 7.5 degrees
+		for f in get_tree().get_nodes_in_group("fighters"):
+			if f == self or f.is_dead or is_ally(f) or ("downed" in f and f.downed):
+				continue
+			var tp: Vector3 = f.global_transform.origin + Vector3(0, 1.1, 0)
+			var d: Vector3 = tp - origin
+			var dist := d.length()
+			if dist < 3.0 or dist > min(weapon_range, 70.0):
+				continue
+			var ang: float = acos(clamp(fwd.dot(d / dist), -1.0, 1.0))
+			if ang >= best:
+				continue
+			var hit := get_world().direct_space_state.intersect_ray(origin, tp, [self, f], 1)
+			if hit:
+				continue
+			best = ang
+			_assist_target = f
+	if _assist_target == null or not is_instance_valid(_assist_target) or _assist_target.is_dead:
+		_assist_target = null
+		return
+	var to: Vector3 = (_assist_target.global_transform.origin + Vector3(0, 1.1, 0) - camera.global_transform.origin).normalized()
+	var want_yaw: float = atan2(-to.x, -to.z)
+	var want_pitch: float = asin(clamp(to.y, -1.0, 1.0))
+	var k: float = clamp(4.0 * delta, 0.0, 0.5)
+	rotation.y += wrapf(want_yaw - rotation.y, -PI, PI) * k
+	pitch = clamp(pitch + (want_pitch - pitch) * k, -1.15, 1.15)
 
 
 func _can_aim() -> bool:
