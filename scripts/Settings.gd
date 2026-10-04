@@ -22,6 +22,7 @@ var starter_sprite := "earth"    # the sprite you bring to a match (none / earth
 var damage_numbers := true
 var edit_on_release := false     # builds: false = press Edit once to start and again to confirm; true = hold it and let go to confirm
 var team_size := 1                 # 1 solo, 2 duos, 3 trios, 4 squads
+var zero_build := false            # Zero Build: no building pieces, only the weapons, the terrain and the buildings that stand
 var friends := []                  # [{name, ip}] saved LAN friends
 var recent := []                   # [{name, ip}] people you played with lately (newest first)
 var emote_wheel := []              # emote ids on the wheel, in order (Locker > Emotes); sanitised in Emotes.sanitize_wheel
@@ -115,6 +116,7 @@ func load_settings() -> void:
 		for action in cfg.get_section_keys("keybinds"):
 			keybinds[action] = cfg.get_value("keybinds", action, [])
 	team_size = int(clamp(int(cfg.get_value("gameplay", "team_size", team_size)), 1, 4))
+	zero_build = bool(cfg.get_value("gameplay", "zero_build", zero_build))
 	friends = cfg.get_value("social", "friends", [])
 	recent = cfg.get_value("social", "recent", [])
 	emote_wheel = Array(str(cfg.get_value("gameplay", "emote_wheel", "")).split(",", false))
@@ -233,6 +235,7 @@ func save_settings() -> void:
 	for action in keybinds:
 		cfg.set_value("keybinds", action, keybinds[action])
 	cfg.set_value("gameplay", "team_size", team_size)
+	cfg.set_value("gameplay", "zero_build", zero_build)
 	cfg.set_value("social", "friends", friends)
 	cfg.set_value("social", "recent", recent)
 	cfg.set_value("gameplay", "emote_wheel", PoolStringArray(emote_wheel).join(","))

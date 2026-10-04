@@ -35,6 +35,7 @@ var friends_panel: Panel
 var friends_body: Control
 var friends_fields := {}
 var mode_title: Label
+var zb_button: Button
 var mode_prev: Button
 var mode_next: Button
 var invite_banner: Panel
@@ -362,6 +363,11 @@ func _build_title() -> Control:
 	mode_next.rect_size = Vector2(54, 44)
 	mode_next.connect("pressed", self, "_cycle_mode", [1])
 	mode.add_child(mode_next)
+	zb_button = Button.new()
+	zb_button.rect_position = Vector2(266, 8)
+	zb_button.rect_size = Vector2(176, 28)
+	zb_button.connect("pressed", self, "_toggle_zero_build")
+	mode.add_child(zb_button)
 	mode_info = _label("", 16, Color(0.85, 0.9, 1.0))
 	mode_info.rect_position = Vector2(24, 82)
 	mode.add_child(mode_info)
@@ -1225,6 +1231,7 @@ func party_host() -> void:
 			party_error.text = err
 		return
 	Net.set_team_size(Settings.team_size)
+	Net.set_zero_build(Settings.zero_build)
 	Audio.play2d("loot_pickup", -6.0)
 	party_show("party")
 
@@ -1711,6 +1718,17 @@ func _show_none() -> void:
 const MODE_NAMES := ["SOLO", "DUOS", "TRIOS", "SQUADS"]
 
 
+func _toggle_zero_build() -> void:
+	if Net.active and not Net.is_host:
+		return
+	Settings.zero_build = not Settings.zero_build
+	Settings.save_settings()
+	if Net.active:
+		Net.set_zero_build(Settings.zero_build)
+	Audio.play2d("ui_click", -6.0)
+	_refresh_lobby()
+
+
 func _cycle_mode(dir: int) -> void:
 	if Net.active and not Net.is_host:
 		return
@@ -1736,7 +1754,10 @@ func _refresh_lobby() -> void:
 	var can_pick: bool = not Net.active or Net.is_host
 	mode_prev.disabled = not can_pick
 	mode_next.disabled = not can_pick
-	mode_info.text = "%d players  -  %s  -  shrinking storm" % [bots + 1, "everyone for themselves" if size == 1 else "teams of %d, no friendly fire" % size]
+	var zb: bool = Net.zero_build_on()
+	zb_button.text = "ZERO BUILD" if zb else "BUILDING ON"
+	zb_button.disabled = not can_pick
+	mode_info.text = "%d players  -  %s  -  %s" % [bots + 1, "everyone for themselves" if size == 1 else "teams of %d, no friendly fire" % size, "no building" if zb else "shrinking storm"]
 	_refresh_play_button()
 	_refresh_party_strip()
 	if lobby != null:

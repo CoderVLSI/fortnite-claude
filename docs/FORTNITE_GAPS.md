@@ -60,3 +60,6 @@ and any script errors.
 * Vaults: a sealed concrete room at Iron Bunker, The Bureau and Stealth Stronghold. The steel door opens with a Vault Keycard dropped by that place's Warden (three bosses, each guarding a mythic); three mythic chests are inside. Door state is synced over the network. Vaults show on the big map.
 * 100 fighters per match (humans + bots): bots far from every human send their pose 2-3 times a second instead of 10 to keep traffic down. Mobile runs 40 bots.
 * Not done: a real lake (Loot Lake) and the Agency's helicopter ride.
+
+## Overnight additions
+* **Zero Build**: a toggle on the lobby mode card (ZERO BUILD / BUILDING ON). The host decides for the party and the choice reaches everyone; dedicated servers take `--zero-build` (`tools/run_server.sh --zero-build`). Build mode, build keys and phone build buttons all refuse with a message. Tested in `zerobuild_test`.

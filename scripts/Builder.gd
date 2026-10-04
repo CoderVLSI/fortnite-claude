@@ -46,6 +46,10 @@ func toggle() -> void:
 func set_active(on: bool) -> void:
 	if on and player.mode != 0:
 		return
+	if on and Net.zero_build_on():
+		if player.has_signal("picked_up"):
+			player.emit_signal("picked_up", "Zero Build: building is off in this mode")
+		return
 	if on == active:
 		return
 	active = on

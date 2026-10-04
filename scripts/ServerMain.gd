@@ -25,6 +25,8 @@ func _ready() -> void:
 			port = int(a.substr(7))
 		elif a.begins_with("--instance="):
 			instance = int(a.substr(11))
+		elif a == "--zero-build":
+			Settings.zero_build = true
 	if "render_loop_enabled" in VisualServer:
 		VisualServer.render_loop_enabled = false          # nothing is drawn on a server
 	var err: String = Net.host_dedicated(port, instance)
@@ -33,6 +35,7 @@ func _ready() -> void:
 		get_tree().quit(1)
 		return
 	Settings.autostart = false
+	Net.set_zero_build(Settings.zero_build)
 	Net.connect("match_starting", self, "_on_match_starting")
 	print("SERVER listening on UDP %d (instance %d, version %s)" % [port, instance, Net.VERSION])
 

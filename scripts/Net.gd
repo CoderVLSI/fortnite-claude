@@ -40,6 +40,7 @@ var match_seed := 0
 var bot_count := 49
 var order := []                      # peer ids in the order they take spawn points
 var handler: Node = null             # the World: receives pose / events while a match runs
+var zero_build := false              # the party is playing Zero Build (the host decides)
 var team_size := 1                   # 1 solo, 2 duos, 3 trios, 4 squads (the host decides)
 var listen_for_invites := false      # the menu is up: keep the LAN port open so invites and games show up
 var peer_ips := {}                   # peer id -> address (host side)
@@ -228,6 +229,22 @@ func set_team_size(n: int) -> void:
 		rpc("_set_team_size", team_size)
 
 
+func set_zero_build(on: bool) -> void:
+	zero_build = on
+	if active and is_host:
+		rpc("_set_zero_build", on)
+
+
+remote func _set_zero_build(on: bool) -> void:
+	zero_build = on
+	emit_signal("party_changed")
+
+
+# Is building switched off for the match that is running (or about to start)?
+func zero_build_on() -> bool:
+	return zero_build if active else Settings.zero_build
+
+
 remote func _set_team_size(n: int) -> void:
 	team_size = int(clamp(n, 1, 4))
 	emit_signal("party_changed")
@@ -247,6 +264,7 @@ func leave(reason: String = "") -> void:
 	in_match = false
 	queue_left = -1.0
 	dedicated = false
+	zero_build = false
 	via_server = false
 	room_code = ""
 	room_leader = 0
@@ -483,6 +501,7 @@ remote func _hello(version: String, player_name: String, loadout: Dictionary, co
 	rpc("_party_update", members)
 	rpc_id(id, "_accepted")
 	rpc_id(id, "_set_team_size", team_size)
+	rpc_id(id, "_set_zero_build", zero_build)
 	if dedicated:
 		rpc("_room_info", room_code, room_leader)
 	emit_signal("party_changed")
