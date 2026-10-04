@@ -1,0 +1,17 @@
+# Install: copy to /etc/systemd/system/, adjust paths, then  systemctl enable --now storm-island
+[Unit]
+Description=Storm Island dedicated servers
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=storm
+WorkingDirectory=/opt/storm-island
+ExecStart=/opt/storm-island/tools/run_server.sh -n 4 -p 7777 -b 30
+Environment=BIN=/opt/storm-island/StormIsland.x86_64
+Restart=always
+RestartSec=5
+LimitNOFILE=4096
+
+[Install]
+WantedBy=multi-user.target

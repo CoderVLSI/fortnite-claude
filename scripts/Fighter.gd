@@ -450,7 +450,7 @@ func get_reserve() -> int:
 func add_ammo(amount: int, type: String = "medium") -> void:
 	if sprite.get("variant", "") == "galaxy":
 		amount = int(ceil(amount * 1.3))
-	reserves[type] = int(min(reserves[type] + amount, 999))
+	reserves[type] = int(min(reserves[type] + amount, Items.AMMO[type].cap))
 
 
 func give_weapon(id: String, rarity: int = 0, fill_reserve: int = 0) -> void:
@@ -527,7 +527,7 @@ func pickup(item: Dictionary) -> Dictionary:
 
 
 func add_material(kind: String, amount: int) -> void:
-	materials[kind] = int(min(materials[kind] + amount, 999))
+	materials[kind] = int(min(materials[kind] + amount, Items.MATERIAL_CAP))
 	if amount > 0:
 		stat_add("mats", amount)
 
@@ -1505,7 +1505,10 @@ func _swing_pickaxe(aim_from: Vector3, aim_dir: Vector3) -> bool:
 	if target != null and target.has_method("take_damage"):
 		Audio.play3d("hit_flesh", hit.position, -2.0)
 		var was_alive: bool = not target.is_dead
-		target.take_damage(gun_damage * (1.0 + 0.35 * sprite_level() if has_sprite("king") else 1.0), self)
+		var swing_dmg: float = gun_damage * (1.0 + 0.35 * sprite_level() if has_sprite("king") else 1.0)
+		if target.is_in_group("build_pieces"):
+			swing_dmg *= 3.75	# Fortnite: pickaxe 20 vs players, 75 vs player-built structures
+		target.take_damage(swing_dmg, self)
 		emit_signal("hit_landed", target, was_alive and target.is_dead, false)
 	elif target != null and target.has_meta("harvest"):
 		var kind: String = target.get_meta("harvest")

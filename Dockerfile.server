@@ -1,0 +1,13 @@
+# Storm Island dedicated server.  Build:  docker build -f Dockerfile.server -t storm-server .
+# Run:  docker run -d --restart=always -p 7777-7778:7777-7778/udp -p 8777-8778:8777-8778/udp storm-server -n 2
+# The exported binary must exist first:  tools/run_server.sh --export
+FROM ubuntu:22.04
+RUN apt-get update && apt-get install -y --no-install-recommends xvfb libgl1 libxcursor1 libxinerama1 libxi6 libxrandr2 \
+    libasound2 libpulse0 ca-certificates && rm -rf /var/lib/apt/lists/*
+WORKDIR /srv/storm
+COPY build/linux/StormIsland.x86_64 /srv/storm/StormIsland.x86_64
+COPY tools/run_server.sh /srv/storm/run_server.sh
+ENV BIN=/srv/storm/StormIsland.x86_64
+EXPOSE 7777-7800/udp 8777-8800/udp
+ENTRYPOINT ["/srv/storm/run_server.sh"]
+CMD ["-n", "2"]

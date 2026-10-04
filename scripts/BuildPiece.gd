@@ -3,7 +3,7 @@ extends StaticBody
 # Weapons and the pickaxe damage it through take_damage(); when destroyed it frees its grid slot.
 
 const MAT_COLOR := {"wood": Color(0.62, 0.42, 0.22), "stone": Color(0.58, 0.58, 0.62), "metal": Color(0.45, 0.60, 0.80)}
-const MAT_HP := {"wood": 150.0, "stone": 300.0, "metal": 450.0}
+const MAT_HP := {"wood": 200.0, "stone": 300.0, "metal": 400.0}       # as in Fortnite
 
 var kind := "wall"
 var mat_name := "wood"
