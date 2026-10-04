@@ -96,7 +96,7 @@ func _draw() -> void:
 		var w := font.get_string_size(_pop_text).x
 		var c := Color(_pop_color.r, _pop_color.g, _pop_color.b, clamp(_pop, 0.0, 1.0))
 		draw_string(font, Vector2(rect_size.x - w, TOP - 10.0), _pop_text, c)
-	if show_build_row:
+	if show_build_row and not Net.zero_build_on():
 		_draw_build_row(font)
 	for i in range(Items.SLOT_COUNT):
 		_draw_slot(i, font)

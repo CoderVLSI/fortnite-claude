@@ -237,6 +237,10 @@ func _apply_sprint() -> void:
 
 
 func _process(_delta: float) -> void:
+	var zb: bool = Net.zero_build_on()                  # Zero Build: no build or edit buttons
+	for key in _buttons:
+		if key.begins_with("piece") or key == "edit":
+			_buttons[key]["hidden"] = zb
 	if visible:
 		update()   # piece buttons follow the builder state
 
