@@ -177,6 +177,44 @@ add("logo", "logo", "game logo that reads exactly the two words STORM ISLAND in 
     "purple lightning crackling around them, battle-royale style, centred, no other text, " + KEYED,
     size=1024, height=576, key=True, dest=_UI("logo", "png"))
 
+# Transparent item art (no inventory tile: group "plain" is not in TILES). The game draws its own slot behind these.
+STYLE_PLAIN = ("flat vector game icon, bold dark navy outline, flat bright saturated colours, subtle shading, one "
+               "clear object centred filling most of the canvas, readable at 48 pixels, no words or letters, no "
+               "watermark, ")
+_MAGENTA = KEYED
+for _n, _d, _k in [
+    ("heal_spike_trap", "a square steel plate with a grid of silver spikes", None),
+    ("heal_proximity_mine", "a round olive-green disc mine with a blinking red light on top", None),
+    ("heal_boogie_bomb", "a pink grenade with a disco-ball mirror pattern and small music notes", _CYAN),
+    ("heal_stink_bomb", "a green grenade with wavy stink lines and a skull-and-crossbones symbol", None),
+    ("heal_meat", "a roast drumstick, golden brown, with the bone showing", None),
+    ("heal_bouncer", "a blue spring pad with a yellow top and a coil spring under it", None),
+    ("weapon_rocket_launcher", "a chunky shoulder-mounted rocket launcher with a rocket loaded in the tube, side "
+                               "view, pointing right", None),
+    ("weapon_burst_assault", "an assault rifle with three small bullets next to it for burst fire, side view, "
+                             "barrel pointing right", None),
+]:
+    add(_n, "plain", "%s%s, %s" % (STYLE_PLAIN, _d, _k or _MAGENTA),
+        key_colour={_CYAN: "0x00FFFF"}.get(_k, KEY_COLOUR))
+for _n, _d, _k in [
+    ("ui_quest", "a golden exclamation mark on a rolled parchment scroll", None),
+    ("ui_reboot_card", "a glowing cyan trading card with a circular arrow symbol", None),
+    ("ui_llama", "a pink pinata llama head with colourful confetti", _CYAN),
+    ("ui_fuel", "a red jerrycan fuel can", None),
+]:
+    add(_n, "plain", "%s%s, %s" % (STYLE_PLAIN, _d, _k or _MAGENTA),
+        dest=os.path.join(ROOT, "assets", "ui", _n + ".png"),
+        key_colour={_CYAN: "0x00FFFF"}.get(_k, KEY_COLOUR))
+
+# Vault feature art (transparent). keycard is generated once at 256; ui_keycard (128, no glow) and the glow on
+# icons/keycard.png are derived locally from it (see docs/ASSET_REQUESTS.md).
+add("ui_vault", "plain", "%sa steel vault door seen from the front with a round wheel handle, orange accent colour "
+    "#FF5A1A, map marker icon, %s" % (STYLE_PLAIN, KEYED), dest=os.path.join(ROOT, "assets", "ui", "ui_vault.png"))
+add("ui_warden", "plain", "%sa heavily armoured guard helmet with a visor, gold and black, boss marker icon, %s"
+    % (STYLE_PLAIN, KEYED), dest=os.path.join(ROOT, "assets", "ui", "ui_warden.png"))
+add("keycard", "plain", "%san orange (#FF5A1A) security keycard with a black stripe and a small gold chip, tilted 15 "
+    "degrees, %s" % (STYLE_PLAIN, KEYED), size=256)
+
 GROUPS = sorted({a["group"] for a in ASSETS.values()})
 
 
