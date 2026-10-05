@@ -11,6 +11,8 @@ var world
 var _tex: ImageTexture
 var _icons := {}                # keeps the generated vehicle icons alive between draws
 var _small: DynamicFont         # POI names: smaller than the HUD font so thirteen of them fit
+# The big map names Maple Square plus these seven: the bigger places and the boss camps (everything else is a dot).
+const NAMED_ON_MAP := ["skyline", "bureau", "bunker", "stronghold", "corner", "docks", "market"]
 var _pending := []              # [text, centre, colour, is_town] collected while drawing, then laid out and drawn on top
 
 
@@ -74,6 +76,9 @@ func _draw() -> void:
 	_pending.clear()
 	_label(font, mid, s, Vector2.ZERO, "MAPLE SQUARE", Color(1, 1, 1))
 	for poi in world.pois:
+		if not (poi.id in NAMED_ON_MAP):                                   # only eight places carry a name: the rest are small dots
+			draw_circle(mid + poi.center * s, 3.0, Color(1, 1, 1, 0.8))
+			continue
 		var tint := Color(1.0, 0.85, 0.3) if poi.def.has("boss") else Color.white
 		_label(font, mid, s, poi.center, poi.name, tint)
 
