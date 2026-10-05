@@ -26,7 +26,7 @@ Effects", Turbo Building, weapon and item lists). Storm Island is an original ga
 | Social | Friends, party, invites, queue together | LAN / IP party, friends (saved name + IP), invites, recent players, **party card + READY for members, leader presses PLAY to queue the whole party with one shared countdown, your party stands beside you in the lobby**; no internet matchmaking |
 | Locker | Skins, pickaxes, back blings, gliders, contrails, emotes | All of those, plus Sprites as companions |
 | Progression | Battle Pass, quests, XP | Level and stats per account (local), **12+ quests from Keepers (gold + XP)**; no battle pass |
-| World life | NPCs, wildlife, vehicles with fuel, trains, weather | Boss, wild Sprites, **Keeper NPCs, chickens and boars (Roast Meat), vehicles with fuel + pumps, rain storms**. No trains |
+| World life | NPCs, wildlife, vehicles with fuel, trains, weather | Boss, wild Sprites, **Keeper NPCs, chickens and boars (Roast Meat), vehicles with fuel + pumps, rain storms**. **ziplines, helicopters, hireable ally NPCs, buried chests**. No trains |
 | Loot | Chests, floor loot, vending machines, supply drops, llamas | All, **including Supply Llamas** (burst them for loot) |
 | Players per match | 100 | 100 (humans + bots; the map is 1 km) |
 | Servers | Dedicated, matchmaking, voice chat | LAN only, no voice |
