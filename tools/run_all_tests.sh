@@ -40,6 +40,7 @@ run accounts_test --no-bus --skip-menu
 run perf_test --no-bus --skip-menu
 run farm_test --no-bus --skip-menu
 run vault_test --no-bus --skip-menu
+run boss_test --no-bus --skip-menu
 run zerobuild_test --no-bus --skip-menu
 run weapons2_test --no-bus --skip-menu
 run assist_test --no-bus --skip-menu
@@ -61,6 +62,7 @@ run social_test
 run party_ui_test
 run guard_test
 run vault_test --no-bus --skip-menu
+run boss_test --no-bus --skip-menu
 run zerobuild_test --no-bus --skip-menu
 run weapons2_test --no-bus --skip-menu
 run assist_test --no-bus --skip-menu

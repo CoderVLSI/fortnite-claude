@@ -152,6 +152,7 @@ var _vault := false               # the current MANTLE-mode move is a window vau
 var _vault_mid := Vector3.ZERO
 var emoting := false              # dancing: cancelled by moving, firing or jumping
 var emote_t := 0.0
+var grapple_t := 0.0             # seconds left of a grapple pull (sound / state only)
 var keycards := 0                # vault keycards (dropped by Wardens) - each opens one vault door
 var cards := []                   # reboot cards of fallen team-mates we are carrying to a Reboot Van
 var boogie_t := 0.0               # a Boogie Bomb got us: forced to dance, cannot shoot, build or move
@@ -1430,9 +1431,12 @@ func try_fire(aim_from: Vector3, aim_dir: Vector3) -> bool:
 
 # One round leaves the gun: ammo, sound, hitscan rays (or a rocket), recoil, reload when empty.
 func _discharge(aim_from: Vector3, aim_dir: Vector3, item) -> void:
-	if unlimited_t <= 0.0:
-		item.mag -= 1
 	var def: Dictionary = Items.WEAPONS[item.id]
+	if unlimited_t <= 0.0 and not def.get("infinite", false):
+		item.mag -= 1
+	if def.get("tool", "") == "grapple":
+		_grapple(aim_from, aim_dir)
+		return
 	var snd := "shot_" + ("rifle" if item.id == "assault" else item.id)
 	if def.has("sound"):
 		snd = "shot_" + str(def.sound)
@@ -1459,6 +1463,31 @@ func _discharge(aim_from: Vector3, aim_dir: Vector3, item) -> void:
 		start_reload()
 
 
+# Grappler Gun: the hook flies to the surface under the crosshair and the cable reels you in.
+func _grapple(aim_from: Vector3, aim_dir: Vector3) -> void:
+	var muzzle := muzzle_position()
+	Audio.play3d("grappler_fire", muzzle, -2.0)
+	var range_m: float = Items.WEAPONS["grappler"].range
+	var hit := get_world().direct_space_state.intersect_ray(aim_from, aim_from + aim_dir * range_m, [self], 1)
+	if not hit:
+		_spawn_tracer(muzzle, aim_from + aim_dir * 25.0)
+		return
+	var to: Vector3 = hit.position
+	_spawn_tracer(muzzle, to)
+	Audio.play3d("grappler_hit", to, -2.0)
+	var pull: Vector3 = to - global_transform.origin
+	var dist := pull.length()
+	if dist < 2.0 or is_dead or downed or (mode != Mode.GROUND and mode != Mode.GLIDE and mode != Mode.FREEFALL):
+		return
+	if mode != Mode.GROUND:
+		mode = Mode.GROUND                       # hooking while gliding drops you onto the line
+	Audio.play3d("grappler_pull", global_transform.origin, -4.0)
+	grapple_t = 0.7
+	knockback(pull.normalized() * clamp(dist * 1.5 + 10.0, 14.0, 42.0) + Vector3(0, 5.0, 0))
+	if net_owner == 0 and Net.active and Net.in_match:
+		Net.send_event("shot", [net_key_v, "grappler_fire", muzzle, [to]])
+
+
 # A rocket flies from the muzzle towards whatever the crosshair is on.
 func _fire_projectile(aim_from: Vector3, aim_dir: Vector3) -> void:
 	var muzzle := muzzle_position()
@@ -1478,6 +1507,17 @@ func _fire_projectile(aim_from: Vector3, aim_dir: Vector3) -> void:
 		g.angular_velocity = Vector3(rand_range(-6, 6), rand_range(-6, 6), rand_range(-6, 6))
 		if net_owner == 0 and Net.active and Net.in_match:
 			Net.send_event("throw", [net_key_v, "frag", muzzle, g.linear_velocity])
+		return
+	if Items.WEAPONS[selected_item().id].get("projectile", "") == "shockwave":   # Shockwave Launcher: a quick pressure-wave grenade
+		var sg := Grenade.new()
+		sg.thrower = self
+		sg.shock = true
+		sg.fuse = 0.9
+		get_parent().add_child(sg)
+		sg.global_transform.origin = muzzle
+		sg.linear_velocity = dir * 32.0 + Vector3(0, 2.0, 0)
+		if net_owner == 0 and Net.active and Net.in_match:
+			Net.send_event("throw", [net_key_v, "shock", muzzle, sg.linear_velocity])
 		return
 	var r := Rocket.new()
 	r.thrower = self

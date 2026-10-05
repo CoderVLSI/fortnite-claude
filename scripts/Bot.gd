@@ -8,6 +8,8 @@ const SIGHT_RANGE := 75.0
 const ATTACK_RANGE := 48.0
 
 var world                       # set by World before add_child (duck-typed)
+var boss_weapons := []           # a named boss carries these mythics (weapon ids); empty = a random mythic (the Warden)
+var boss_id := "warden"
 var is_boss := false             # "The Warden": guards a POI with a mythic weapon
 var home := Vector3.ZERO
 var skill := 0.5                # 0 = clumsy, 1 = sharp
@@ -53,7 +55,11 @@ func _equip_loadout() -> void:
 	var w: Dictionary = Items.random_weapon(world.rng, 0)
 	if is_boss:
 		w = Items.make_weapon(["assault", "shotgun", "sniper", "smg"][world.rng.randi() % 4], Items.MYTHIC)
-	give_weapon(w.id, w.rarity)
+	if is_boss and not boss_weapons.empty():
+		for wid in boss_weapons:
+			give_weapon(wid, Items.MYTHIC)
+	else:
+		give_weapon(w.id, w.rarity)
 	gold = 150 if is_boss else (world.rng.randi_range(0, 8) * 5 if world.rng.randf() < 0.5 else 0)    # what you get for an elimination
 	if not is_boss:                          # a few heals, and now and then a grenade or two
 		var heal_id: String = ["bandage", "bandage", "mini_shield", "slurp_juice", "medkit"][world.rng.randi() % 5]
@@ -68,6 +74,9 @@ func _equip_loadout() -> void:
 
 
 func _weapon_slot() -> int:
+	for i in range(1, slots.size()):                 # tools (the Grappler) and the Shockwave Launcher are not what a bot shoots with
+		if slots[i] != null and slots[i].kind == "weapon" and not Items.WEAPONS[slots[i].id].has("tool") and Items.WEAPONS[slots[i].id].get("projectile", "") != "shockwave":
+			return i
 	for i in range(1, slots.size()):
 		if slots[i] != null and slots[i].kind == "weapon":
 			return i

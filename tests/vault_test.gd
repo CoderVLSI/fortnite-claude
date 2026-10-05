@@ -26,11 +26,11 @@ func _run() -> void:
 			f.queue_free()
 	yield(self, "idle_frame")
 	check(get_nodes_in_group("vaults").size() == 3, "three vaults on the island (%d)" % get_nodes_in_group("vaults").size())
-	check(world.bosses.size() == 3, "three Wardens (%d)" % world.bosses.size())
+	check(world.bosses.size() == 4, "four bosses (%d)" % world.bosses.size())
 	var carrying := 0
 	for b in world.bosses:
 		carrying += b.keycards
-	check(carrying == 3, "each Warden carries a keycard")
+	check(carrying == 4, "each boss carries a keycard")
 	var v = get_nodes_in_group("vaults")[0]
 	var chests := 0
 	for n in get_nodes_in_group("interactable"):

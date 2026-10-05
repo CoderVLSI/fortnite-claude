@@ -213,7 +213,8 @@ func on_game_started() -> void:
 	if boss != null and is_instance_valid(boss):
 		for poi in pois:
 			if poi.def.has("boss"):
-				hud.add_feed("A Warden guards %s - he carries a vault keycard!" % poi.name.capitalize(), Color(1.0, 0.45, 0.15))
+				var bn: String = poi.def.boss.get("name", "A Warden")
+				hud.add_feed("%s guards %s - mythic loot and a vault keycard!" % [bn, poi.name.capitalize()], Color(1.0, 0.45, 0.15))
 		Audio.play2d("warden_spawn", -6.0)
 
 
@@ -1037,6 +1038,9 @@ func _spawn_boss() -> void:
 		b.name = "Warden" if bosses.empty() else "Warden%d" % (bosses.size() + 1)
 		b.is_boss = true
 		b.keycards = 1
+		b.boss_weapons = def.boss.get("weapons", [])
+		b.boss_id = def.boss.get("id", "warden")
+		b.add_to_group("bosses")
 		b.net_key_v = b.name                   # Wardens are bots: the host runs them, everybody else sees puppets
 		if net_match and not Net.is_host:
 			b.net_owner = 1
@@ -2010,7 +2014,7 @@ func _on_fighter_died(victim, killer) -> void:
 	if hud:
 		hud.add_feed(text, color)
 	if "is_boss" in victim and victim.is_boss:
-		Audio.play3d("warden_down", victim.global_transform.origin + Vector3(0, 1.0, 0), 2.0)
+		Audio.play3d("boss_defeated" if victim.boss_id != "warden" else "warden_down", victim.global_transform.origin + Vector3(0, 1.0, 0), 2.0)
 	for mark in [75, 50, 25, 10]:                          # a soft tick when the counter passes these
 		if alive <= mark and _last_alive_mark > mark and not Net.dedicated:
 			Audio.play2d("players_left_ping", -6.0, 1.0 + (75 - mark) * 0.004)

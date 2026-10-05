@@ -17,7 +17,8 @@ const RARITIES := [
 ]
 const MYTHIC := 5            # never rolled randomly: boss drops, vault chests, rare supply drops
 const MYTHIC_NAMES := {"pistol": "Hand Cannon", "smg": "Hornet SMG", "assault": "Stormcaller AR",
-	"shotgun": "Dragonbreath Shotgun", "sniper": "Eclipse Rifle"}
+	"shotgun": "Dragonbreath Shotgun", "sniper": "Eclipse Rifle", "charge_shotgun": "Voltra's Charge Shotgun",
+	"shockwave_launcher": "Voltra's Shockwave Launcher", "drum_gun": "Goldhand's Drum Gun", "grappler": "Hookshot's Grappler"}
 const RARITY_WEIGHTS := [50, 28, 14, 6, 2]
 
 # Weapon numbers follow Fortnite Battle Royale's: "dmg" and "rel" list Common / Uncommon / Rare / Epic / Legendary (damage per
@@ -60,6 +61,18 @@ const WEAPONS := {
 	"grenade_launcher": {"name": "Grenade Launcher", "damage": 100.0, "dmg": [100.0, 105.0, 110.0, 115.0, 120.0], "interval": 0.85, "mag": 6, "reload": 3.3,
 		"rel": [3.3, 3.2, 3.0, 2.8, 2.6], "spread": 0.0, "pellets": 1, "auto": false, "ammo": "heavy", "range": 200.0, "head": 1.0,
 		"projectile": "grenade", "sound": "grenade_launcher", "model": "rocket_launcher", "mesh": "grenade_launcher"},
+	# Drum Gun: a 50-round drum, fast and heavy (Goldhand's mythic).
+	"drum_gun": {"name": "Drum Gun", "damage": 24.0, "dmg": [24.0, 25.0, 26.0, 27.0, 28.0], "interval": 0.11, "mag": 50, "reload": 3.4,
+		"rel": [3.4, 3.3, 3.1, 2.9, 2.7], "spread": 1.8, "pellets": 1, "auto": true, "ammo": "medium", "range": 120.0, "head": 2.0,
+		"mesh": "drum_gun"},
+	# Shockwave Launcher: lobs a pressure wave that flings everyone near the blast away and up (Voltra's mythic).
+	"shockwave_launcher": {"name": "Shockwave Launcher", "damage": 10.0, "dmg": [10.0, 10.0, 10.0, 10.0, 10.0], "interval": 0.7, "mag": 6, "reload": 2.7,
+		"rel": [2.7, 2.7, 2.7, 2.7, 2.7], "spread": 0.0, "pellets": 1, "auto": false, "ammo": "heavy", "range": 200.0, "head": 1.0,
+		"projectile": "shockwave", "sound": "shockwave_launcher", "mesh": "shockwave_launcher"},
+	# Grappler Gun: a tool, not a gun. Fire at a surface and the cable reels you in (Hookshot's mythic). Never runs dry.
+	"grappler": {"name": "Grappler Gun", "damage": 0.0, "dmg": [0.0, 0.0, 0.0, 0.0, 0.0], "interval": 1.2, "mag": 8, "reload": 1.0,
+		"rel": [1.0, 1.0, 1.0, 1.0, 1.0], "spread": 0.0, "pellets": 1, "auto": false, "ammo": "light", "range": 80.0, "head": 1.0,
+		"tool": "grapple", "infinite": true, "sound": "grappler_fire", "mesh": "grappler"},
 	"sniper": {"name": "Bolt Sniper", "damage": 95.0, "dmg": [95.0, 100.0, 105.0, 110.0, 116.0], "interval": 1.5, "mag": 1, "reload": 3.3,
 		"rel": [3.3, 3.2, 3.0, 2.5, 2.3], "spread": 0.0, "pellets": 1, "auto": false, "ammo": "heavy", "range": 260.0, "head": 2.5},
 }
@@ -78,6 +91,9 @@ const SCOPES := {
 	"revolver": {"kind": "irons", "fov": 58.0, "spread": 0.40, "move": 0.85, "sens": 0.78, "dist": 1.9, "hip": "dot"},
 	"dmr": {"kind": "scope", "fov": 22.0, "spread": 0.0, "move": 0.60, "sens": 0.35, "dist": 0.2, "hip": "cross_far", "hip_spread": 2.0},
 	"grenade_launcher": {"kind": "irons", "fov": 62.0, "spread": 1.0, "move": 0.7, "sens": 0.8, "dist": 1.9, "hip": "dot"},
+	"drum_gun": {"kind": "reddot", "fov": 56.0, "spread": 0.55, "move": 0.78, "sens": 0.70, "dist": 1.9, "hip": "cross_wide"},
+	"shockwave_launcher": {"kind": "irons", "fov": 62.0, "spread": 1.0, "move": 0.7, "sens": 0.8, "dist": 1.9, "hip": "dot"},
+	"grappler": {"kind": "irons", "fov": 60.0, "spread": 1.0, "move": 0.9, "sens": 0.85, "dist": 1.9, "hip": "dot"},
 	"sniper": {"kind": "scope", "fov": 14.0, "spread": 0.0, "move": 0.50, "sens": 0.22, "dist": 0.2, "hip": "cross_far",
 		"hip_spread": 2.2},
 }
@@ -223,7 +239,8 @@ static func name_of(item: Dictionary) -> String:
 	match item.kind:
 		"weapon":
 			if item.rarity == MYTHIC:
-				return "Mythic " + MYTHIC_NAMES[item.id]
+				var mn: String = MYTHIC_NAMES[item.id]
+				return mn if "'" in mn else "Mythic " + mn
 			return "%s %s" % [RARITIES[item.rarity].name, WEAPONS[item.id].name]
 		"consumable":
 			var n: String = CONSUMABLES[item.id].name

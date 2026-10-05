@@ -26,6 +26,9 @@ static func draw(ci: CanvasItem, cache: Dictionary, tree: SceneTree, mid: Vector
 	for n in tree.get_nodes_in_group("reboot_vans"):
 		if is_instance_valid(n):
 			_icon(ci, cache, "ui_reboot_card", mid + Vector2(n.global_transform.origin.x, n.global_transform.origin.z) * s, 26.0 if big else 13.0, Color(0.4, 0.9, 1.0))
+	for n in tree.get_nodes_in_group("bosses"):
+		if is_instance_valid(n) and not n.is_dead:
+			_icon(ci, cache, "ui_boss", mid + Vector2(n.global_transform.origin.x, n.global_transform.origin.z) * s, 28.0 if big else 14.0, Color(1.0, 0.5, 0.1))
 	for n in tree.get_nodes_in_group("vaults"):
 		if is_instance_valid(n):
 			_icon(ci, cache, "ui_vault", mid + Vector2(n.global_transform.origin.x, n.global_transform.origin.z) * s, 26.0 if big else 13.0, Color(1.0, 0.35, 0.1))

@@ -48,6 +48,9 @@ var pause_btn: Button
 var poi_label: Label
 var boss_label: Label
 var boss_bar: Control
+var boss_portrait: TextureRect
+var _boss_seen := {}
+var _boss_shown = null
 var _loc := ""
 var _poi_t := 0.0
 var touch: Control
@@ -311,6 +314,12 @@ func _build() -> void:
 	_place(boss_label, 0.5, 0.0, Vector2(-160, 96), Vector2(320, 26))
 	boss_label.visible = false
 	root.add_child(boss_label)
+	boss_portrait = TextureRect.new()
+	boss_portrait.expand = true
+	boss_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_place(boss_portrait, 0.5, 0.0, Vector2(-206, 90), Vector2(44, 44))
+	boss_portrait.visible = false
+	root.add_child(boss_portrait)
 	boss_bar = Bar.new()
 	boss_bar.fill_color = Color(1.0, 0.4, 0.15)
 	_place(boss_bar, 0.5, 0.0, Vector2(-160, 122), Vector2(320, 16))
@@ -957,6 +966,18 @@ func _update_poi(delta: float) -> void:
 	var show_boss: bool = b != null and is_instance_valid(b) and not b.is_dead and player.global_transform.origin.distance_to(b.global_transform.origin) < 90.0
 	boss_label.visible = show_boss
 	boss_bar.visible = show_boss
+	boss_portrait.visible = show_boss
+	if show_boss and b != _boss_shown:
+		_boss_shown = b
+		boss_label.text = str(b.display_name).to_upper()
+		var pic := "res://assets/ui/ui_boss_%s.png" % b.boss_id
+		if not ResourceLoader.exists(pic):
+			pic = "res://assets/ui/ui_boss.png"
+		boss_portrait.texture = load(pic) if ResourceLoader.exists(pic) else null
+		if not _boss_seen.has(b.boss_id):
+			_boss_seen[b.boss_id] = true
+			if b.boss_id != "warden":
+				Audio.play2d("boss_%s_intro" % b.boss_id, -4.0)
 	if show_boss:
 		boss_bar.max_value = b.max_health + b.max_shield
 		boss_bar.value = b.health + b.shield
