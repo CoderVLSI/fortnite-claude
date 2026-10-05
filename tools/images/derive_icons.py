@@ -10,7 +10,8 @@ import sys
 from PIL import Image, ImageDraw, ImageFilter, PngImagePlugin
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-MYTHIC = ["tactical_shotgun", "revolver", "dmr", "grenade_launcher"]
+MYTHIC = ["tactical_shotgun", "revolver", "dmr", "grenade_launcher", "drum_gun", "shockwave_launcher", "grappler",
+          "charge_shotgun"]
 
 
 def zero_build():
