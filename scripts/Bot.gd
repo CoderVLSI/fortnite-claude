@@ -215,6 +215,8 @@ func _physics_process(delta: float) -> void:
 		return
 	if _revive_task(delta):
 		return
+	if _zip_ride(delta):
+		return
 	if state == State.WANDER and target == null and not is_boss and health < 70.0 + skill * 10.0:
 		var hs: int = _heal_slot()
 		if hs > 0:                           # nobody around: stand still and patch up
@@ -300,9 +302,18 @@ func _physics_process(delta: float) -> void:
 						_pause -= delta
 						shoot = false
 
+	if _zip_plan != null and target == null and (state == State.WANDER or state == State.STORM):
+		var zd := Vector2(_zip_plan.pos.x - origin.x, _zip_plan.pos.z - origin.z).length()
+		if zd < 2.4:
+			_zip_start()
+		else:
+			wish = _flat_dir(_zip_plan.pos - origin)
+			speed = sprint_speed
+			face = wish
 	sprinting = speed > walk_speed + 0.5
 	var goal_dir := wish                                           # where it wants to go (the side-step below only bends the walk)
 	wish = _avoid_walls(wish, delta)
+	wish = _avoid_water(wish)
 	var want_jump := is_on_wall() and is_on_floor() and randf() < 0.08
 	var before := origin
 	move_body(delta, wish, speed, want_jump)
@@ -364,6 +375,7 @@ func _decide() -> void:
 	if not world.storm.is_inside(origin):
 		state = State.STORM
 		target = null
+		_consider_zipline(origin, _storm_goal if _storm_goal != Vector3.ZERO else world.storm.center_3d(origin.y))
 		return
 	if state == State.STORM:
 		state = State.WANDER
@@ -379,6 +391,7 @@ func _decide() -> void:
 		if state != State.WANDER:
 			state = State.WANDER
 			_pick_wander()
+		_consider_zipline(origin, _wander_to)
 		return
 	var dist := origin.distance_to(target.global_transform.origin)
 	if dist < min(ATTACK_RANGE, weapon_range * 0.85) and _line_of_sight(target):
@@ -388,6 +401,96 @@ func _decide() -> void:
 		state = State.ATTACK
 	else:
 		state = State.CHASE
+
+
+# ---------------------------------------------------------------- water and ziplines
+
+# Do not walk off a beach into deep water: bend away from it towards higher ground (only when we are on dry land ourselves).
+func _avoid_water(wish: Vector3) -> Vector3:
+	if wish.length() < 0.01 or mode != Mode.GROUND:
+		return wish
+	var o := global_transform.origin
+	var tr = world.terrain
+	if tr.height_at(o.x, o.z) < 0.4:
+		return wish                                    # already wading: keep going
+	var d := wish.normalized()
+	var ahead := o + d * 5.0
+	if tr.height_at(ahead.x, ahead.z) > -0.7:
+		return wish
+	var best := wish
+	var best_h := -99.0
+	for ang in [50.0, -50.0, 95.0, -95.0]:
+		var dir := d.rotated(Vector3.UP, deg2rad(ang))
+		var q := o + dir * 5.0
+		var h: float = tr.height_at(q.x, q.z)
+		if h > best_h:
+			best_h = h
+			best = dir
+	return best if best_h > -0.7 else wish
+
+
+var _zip_plan = null              # {line, end, pos} a pole we are walking to
+var _zip_run = null              # while riding: {line, from, to, t}
+var _zip_cd := 0.0
+
+
+# Called every think: with somewhere far to go and a zipline nearby that gets us closer, walk to the pole.
+func _consider_zipline(origin: Vector3, goal: Vector3) -> void:
+	_zip_cd -= 0.35
+	if _zip_run != null or _zip_cd > 0.0 or is_boss or guard or ally_of != null or world.ziplines.empty():
+		return
+	if _zip_plan != null:
+		if Vector2(origin.x - _zip_plan.pos.x, origin.z - _zip_plan.pos.z).length() > 60.0:
+			_zip_plan = null
+		return
+	var goal_d := Vector2(origin.x - goal.x, origin.z - goal.z).length()
+	if goal_d < 120.0:
+		return
+	for z in world.ziplines:
+		for e in range(2):
+			var st = z.stations[e]
+			var sp: Vector3 = st.global_transform.origin
+			if Vector2(origin.x - sp.x, origin.z - sp.z).length() > 45.0:
+				continue
+			var far: Vector3 = z.stations[1 - e].global_transform.origin
+			if goal_d - Vector2(far.x - goal.x, far.z - goal.z).length() > 70.0:
+				_zip_plan = {"line": z, "end": e, "pos": sp}
+				return
+	_zip_cd = 6.0
+
+
+func _zip_start() -> void:
+	var z = _zip_plan.line
+	var e: int = _zip_plan.end
+	_zip_plan = null
+	if z.busy():
+		_zip_cd = 4.0
+		return
+	z.bots_riding += 1
+	_zip_run = {"line": z, "from": z.a if e == 0 else z.b, "to": z.b if e == 0 else z.a, "t": 0.0}
+	Audio.play3d("door", global_transform.origin, 0.0, 1.4)
+
+
+# Rides the cable like a player would (teleporting along it). Returns true while riding.
+func _zip_ride(delta: float) -> bool:
+	if _zip_run == null:
+		return false
+	var r: Dictionary = _zip_run
+	var span: float = r.from.distance_to(r.to)
+	r.t += 18.0 * delta
+	if r.t >= span or is_dead:
+		var dir: Vector3 = (r.to - r.from).normalized()
+		var gx: float = r.to.x + dir.x * 1.5
+		var gz: float = r.to.z + dir.z * 1.5
+		global_transform.origin = Vector3(gx, world.terrain.height_at(gx, gz) + 1.0, gz)
+		velocity = Vector3.ZERO
+		r.line.bots_riding = max(0, r.line.bots_riding - 1)
+		_zip_run = null
+		_zip_cd = 12.0
+		return false
+	global_transform.origin = r.from + (r.to - r.from) * (r.t / span) + Vector3(0, -2.0, 0)
+	velocity = Vector3.ZERO
+	return true
 
 
 func _find_target(origin: Vector3):

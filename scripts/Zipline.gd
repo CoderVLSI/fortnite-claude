@@ -11,6 +11,7 @@ var a := Vector3.ZERO           # cable top at the first pole (world)
 var b := Vector3.ZERO
 var net_id := ""
 var stations := []
+var bots_riding := 0             # bots on the cable (they ride too)
 
 
 # base_a / base_b: ground points under each pole.
@@ -74,6 +75,16 @@ func _cable_xf() -> Transform:
 	var mid := (a + b) * 0.5
 	var t := Transform(Basis.IDENTITY, mid)
 	return t.looking_at(b, Vector3.UP)
+
+
+# Somebody is on the cable.
+func busy() -> bool:
+	if bots_riding > 0:
+		return true
+	for r in get_tree().get_nodes_in_group("zip_riders"):
+		if r.line == self and not r.finished:
+			return true
+	return false
 
 
 func length() -> float:

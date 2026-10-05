@@ -14,10 +14,7 @@ func can_interact() -> bool:
 
 
 func _busy() -> bool:
-	for r in get_tree().get_nodes_in_group("zip_riders"):
-		if r.line == line and not r.finished:
-			return true
-	return false
+	return line.busy()
 
 
 func prompt_text() -> String:
