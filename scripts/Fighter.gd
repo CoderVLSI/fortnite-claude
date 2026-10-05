@@ -1393,7 +1393,7 @@ func start_reload() -> void:
 	_reload_left = reload_time
 	if has_sprite("ghost"):
 		cloak_t = 2.0 + sprite_level()
-	var snd := "pump" if item.id == "shotgun" else ("bolt" if item.id == "sniper" else "reload")
+	var snd := "pump" if (item.id == "shotgun" or item.id == "tactical_shotgun") else ("bolt" if (item.id == "sniper" or item.id == "dmr") else ("reload_revolver" if item.id == "revolver" else "reload"))
 	Audio.play3d(snd, global_transform.origin + Vector3(0, 1.2, 0), -4.0)
 
 

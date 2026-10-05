@@ -1728,7 +1728,7 @@ func _toggle_zero_build() -> void:
 	Settings.save_settings()
 	if Net.active:
 		Net.set_zero_build(Settings.zero_build)
-	Audio.play2d("ui_click", -6.0)
+	Audio.play2d("ui_toggle_on" if Settings.zero_build else "ui_toggle_off", -4.0)
 	_refresh_lobby()
 
 
@@ -1759,6 +1759,9 @@ func _refresh_lobby() -> void:
 	mode_next.disabled = not can_pick
 	var zb: bool = Net.zero_build_on()
 	zb_button.text = "ZERO BUILD" if zb else "BUILDING ON"
+	var zb_icon := "res://assets/ui/ui_zero_build.png" if zb else "res://assets/ui/ui_building.png"
+	zb_button.icon = load(zb_icon) if ResourceLoader.exists(zb_icon) else null
+	zb_button.expand_icon = true
 	zb_button.disabled = not can_pick
 	mode_info.text = "%d players  -  %s  -  %s" % [bots + 1, "everyone for themselves" if size == 1 else "teams of %d, no friendly fire" % size, "no building" if zb else "shrinking storm"]
 	_refresh_play_button()
