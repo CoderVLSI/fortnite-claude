@@ -458,6 +458,9 @@ func _progress_watch(delta: float, wish: Vector3, goal: Vector3 = Vector3.ZERO) 
 	_prog_t = 0.0
 	var o := global_transform.origin
 	var moved := Vector2(o.x - _prog_pos.x, o.z - _prog_pos.z).length()
+	if goal.length() > 0.1:                                      # sliding sideways along a cliff is not progress: count the way towards the goal
+		var gd := goal.normalized()
+		moved = min(moved, max(0.0, (o.x - _prog_pos.x) * gd.x + (o.z - _prog_pos.z) * gd.z) * 1.6)
 	_prog_pos = o
 	if moved > 1.8:
 		_prog_fail = 0
