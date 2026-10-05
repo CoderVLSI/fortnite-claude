@@ -1775,7 +1775,7 @@ func _start_bus() -> void:
 	bus.connect("finished", self, "_on_bus_finished")
 	Audio.play2d("bus_horn_far", -8.0)
 	for f in get_tree().get_nodes_in_group("fighters"):
-		if "is_boss" in f and f.is_boss:
+		if ("is_boss" in f and f.is_boss) or ("guard" in f and f.guard):
 			continue
 		f.enter_bus(bus)
 	player.rotation.y = atan2(-dir.x, -dir.z)
