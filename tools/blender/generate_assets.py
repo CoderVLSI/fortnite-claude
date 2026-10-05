@@ -1693,7 +1693,81 @@ def make_new_weapons():
         fn()
 
 
+def make_drum_gun():
+    # A gold-trimmed submachine gun with a big round drum magazine hanging under the receiver.
+    m = _gun_mats()
+    gold = material("myth_gold", (0.95, 0.72, 0.15), rough=0.25, emit=(0.5, 0.35, 0.05), emit_strength=0.25)
+    g = Part("DrumGun")
+    g.box((0, 0.10, 0.03), (0.075, 0.40, 0.11), m["dark"])                              # receiver
+    sbox(g, 0.0395, 0.10, 0.035, (0.004, 0.22, 0.03), gold)                             # gold strip (both sides)
+    g.box((0, 0.10, 0.092), (0.04, 0.38, 0.012), m["steel"])                            # top rail
+    g.box((0, 0.46, 0.03), (0.08, 0.26, 0.09), m["poly"])                               # handguard
+    for yy in (0.38, 0.44, 0.50, 0.56):
+        sbox(g, 0.0415, yy, 0.03, (0.004, 0.03, 0.045), m["dark"])
+    g.cone((0, 0.70, 0.03), 0.026, 0.026, 0.20, m["steel"], segments=10, axis="Y")      # barrel
+    g.cone((0, 0.82, 0.03), 0.036, 0.036, 0.06, gold, segments=10, axis="Y")            # gold muzzle
+    g.cone((0, 0.20, -0.14), 0.15, 0.15, 0.13, gold, segments=16, axis="Y")             # the drum
+    g.cone((0, 0.20, -0.14), 0.115, 0.115, 0.145, m["dark"], segments=16, axis="Y")     # drum core
+    g.cone((0, 0.20, -0.14), 0.04, 0.04, 0.16, m["steel"], segments=10, axis="Y")       # hub
+    g.box((0, 0.20, -0.04), (0.06, 0.09, 0.08), m["dark"])                              # feed neck
+    g.box((0, -0.14, 0.03), (0.06, 0.20, 0.09), m["poly"], rot=(-0.04, 0, 0))           # stock
+    g.box((0, -0.25, 0.02), (0.066, 0.03, 0.12), gold)                                  # butt pad
+    g.box((0, -0.04, -0.085), (0.045, 0.065, 0.14), m["wood"], rot=(0.3, 0, 0))         # grip
+    _trigger_guard(g, m)
+    export("drum_gun", [g.build(), empty("Muzzle", (0, 0.86, 0.03))])
+
+
+def make_shockwave_launcher():
+    # A chunky tube launcher with glowing blue shock coils and a fat muzzle dish.
+    m = _gun_mats()
+    blue = material("shock_blue", (0.30, 0.65, 1.0), rough=0.3, emit=(0.2, 0.6, 1.0), emit_strength=1.2)
+    g = Part("ShockwaveLauncher")
+    g.box((0, 0.05, 0.03), (0.09, 0.40, 0.12), m["dark"])                               # body
+    sbox(g, 0.0465, 0.05, 0.035, (0.004, 0.2, 0.04), blue)                              # glow strips (both sides)
+    g.cone((0, 0.50, 0.05), 0.075, 0.075, 0.58, m["steel"], segments=14, axis="Y")      # launch tube
+    for yy in (0.30, 0.42, 0.54, 0.66):                                                 # shock coils
+        g.cone((0, yy, 0.05), 0.092, 0.092, 0.04, blue, segments=14, axis="Y")
+    g.cone((0, 0.82, 0.05), 0.12, 0.09, 0.07, m["dark"], segments=14, axis="Y")         # muzzle dish
+    g.cone((0, 0.86, 0.05), 0.075, 0.075, 0.02, blue, segments=14, axis="Y")            # glowing core
+    g.box((0, 0.20, 0.145), (0.03, 0.30, 0.02), m["steel"])                             # top rail
+    g.box((0, 0.62, 0.145), (0.014, 0.014, 0.04), m["brass"])                           # front sight
+    g.box((0, -0.14, 0.02), (0.06, 0.22, 0.10), m["dark"], rot=(-0.05, 0, 0))           # stock
+    g.box((0, -0.26, 0.0), (0.066, 0.03, 0.14), blue)                                   # butt pad
+    g.box((0, -0.03, -0.085), (0.046, 0.07, 0.14), m["poly"], rot=(0.3, 0, 0))          # grip
+    g.box((0, 0.40, -0.05), (0.05, 0.08, 0.10), m["poly"], rot=(0.15, 0, 0))            # front handle
+    _trigger_guard(g, m)
+    export("shockwave_launcher", [g.build(), empty("Muzzle", (0, 0.88, 0.05))])
+
+
+def make_grappler():
+    # A pistol-sized launcher with a hook claw on the muzzle and a cable spool on top.
+    m = _gun_mats()
+    red = material("grap_red", (0.85, 0.15, 0.12), rough=0.4)
+    g = Part("Grappler")
+    g.box((0, 0.08, 0.04), (0.06, 0.30, 0.09), m["dark"])                               # body
+    sbox(g, 0.0315, 0.08, 0.04, (0.004, 0.16, 0.03), red)                               # red strip (both sides)
+    g.cone((0, 0.34, 0.04), 0.03, 0.03, 0.26, m["steel"], segments=10, axis="Y")        # short barrel
+    g.cone((0, 0.50, 0.04), 0.012, 0.012, 0.12, m["steel"], segments=8, axis="Y")       # hook shank
+    for sx in (-1.0, 1.0):                                                              # two hook prongs (mirrored)
+        g.box((sx * 0.032, 0.58, 0.04), (0.012, 0.09, 0.012), m["steel"], rot=(0, 0, sx * -0.5))
+    g.cone((0, 0.12, 0.125), 0.045, 0.045, 0.09, red, segments=12, axis="Y")            # cable spool
+    g.cone((0, 0.12, 0.125), 0.032, 0.032, 0.105, m["dark"], segments=12, axis="Y")
+    g.box((0, -0.10, 0.04), (0.05, 0.10, 0.08), m["poly"])                              # rear block
+    g.box((0, -0.06, -0.075), (0.044, 0.065, 0.14), m["wood"], rot=(0.3, 0, 0))         # grip
+    _trigger_guard(g, m, y=0.02)
+    export("grappler", [g.build(), empty("Muzzle", (0, 0.64, 0.04))])
+
+
+def make_boss_weapons():
+    for fn in (make_drum_gun, make_shockwave_launcher, make_grappler):
+        reset_scene()
+        fn()
+
+
 def main():
+    if os.environ.get("ONLY") == "bossweapons":
+        make_boss_weapons()
+        return
     if os.environ.get("ONLY") == "weapons":        # ONLY=weapons blender -b -P tools/blender/generate_assets.py
         make_new_weapons()
         return
