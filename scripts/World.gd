@@ -85,6 +85,7 @@ var shared := {}                 # cached meshes/materials shared by loot items
 var pois := []                   # runtime POIs: {id, name, center (Vector2), frame_yaw, def, zone}
 var poi_roads := []              # [Vector2 a, Vector2 b] for the map
 var boss = null
+var henchmen := []                 # the guards standing with each boss
 var bosses := []                   # every Warden (each carries a vault keycard)
 var vaults := {}                   # net id -> Vault
 var menu
@@ -1055,6 +1056,23 @@ func _spawn_boss() -> void:
 		if boss == null:
 			boss = b
 		bosses.append(b)
+		for hi in range(def.boss.get("henchmen", 0)):                      # henchmen: ordinary fighters who guard the boss's post
+			var hp := _poi_point(poi, def.boss.at + Vector2(rng.randf_range(-9.0, 9.0), rng.randf_range(-9.0, 9.0)))
+			var hb := Bot.new()
+			hb.name = "Henchman%d" % henchmen.size()
+			hb.guard = true
+			hb.world = self
+			hb.display_name = "%s's Guard" % def.boss.get("name", "Boss")
+			hb.vest_color = Color(0.12, 0.12, 0.14)
+			hb.skill = 0.55
+			hb.map_half = MAP_HALF - 4.0
+			hb.net_key_v = hb.name
+			if net_match and not Net.is_host:
+				hb.net_owner = 1
+			hb.translation = hp + Vector3(0, 1.0, 0)
+			add_child(hb)
+			hb.connect("died", self, "_on_fighter_died")
+			henchmen.append(hb)
 
 
 # ------------------------------------------------------------------ props

@@ -101,7 +101,7 @@ func _run() -> void:
 
 	var p = world.player
 	check(world.terrain != null and p != null, "world built with terrain and player")
-	check(get_nodes_in_group("fighters").size() == world.profile.bots + 1 + world.bosses.size(), "all %d fighters spawned (bots + player + boss)" % (world.profile.bots + 1 + world.bosses.size()))
+	check(get_nodes_in_group("fighters").size() == world.profile.bots + 1 + world.bosses.size() + world.henchmen.size(), "all %d fighters spawned (bots + player + boss)" % (world.profile.bots + 1 + world.bosses.size() + world.henchmen.size()))
 	check(world.building_positions.size() >= 10, "buildings placed (%d)" % world.building_positions.size())
 	check(get_nodes_in_group("interactable").size() > 40, "chests and floor loot placed (%d)" % get_nodes_in_group("interactable").size())
 	p.max_health = 1000000.0   # keep bots from killing the test player

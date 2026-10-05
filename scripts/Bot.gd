@@ -10,6 +10,7 @@ const ATTACK_RANGE := 48.0
 var world                       # set by World before add_child (duck-typed)
 var boss_weapons := []           # a named boss carries these mythics (weapon ids); empty = a random mythic (the Warden)
 var boss_id := "warden"
+var guard := false                # a henchman: stays near its boss's post, like the boss does
 var is_boss := false             # "The Warden": guards a POI with a mythic weapon
 var home := Vector3.ZERO
 var skill := 0.5                # 0 = clumsy, 1 = sharp
@@ -33,6 +34,8 @@ var _nade_cd := 6.0             # seconds until this bot may throw a grenade
 
 func _ready() -> void:
 	damage_scale = 0.45 + skill * 0.2      # bots hit softer than the player's weapons
+	if guard:
+		home = translation
 	if is_boss:
 		max_health = 300.0
 		max_shield = 100.0
@@ -58,6 +61,7 @@ func _equip_loadout() -> void:
 	if is_boss and not boss_weapons.empty():
 		for wid in boss_weapons:
 			give_weapon(wid, Items.MYTHIC)
+		select_slot(_weapon_slot())
 	else:
 		give_weapon(w.id, w.rarity)
 	gold = 150 if is_boss else (world.rng.randi_range(0, 8) * 5 if world.rng.randf() < 0.5 else 0)    # what you get for an elimination
@@ -347,7 +351,7 @@ func _decide() -> void:
 	if state == State.STORM:
 		state = State.WANDER
 		_pick_wander()
-	if is_boss and Vector2(origin.x - home.x, origin.z - home.z).length() > 42.0:
+	if (is_boss or guard) and Vector2(origin.x - home.x, origin.z - home.z).length() > 42.0:
 		state = State.WANDER                 # the boss does not chase far from his post
 		target = null
 		_wander_to = home
@@ -395,7 +399,7 @@ func _line_of_sight(f) -> bool:
 
 
 func _pick_wander() -> void:
-	if is_boss:
+	if is_boss or guard:
 		_wander_to = home + Vector3(world.rng.randf_range(-18.0, 18.0), 0.0, world.rng.randf_range(-18.0, 18.0))
 		return
 	_wander_to = world.random_point_in_safe_zone()
