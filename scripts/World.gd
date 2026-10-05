@@ -273,6 +273,7 @@ func _setup_environment() -> void:
 	sky.sky_curve = 0.25
 	sky.ground_bottom_color = Color(0.25, 0.38, 0.5)
 	sky.ground_horizon_color = Color(0.72, 0.84, 0.96)
+	sky.texture_size = ProceduralSky.TEXTURE_SIZE_256         # small: it is rebuilt as the day goes by
 	sky.sun_latitude = 48.0
 	sky.sun_longitude = 215.0
 	var env := Environment.new()

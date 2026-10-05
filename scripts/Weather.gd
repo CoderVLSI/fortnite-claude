@@ -26,6 +26,9 @@ var sky: ProceduralSky
 var fog_windows := []           # [[start, end]] thick fog banks
 var fog := 0.0                  # 0 clear .. 1 thick fog
 var _sky_t := 99.0
+var _tod_t := 99.0
+var _last_amb := -1.0
+var _last_sun := -1.0
 var _fog_told := false
 var _fog_perf_begin := 150.0
 
@@ -149,12 +152,15 @@ func _process(delta: float) -> void:
 	_base_sun = look.sun
 	_base_ambient = look.ambient
 	_base_fog_color = look.fog
-	env.ambient_light_color = look.ambient_col
-	if world.sun != null:
-		world.sun.light_color = look.sun_col
-		world.sun.rotation_degrees = Vector3(look.pitch, look.yaw, 0.0)
+	_tod_t += delta
+	if _tod_t > 0.6:                                        # the light only drifts: no need to touch the sun every frame (that re-lights everything)
+		_tod_t = 0.0
+		env.ambient_light_color = look.ambient_col
+		if world.sun != null:
+			world.sun.light_color = look.sun_col
+			world.sun.rotation_degrees = Vector3(look.pitch, look.yaw, 0.0)
 	_sky_t += delta
-	if sky != null and _sky_t > 3.0:                        # the sky texture is rebuilt on every change: only now and then
+	if sky != null and _sky_t > 9.0:                        # the sky texture is rebuilt on every change (slow): only now and then
 		_sky_t = 0.0
 		sky.sky_top_color = look.top
 		sky.sky_horizon_color = look.fog
@@ -188,9 +194,14 @@ func _process(delta: float) -> void:
 	_last_end = env.fog_depth_end
 	var flash: float = max(0.0, _flash)
 	_flash -= delta * 3.0
-	env.ambient_light_energy = _base_ambient * (1.0 - 0.3 * k) + flash * 1.5
-	if world.sun != null:
-		world.sun.light_energy = _base_sun * (1.0 - 0.45 * k) + flash * 0.8
+	var amb_e: float = _base_ambient * (1.0 - 0.3 * k) + flash * 1.5
+	var sun_e: float = _base_sun * (1.0 - 0.45 * k) + flash * 0.8
+	if abs(amb_e - _last_amb) > 0.004:                      # only when it really changed (every change re-lights the scene)
+		_last_amb = amb_e
+		env.ambient_light_energy = amb_e
+	if world.sun != null and abs(sun_e - _last_sun) > 0.004:
+		_last_sun = sun_e
+		world.sun.light_energy = sun_e
 	var rain_db: float = lerp(Audio.SILENT_DB, -9.0, k) if k > 0.05 else Audio.SILENT_DB
 	Audio.ambient("rain_loop", rain_db)
 	if k > 0.7 and clock > _next_thunder:
