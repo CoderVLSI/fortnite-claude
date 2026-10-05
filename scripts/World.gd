@@ -21,6 +21,7 @@ const QuestLog = preload("res://scripts/QuestLog.gd")
 const RebootVan = preload("res://scripts/RebootVan.gd")
 const RebootCard = preload("res://scripts/RebootCard.gd")
 const Vault = preload("res://scripts/Vault.gd")
+const BuriedChest = preload("res://scripts/BuriedChest.gd")
 const GasPump = preload("res://scripts/GasPump.gd")
 const Animal = preload("res://scripts/Animal.gd")
 const Llama = preload("res://scripts/Llama.gd")
@@ -165,6 +166,7 @@ func _ready() -> void:
 	_spawn_pumps()
 	_spawn_wildlife()
 	_spawn_llamas()
+	_spawn_buried()
 	weather = Weather.new()
 	weather.world = self
 	weather.name = "Weather"
@@ -739,6 +741,32 @@ func _spawn_llamas() -> void:
 			n += 1
 
 
+# Buried treasure: mounds of earth scattered over the island; the pickaxe digs them up (BuriedChest.gd).
+func _spawn_buried() -> void:
+	var rr := RandomNumberGenerator.new()
+	rr.seed = SEED + 555
+	var want: int = 10 if profile.mobile else 18
+	var n := 0
+	var tries := 0
+	while n < want and tries < 1500:
+		tries += 1
+		var p := Vector2(rr.randf_range(-1.0, 1.0), rr.randf_range(-1.0, 1.0)) * MAP_HALF * 0.82
+		if p.length() < 60.0 or terrain.height_at(p.x, p.y) < 2.5 or not terrain.is_free(p.x, p.y, 3.0) or _near_building(p, 14.0) or _near_tree(p, 2.5):
+			continue
+		add_buried(p, "B%d" % n)
+		n += 1
+
+
+func add_buried(pos: Vector2, nid: String) -> Node:
+	var b := BuriedChest.new()
+	b.net_id = nid
+	b.translation = Vector3(pos.x, terrain.height_at(pos.x, pos.y), pos.y)
+	b.rotation.y = float(hash(nid) % 628) / 100.0
+	net_nodes[nid] = b
+	add_child(b)
+	return b
+
+
 func add_llama(pos: Vector2, nid: String) -> Node:
 	var l := Llama.new()
 	l.net_id = nid
@@ -1186,6 +1214,11 @@ const HARVEST_LABELS := {"wood": "TREE", "stone": "ROCK", "metal": "METAL"}
 
 
 func harvest_hit(body, shape_idx: int, kind: String, by, at: Vector3 = Vector3.ZERO) -> void:
+	if body.has_meta("buried"):                                  # a buried chest: dig, no materials
+		var bc = body.get_meta("buried")
+		if is_instance_valid(bc):
+			bc.dig(by)
+		return
 	var yield_mult: float = 1.0 + 0.25 * by.sprite_level() if by.has_sprite("king") else 1.0
 	var gain := int((8 + rng.randi() % 5) * yield_mult)
 	var local_hit: bool = by.net_owner == 0 and net_live
@@ -2294,6 +2327,10 @@ func net_event(from: int, kind: String, data) -> void:
 			var c = net_nodes.get(data)
 			if c != null and is_instance_valid(c) and not c.opened:
 				c.open(null, true)
+		"dig":
+			var bd = net_nodes.get(data)
+			if bd != null and is_instance_valid(bd) and bd.has_method("dig"):
+				bd.dig(null, true)
 		"vault":
 			var vv = vaults.get(data)
 			if vv != null and is_instance_valid(vv):
