@@ -2493,7 +2493,7 @@ func spectate_name() -> String:
 # screen is up: those are used with the mouse, so the click must reach them.
 func _screen_open() -> bool:
 	if hud != null:
-		if hud.inventory.visible or hud.map_screen.visible or hud.editor.visible or hud.end_panel.visible:
+		if hud.inventory.visible or hud.shop.visible or hud.map_screen.visible or hud.editor.visible or hud.end_panel.visible:
 			return true
 		if hud.emote_wheel != null and hud.emote_wheel.open:
 			return true

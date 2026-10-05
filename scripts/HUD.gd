@@ -7,6 +7,7 @@ const Bar = preload("res://scripts/ui/Bar.gd")
 const Hotbar = preload("res://scripts/ui/Hotbar.gd")
 const SpriteBadge = preload("res://scripts/ui/SpriteBadge.gd")
 const Compass = preload("res://scripts/ui/Compass.gd")
+const ShopScreen = preload("res://scripts/ui/ShopScreen.gd")
 const MapScreen = preload("res://scripts/ui/MapScreen.gd")
 const Crosshair = preload("res://scripts/ui/Crosshair.gd")
 const ScopeOverlay = preload("res://scripts/ui/ScopeOverlay.gd")
@@ -38,6 +39,8 @@ var hotbar: Control
 var sprite_badge: Control
 var materials: Control
 var inventory: Control
+var shop: Control
+var _shop_source = null
 var editor: Control
 var compass: Control
 var prompt_label: Label
@@ -347,6 +350,11 @@ func _build() -> void:
 	inventory = InventoryScreen.new()
 	inventory.connect("closed", self, "close_inventory")
 	root.add_child(inventory)
+	shop = ShopScreen.new()
+	shop.connect("bought", self, "_shop_bought")
+	shop.connect("chosen", self, "_shop_chosen")
+	shop.connect("closed", self, "_shop_closed")
+	root.add_child(shop)
 	editor = BuildEditor.new()
 	editor.connect("finished", self, "_on_edit_finished")
 	root.add_child(editor)
@@ -545,6 +553,62 @@ func open_inventory() -> void:
 	Controls.capture_mouse(false)
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	Audio.play2d("ui_click", -6.0)
+
+
+# ---- shops and NPC menus (ShopScreen.gd): the character stands still while one is open, like the inventory
+func _shop_enter() -> bool:
+	if player == null or player.is_dead or world == null or world.match_over or shop.visible or inventory.visible:
+		return false
+	if world.menu != null and world.menu.state != "hidden":
+		return false
+	map_screen.visible = false
+	player.input_enabled = false
+	for a in ["fire", "aim", "sprint", "jump", "reload", "interact"]:
+		Input.action_release(a)
+	Controls.touch_aim = false
+	if touch:
+		touch.visible = false
+	Controls.capture_mouse(false)
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	return true
+
+
+func open_vending(machine) -> void:
+	if not _shop_enter():
+		return
+	_shop_source = machine
+	shop.show_shop(machine.title(), machine.entries(), player.gold)
+
+
+# An NPC speaks: the three-button menu (the NPC provides the text and the options).
+func open_npc(npc) -> void:
+	if not _shop_enter():
+		return
+	_shop_source = npc
+	shop.show_menu(npc.npc_name, npc.greeting(), npc.options(player), player.gold)
+
+
+func _shop_bought(index: int) -> void:
+	if _shop_source == null or not is_instance_valid(_shop_source):
+		return
+	_shop_source.buy_offer(player, index)
+	shop.refresh_shop(_shop_source.entries(), player.gold)
+
+
+func _shop_chosen(id) -> void:
+	if _shop_source == null or not is_instance_valid(_shop_source) or not _shop_source.has_method("choose"):
+		return
+	_shop_source.choose(id, player, self)
+
+
+func _shop_closed() -> void:
+	_shop_source = null
+	if player != null:
+		player.input_enabled = true
+	if touch:
+		touch.visible = Controls.touch_mode and not end_panel.visible
+	if not Controls.touch_mode and not ("--no-capture" in OS.get_cmdline_args()) and not end_panel.visible:
+		Controls.capture_mouse(true)
 
 
 func close_inventory() -> void:
