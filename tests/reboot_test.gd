@@ -56,13 +56,16 @@ func _run() -> void:
 	mate._die(foe)
 	yield(_frames(5), "completed")
 	check(mate.is_dead and mate.collision_layer == 0, "the team-mate is down for good")
-	var cards := get_nodes_in_group("reboot_cards")
-	check(cards.size() == 1, "and leaves a reboot card")
+	var cards := []
+	for c in get_nodes_in_group("reboot_cards"):
+		if c.fighter == mate:                 # other bots may fall in a busy match: only this team-mate's card counts
+			cards.append(c)
+	check(cards.size() == 1, "and leaves a reboot card (%d, %d in the world)" % [cards.size(), get_nodes_in_group("reboot_cards").size()])
 	var card = cards[0]
 	check(card.can_interact() and card.prompt_text().find(str(mate.display_name)) >= 0, "which a living team-mate can take (%s)" % card.prompt_text())
 	card.interact(p)
 	yield(_frames(3), "completed")
-	check(p.cards.size() == 1 and get_nodes_in_group("reboot_cards").size() == 0, "taking it puts it in your pocket")
+	check(p.cards.size() == 1 and not is_instance_valid(card) or card.is_queued_for_deletion(), "taking it puts it in your pocket")
 	check(van.can_interact() and van.prompt_text().begins_with("Reboot "), "the van offers to reboot them (%s)" % van.prompt_text())
 	van.interact(p)
 	yield(_frames(5), "completed")

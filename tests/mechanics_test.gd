@@ -278,9 +278,9 @@ func _run() -> void:
 	p.velocity = Vector3.ZERO
 	yield(_frames(30), "completed")
 	_emote(true)
-	yield(_frames(3), "completed")
+	yield(_frames(6), "completed")
 	_emote(false)
-	yield(_frames(10), "completed")
+	yield(_frames(14), "completed")
 	check(p.emoting, "the emote key starts the dance")
 	Input.action_press("move_forward")
 	yield(_frames(6), "completed")
