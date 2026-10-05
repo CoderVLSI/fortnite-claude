@@ -7,7 +7,7 @@
 import os
 import sys
 
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageDraw, ImageFilter, PngImagePlugin
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 MYTHIC = ["tactical_shotgun", "revolver", "dmr", "grenade_launcher"]
@@ -42,22 +42,29 @@ def glow(img, rgb, radius=7, strength=0.9, grow=5):
 
 
 def mythic_glow():
+    """Glow the Mythic icons once (a 'glow' PNG text chunk marks files that already have it, so reruns are safe)."""
     for n in MYTHIC:
         path = os.path.join(ROOT, "assets", "icons", "weapon_%s_mythic.png" % n)
         if not os.path.exists(path):
             print("skip", path, "(not generated)")
             continue
-        img = Image.open(path).convert("RGBA")
+        img = Image.open(path)
+        if img.info.get("glow"):
+            print("skip", os.path.relpath(path, ROOT), "(already glowed; regenerate with --force first)")
+            continue
+        img = img.convert("RGBA")
         bb = img.getbbox()
-        if bb:                                           # shrink to ~84 % of the canvas, centred, to leave glow room
+        if bb:                                           # shrink to ~70 % of the canvas, centred, so the glow fades out
             icon = img.crop(bb)
-            s = 0.84 * img.width / max(icon.size)
+            s = 0.70 * img.width / max(icon.size)
             icon = icon.resize((max(1, round(icon.width * s)), max(1, round(icon.height * s))), Image.LANCZOS)
             img = Image.new("RGBA", img.size, (0, 0, 0, 0))
             img.alpha_composite(icon, ((img.width - icon.width) // 2, (img.height - icon.height) // 2))
-        out = glow(img, (255, 200, 60))                  # gold
-        out = glow(out, (150, 60, 255), radius=9, strength=0.55, grow=9)  # wider purple halo
-        out.save(path, optimize=True)
+        out = glow(img, (255, 200, 60), radius=6, grow=5)                               # gold
+        out = glow(out, (150, 60, 255), radius=8, strength=0.55, grow=7)                # wider purple halo
+        meta = PngImagePlugin.PngInfo()
+        meta.add_text("glow", "1")
+        out.save(path, optimize=True, pnginfo=meta)
         print("wrote", os.path.relpath(path, ROOT))
 
 
