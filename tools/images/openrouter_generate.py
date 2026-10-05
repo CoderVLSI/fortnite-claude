@@ -240,6 +240,38 @@ add("ui_aim_assist", "plain", "%sa crosshair with a small red and silver horsesh
 add("ui_storm_pace", "plain", "%sa stylised purple storm cloud with a yellow lightning bolt and a clock hand, "
     "settings icon, %s" % (STYLE_PLAIN, _GREEN), dest=_UIP("ui_storm_pace"), key_colour="0x00FF00")
 
+# Boss weapons (transparent, same STYLE/angle as the weapon_* icons) and their Mythic versions (gold/purple glow is
+# added locally by derive_icons.py mythic-glow, so the Mythic art is keyed on lime green).
+_BOSS_GUNS = [
+    ("drum_gun", "a submachine gun with a big round drum magazine hanging under the receiver, black body, gold "
+                 "trim and gold drum, tan foregrip"),
+    ("shockwave_launcher", "a chunky tube launcher with four glowing blue shock-coil rings around the barrel, a "
+                           "flared muzzle dish with a glowing blue core, black and steel body"),
+    ("grappler", "a pistol-sized grapple launcher with a two-pronged steel hook on the muzzle, a red cable spool on "
+                 "top, black body with a red stripe, wooden grip"),
+]
+for _n, _d in _BOSS_GUNS:
+    add("weapon_" + _n, "plain", "%sside view of %s, barrel pointing right, %s" % (STYLE, _d, KEYED))
+for _n, _d in _BOSS_GUNS + [("charge_shotgun", "a chunky shotgun with glowing blue-and-yellow charge coils along the "
+                                               "barrel")]:
+    add("weapon_%s_mythic" % _n, "plain_mythic", "%sside view of a legendary ornate gold and purple version of %s, "
+        "engraved gold trim and glowing purple details, barrel pointing right, %s" % (STYLE, _d, _GREEN),
+        key_colour="0x00FF00")
+
+# Boss portraits (busts) and the generic boss marker (64 px).
+for _n, _d in [
+    ("voltra", "a bust (head and shoulders) of an armoured engineer in a dark blue helmet with a glowing blue visor "
+               "and crackling electric sparks"),
+    ("goldhand", "a bust (head and shoulders) of a wealthy tycoon in a black suit with a gold-plated mask and one "
+                 "gold glove raised, gleaming gold coins"),
+    ("hookshot", "a bust (head and shoulders) of a lithe infiltrator in a red hood and black mask with goggles "
+                 "pushed up on the forehead, a grappling hook on a rope over the shoulder"),
+]:
+    add("ui_boss_" + _n, "plain", "%s%s, boss portrait icon, %s" % (STYLE_PLAIN, _d, KEYED),
+        dest=os.path.join(ROOT, "assets", "ui", "ui_boss_" + _n + ".png"))
+add("ui_boss", "plain", "%sa plain bold skull wearing a small gold crown, very simple chunky shapes, map marker icon, "
+    "%s" % (STYLE_PLAIN, KEYED), size=64, dest=os.path.join(ROOT, "assets", "ui", "ui_boss.png"))
+
 GROUPS = sorted({a["group"] for a in ASSETS.values()})
 
 
