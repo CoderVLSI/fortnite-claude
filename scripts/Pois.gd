@@ -414,7 +414,7 @@ const POIS := [
 		],
 		"items": [Vector2(4, 8), Vector2(-8, 4), Vector2(10, -2), Vector2(-4, -10)],
 		"vault": {"at": Vector2(-4, 28), "yaw": 180.0},
-		"boss": {"at": Vector2(8, 10), "name": "Goldhand", "id": "goldhand", "skin": "ranger", "vest": Color(0.95, 0.75, 0.15), "weapons": ["drum_gun"], "henchmen": 4},
+		"boss": {"at": Vector2(8, 10), "name": "Goldhand", "id": "goldhand", "skin": "ranger", "vest": Color(0.95, 0.75, 0.15), "weapons": ["drum_gun"], "henchmen": 4, "daughter": true},
 		"helipad": Vector2(22, -2),
 		"vehicles": [{"kind": "buggy", "at": Vector2(6, -12), "yaw": 90}],
 	},

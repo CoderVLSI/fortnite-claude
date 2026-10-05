@@ -1079,6 +1079,25 @@ func _spawn_boss() -> void:
 			add_child(hb)
 			hb.connect("died", self, "_on_fighter_died")
 			henchmen.append(hb)
+		if def.boss.get("daughter", false):                                  # Goldhand's daughter stands beside him
+			var dp := _poi_point(poi, def.boss.at + Vector2(2.5, 2.0))
+			var db := Bot.new()
+			db.name = "Henchman%d" % henchmen.size()
+			db.guard = true
+			db.team = b.team
+			db.world = self
+			db.display_name = "Goldie"
+			db.skin_id = "goldie"
+			db.vest_color = Color(0.98, 0.82, 0.25)
+			db.skill = 0.5
+			db.map_half = MAP_HALF - 4.0
+			db.net_key_v = db.name
+			if net_match and not Net.is_host:
+				db.net_owner = 1
+			db.translation = dp + Vector3(0, 1.0, 0)
+			add_child(db)
+			db.connect("died", self, "_on_fighter_died")
+			henchmen.append(db)
 
 
 # ------------------------------------------------------------------ props

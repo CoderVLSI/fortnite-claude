@@ -41,6 +41,15 @@ func _run() -> void:
 	for i in range(10):
 		yield(self, "idle_frame")
 	var p = world.player
+	var daughter = null
+	var gold = null
+	for b in world.bosses:
+		if b.boss_id == "goldhand":
+			gold = b
+	for hn in world.henchmen:
+		if hn.display_name == "Goldie":
+			daughter = hn
+	check(daughter != null and daughter.skin_id == "goldie" and gold != null and daughter.team == gold.team, "Goldhand's daughter Goldie stands with him, on his team")
 	for f in get_nodes_in_group("fighters"):
 		if f != p and not f.is_boss:
 			f.queue_free()

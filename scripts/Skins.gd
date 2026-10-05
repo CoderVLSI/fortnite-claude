@@ -103,11 +103,15 @@ const LIST := {
 	"dame": {"name": "Dame Silver", "desc": "Plate armour with a pink plume", "skin": Color(0.62, 0.64, 0.70), "vest": Color(0.66, 0.68, 0.74),
 		"pants": Color(0.50, 0.52, 0.58), "boots": Color(0.34, 0.35, 0.40), "hair": Color(0.62, 0.64, 0.70),
 		"glove": Color(0.44, 0.46, 0.52), "pack": Color(0.90, 0.35, 0.55), "metal": true, "eyes": Color(0.02, 0.02, 0.04), "no_face": true, "acc": ["helm", "pinkplume", "cape"]},
+	"goldie": {"name": "Goldie", "desc": "Daddy's golden girl (don't touch the vault)", "skin": Color(0.93, 0.72, 0.58), "vest": Color(0.98, 0.82, 0.25),
+		"pants": Color(0.98, 0.82, 0.25), "boots": Color(0.98, 0.95, 0.85), "hair": Color(0.96, 0.82, 0.38),
+		"glove": Color(0.98, 0.85, 0.30), "pack": Color(0.85, 0.65, 0.12), "fem": true, "scale": 0.85, "skirt": Color(0.98, 0.82, 0.25),
+		"acc": ["pigtails", "tiara", "skirt"]},
 }
 const ORDER := ["ranger", "ninja", "astronaut", "knight", "robot", "pirate", "cowboy", "dino",
 	"banana", "fishhead", "marine", "wristhero", "pumpkin", "shark", "panda", "viking", "chef", "cactus", "chicken",
 	"ranger_f", "aviator", "scientist", "witch", "pigtails", "princess", "soccer", "bunny",
-	"rodeo", "piratequeen", "shieldmaiden", "chefbella", "astroada", "dame"]
+	"rodeo", "piratequeen", "shieldmaiden", "chefbella", "astroada", "dame", "goldie"]
 
 
 static func _mat(c: Color, metal: bool = false, emissive: bool = false) -> SpatialMaterial:
