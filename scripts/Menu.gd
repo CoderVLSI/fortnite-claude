@@ -2192,6 +2192,8 @@ func _input(event: InputEvent) -> void:
 		get_tree().set_input_as_handled()
 		return
 	if event is InputEventKey and event.pressed and event.scancode == KEY_ESCAPE and not event.echo:
+		if world != null and world.hud != null and world.hud.shop != null and world.hud.shop.visible:
+			return                                         # Esc closes the shop window (ShopScreen) and must not also open the pause menu
 		_escape()
 		get_tree().set_input_as_handled()
 	elif event is InputEventKey and event.pressed and event.scancode == KEY_ENTER and state == "title":

@@ -2090,10 +2090,23 @@ func _assign_teams() -> void:
 
 
 # Teams (or lone fighters in solo) that still have someone standing.
+# Who counts as a player for "ALIVE" and for winning: not the bosses, their guards or a hired ally (they are part of the island).
+func counts_as_player(f) -> bool:
+	if f.is_dead:
+		return false
+	if "is_boss" in f and f.is_boss:
+		return false
+	if "guard" in f and f.guard:
+		return false
+	if "ally_of" in f and f.ally_of != null:
+		return false
+	return true
+
+
 func alive_teams() -> int:
 	var seen := {}
 	for f in get_tree().get_nodes_in_group("fighters"):
-		if not f.is_dead:
+		if counts_as_player(f):
 			seen[f.team if f.team >= 0 else -1000 - f.get_instance_id()] = true
 	return seen.size()
 
@@ -2116,7 +2129,7 @@ func allies_alive(of) -> bool:
 func alive_count() -> int:
 	var n := 0
 	for f in get_tree().get_nodes_in_group("fighters"):
-		if not f.is_dead:
+		if counts_as_player(f):
 			n += 1
 	return n
 

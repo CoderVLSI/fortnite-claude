@@ -78,6 +78,16 @@ func _run() -> void:
 	hud.shop._input(ev)
 	yield(_frames(2), "completed")
 	check(not hud.shop.visible and p.input_enabled, "Escape closes it and gives control back")
+	# a real Escape key event (through the whole input chain): closes the shop and does NOT open the pause menu
+	w.interact(p)
+	yield(_frames(3), "completed")
+	var ev2 := InputEventKey.new()
+	ev2.scancode = KEY_ESCAPE
+	ev2.pressed = true
+	Input.parse_input_event(ev2)
+	for i in range(4):
+		yield(self, "idle_frame")
+	check(not hud.shop.visible and world.menu.state == "hidden" and not paused, "Escape closes the shop without opening the pause menu (shop %s, menu %s, paused %s)" % [hud.shop.visible, world.menu.state, paused])
 	# weapons machine
 	p.gold = 500
 	w.interact(p)

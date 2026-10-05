@@ -36,6 +36,8 @@ func _run() -> void:
 	p.max_health = 100000.0
 	p.health = p.max_health
 	p.global_transform.origin = Vector3(0, -300, 0)
+	check(world.alive_count() == world.profile.bots + 1, "ALIVE counts only the players and bots, not bosses or guards (%d of %d fighters)" % [world.alive_count(), get_nodes_in_group("fighters").size()])
+	check(world.team_size != 1 or world.alive_teams() == world.profile.bots + 1, "and so do the teams in solo (%d teams, team size %d)" % [world.alive_teams(), world.team_size])
 	var boss = world.bosses[0]
 	check(boss.boss_phase == 1, "a boss starts in phase 1")
 	var n_hench: int = world.henchmen.size()
