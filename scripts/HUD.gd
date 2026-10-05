@@ -100,6 +100,7 @@ var _toast_t := 0.0
 var _t := 0.0
 var emote_wheel
 var voice_label: Label
+var death_recap := ""
 const QuickChatScript = preload("res://scripts/QuickChat.gd")
 var mic_button: Button
 var chat_button: Button
@@ -444,7 +445,8 @@ func _build_end_panel() -> void:
 	end_panel.add_child(end_title)
 	end_stats = _label("")
 	end_stats.rect_position = Vector2(0, 100)
-	end_stats.rect_size = Vector2(500, 80)
+	end_stats.rect_size = Vector2(500, 100)
+	end_stats.autowrap = true
 	end_panel.add_child(end_stats)
 	var button := Button.new()
 	button.text = "PLAY AGAIN"
@@ -875,6 +877,8 @@ func show_end(victory: bool, placement: int, kills: int) -> void:
 	end_title.text = "LAST ONE STANDING!" if victory else "ELIMINATED"
 	end_title.add_color_override("font_color", Color(1.0, 0.85, 0.3) if victory else Color(1.0, 0.45, 0.4))
 	end_stats.text = "Placed #%d\nEliminations: %d" % [placement, kills]
+	if death_recap != "" and not victory:
+		end_stats.text += "\n" + death_recap                 # who got you, with what, from how far
 	end_bg.texture = _tex("res://assets/ui/victory_bg.png" if victory else "res://assets/ui/eliminated_bg.png")
 	end_bg.visible = end_bg.texture != null
 	end_bg.modulate = Color(1, 1, 1, 0)

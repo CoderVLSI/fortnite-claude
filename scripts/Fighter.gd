@@ -145,6 +145,7 @@ const BLEED_TIME := 30.0           # ...over this many seconds, unless a teammat
 const REVIVE_TIME := 3.5
 var downed := false                # "down but not out" (team modes): crawling, cannot fight, can be revived
 var _last_attacker = null
+var last_hit := {}                   # the player's death recap: who hit last, with what, from how far
 var _revive_spot: Node
 var _burst_left := 0               # rounds still to come from a burst weapon
 var _burst_t := 0.0
@@ -1774,6 +1775,10 @@ func take_damage(amount: float, source = null) -> void:
 		remaining -= absorbed
 	health -= remaining
 	emit_signal("damaged", amount, source)
+	if source != null and source != self and is_instance_valid(source) and is_in_group("player") and "slots" in source:
+		var si = source.selected_item()                                        # for the death recap
+		last_hit = {"src": source, "dist": global_transform.origin.distance_to(source.global_transform.origin),
+			"weapon": Items.name_of(si) if si != null and si.kind != "pickaxe" else "the pickaxe"}
 	if source != null and source != self and is_instance_valid(source) and source.has_method("sprite_on_hit"):
 		source.sprite_on_hit(self, amount)
 	if health <= 0.0:

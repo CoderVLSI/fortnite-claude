@@ -776,8 +776,8 @@ func _spawn_buried() -> void:
 
 # Season pass perks: a little starting gold and heals, in solo matches only (online everybody starts equal).
 func _apply_solo_perks() -> void:
-	if net_match or player == null:
-		return
+	if net_match or player == null or "--no-capture" in OS.get_cmdline_args():
+		return                                        # (the test runs start from a bare character)
 	var pk: Dictionary = Accounts.solo_perks()
 	if pk.gold > 0:
 		player.gold += int(pk.gold)
@@ -2334,6 +2334,8 @@ func _on_fighter_died(victim, killer) -> void:
 	if team_size > 1 and victim.team >= 0 and not victim.has_meta("left") and not ("is_boss" in victim and victim.is_boss) and not ("guard" in victim and victim.guard) and allies_alive(victim):
 		_spawn_card(victim)              # a team-mate can carry this to a Reboot Van
 
+	if victim == player and not Net.dedicated:
+		_death_recap(killer)
 	if match_over or Net.dedicated:
 		return                               # (a dedicated server decides the end of a match in _server_rules)
 	var teams := alive_teams()
@@ -2348,6 +2350,27 @@ func _on_fighter_died(victim, killer) -> void:
 	elif victim == player:
 		hud.show_toast("Your team fights on - spectating a teammate")
 		get_tree().create_timer(1.6).connect("timeout", self, "_spectate_ally")
+
+
+# Eliminated by a fighter: write the recap for the end panel and (when the whole team is out) start the killcam: the camera follows
+# the killer for the moments after the fight while the result panel comes up.
+func _death_recap(killer) -> void:
+	hud.death_recap = ""
+	if killer == null or killer == player or not is_instance_valid(killer):
+		hud.death_recap = "Lost to the storm" if killer == null else ""
+		return
+	var info: Dictionary = player.last_hit if not player.last_hit.empty() and player.last_hit.get("src") == killer else {}
+	var held = killer.selected_item() if "slots" in killer else null
+	var weapon: String = str(info.get("weapon", Items.name_of(held) if held != null and held.kind != "pickaxe" else "the pickaxe"))
+	var dist: float = float(info.get("dist", killer.global_transform.origin.distance_to(player.global_transform.origin)))
+	hud.death_recap = "Eliminated by %s with %s from %d m  (%d HP left)" % [killer.display_name, weapon, int(dist), int(killer.health + killer.shield)]
+	if not allies_alive(player) and not spectating and alive_count() > 0:
+		get_tree().create_timer(0.5).connect("timeout", self, "_killcam", [killer])
+
+
+func _killcam(killer) -> void:
+	if player != null and player.is_dead and not spectating and killer != null and is_instance_valid(killer) and not killer.is_dead:
+		start_spectating(killer)
 
 
 func _spectate_ally() -> void:
@@ -2669,7 +2692,7 @@ func net_event(from: int, kind: String, data) -> void:
 
 # ------------------------------------------------------------------ spectating
 
-func start_spectating() -> void:
+func start_spectating(first = null) -> void:
 	if spectating or alive_count() <= 0:
 		return
 	spectating = true
@@ -2681,6 +2704,8 @@ func start_spectating() -> void:
 	cycle_spectate(1)
 	if not spectating:
 		return
+	if first != null and is_instance_valid(first) and not first.is_dead:
+		_spec_target = first                              # the killcam: start with whoever got us
 	var tp: Vector3 = _spec_target.global_transform.origin
 	_spec_cam.global_transform.origin = tp + Vector3(0, 2.6, 0) + _spec_target.global_transform.basis.z * 5.5
 	_spec_cam.make_current()
