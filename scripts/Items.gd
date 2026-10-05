@@ -126,8 +126,9 @@ const CONSUMABLES := {
 		"time": 1.6, "stack": 6, "rarity": 0, "color": Color(0.85, 0.5, 0.25)},
 	"shield_potion": {"name": "Shield Potion", "heal": 0.0, "heal_cap": 0.0, "shield": 50.0, "shield_cap": 100.0,
 		"time": 5.0, "stack": 2, "rarity": 2},
-	"slurp_juice": {"name": "Slurp Juice", "heal": 25.0, "heal_cap": 100.0, "shield": 25.0, "shield_cap": 100.0,
-		"time": 2.5, "stack": 4, "rarity": 2},
+	# Slurp Juice: after the sip it trickles health (up to 70) and shield back over 20 seconds instead of all at once.
+	"slurp_juice": {"name": "Slurp Juice", "heal": 50.0, "heal_cap": 70.0, "shield": 25.0, "shield_cap": 100.0,
+		"time": 2.5, "stack": 4, "rarity": 2, "regen": 20.0},
 	"chug_jug": {"name": "Chug Jug", "heal": 100.0, "heal_cap": 100.0, "shield": 100.0, "shield_cap": 100.0,
 		"time": 15.0, "stack": 1, "rarity": 4},
 	"grenade": {"name": "Grenade", "heal": 0.0, "heal_cap": 0.0, "shield": 0.0, "shield_cap": 0.0,

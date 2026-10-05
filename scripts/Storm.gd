@@ -90,7 +90,7 @@ func _process(delta: float) -> void:
 		_tick -= 1.0
 		for f in get_tree().get_nodes_in_group("fighters"):
 			if not f.is_dead and f.net_owner == 0 and not is_inside(f.global_transform.origin):     # puppets are damaged by their own machine
-				f.take_damage(damage_per_second, null)
+				f.storm_damage(damage_per_second)
 				if f.is_in_group("player"):
 					Audio.play2d("storm_hit", -4.0)
 

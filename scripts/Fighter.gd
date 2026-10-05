@@ -89,6 +89,11 @@ var gold := 0                     # gold bars: spent at vending machines
 var sprite := {}                  # the equipped Sprite: {id, variant, level, xp} (empty = none)
 var charge := 0.0                 # Charge Shotgun: 0..1 while the fire button is held
 var charge_used := 0.0            # the charge of the shot being fired right now
+var _regen_left := 0.0           # Slurp Juice: heals gradually over time
+var _regen_hp := 0.0
+var _regen_sh := 0.0
+var _regen_cap := 70.0
+var _regen_shcap := 100.0
 var jet_fuel := 100.0             # Jetpack fuel
 var jet_active := false           # set by the controller each frame: thrust (jetpack equipped, jump held)
 var board_on := false             # riding the Skateboard
@@ -469,6 +474,15 @@ func give_weapon(id: String, rarity: int = 0, fill_reserve: int = 0) -> void:
 		add_ammo(fill_reserve, Items.WEAPONS[id].ammo)
 
 
+# A weapon found on the ground brings a decent supply of its ammo: three magazines, never less than one ammo pack.
+func _ground_ammo(item: Dictionary) -> void:
+	var def: Dictionary = Items.WEAPONS[item.id]
+	if def.get("infinite", false):
+		return
+	var t: String = def.ammo
+	add_ammo(int(max(float(def.mag) * 3.0, float(Items.AMMO[t].pack))), t)
+
+
 # Try to put an item in the inventory. Returns {ok, text, dropped (item or null)}.
 func pickup(item: Dictionary) -> Dictionary:
 	match item.kind:
@@ -491,10 +505,12 @@ func pickup(item: Dictionary) -> Dictionary:
 					if selected == 0:
 						select_slot(i)
 					emit_signal("slot_changed")
+					_ground_ammo(item)
 					return {"ok": true, "text": Items.name_of(item), "dropped": null}
 			var t := swap_slot()          # full: the new weapon replaces the item in hand (or the last one held)
 			if t > 0:
 				var old = _swap_into(t, item)
+				_ground_ammo(item)
 				return {"ok": true, "text": "Swapped: " + Items.name_of(item), "dropped": old}
 			return {"ok": false, "text": "Inventory full", "dropped": null}
 		"consumable":
@@ -573,10 +589,17 @@ func use_selected(delta: float) -> void:
 	_use_left -= delta
 	if _use_left <= 0.0:
 		_use_left = 0.0
-		if c.heal > 0.0:
-			health = min(c.heal_cap, health + c.heal)
-		if c.shield > 0.0:
-			shield = min(c.shield_cap, shield + c.shield)
+		if c.has("regen"):                                    # Slurp Juice: a trickle of health and shield over time, up to 70 health
+			_regen_left = float(c.regen)
+			_regen_hp = c.heal / float(c.regen)
+			_regen_sh = c.shield / float(c.regen)
+			_regen_cap = c.heal_cap
+			_regen_shcap = c.shield_cap
+		else:
+			if c.heal > 0.0:
+				health = min(c.heal_cap, health + c.heal)
+			if c.shield > 0.0:
+				shield = min(c.shield_cap, shield + c.shield)
 		stat_add("heals")
 		if has_sprite("aegis") and (c.heal > 0.0 or c.shield > 0.0):
 			bubble_t = 3.0 + sprite_level()
@@ -772,7 +795,7 @@ func move_body(delta: float, wish: Vector3, speed: float, want_jump: bool) -> vo
 	var snap := Vector3(0, -0.45, 0)
 	if jetting:
 		velocity.y = min(velocity.y + 42.0 * delta, 10.0)
-		jet_fuel = max(0.0, jet_fuel - 26.0 * delta)
+		jet_fuel = max(0.0, jet_fuel - 12.0 * delta)          # about 8 seconds of thrust, and it never refills
 		snap = Vector3.ZERO
 	elif launched:
 		velocity.y -= _gravity * delta
@@ -1333,11 +1356,52 @@ func tick_gadgets(delta: float) -> void:
 		if thrusting and _gadget_snd_t <= 0.0:
 			_gadget_snd_t = 0.33
 			Audio.play3d("jetpack_thrust", global_transform.origin, -6.0, rand_range(0.95, 1.05))
-	if not jet_active and is_on_floor():
-		jet_fuel = min(100.0, jet_fuel + 35.0 * delta)
+	if jet_fuel <= 0.0 and jet_sel and not is_dead:                  # empty: the jetpack is used up
+		_jetpack_spent()
+
+
+func _regen_tick(delta: float) -> void:
+	if _regen_left <= 0.0:
+		return
+	if is_dead:
+		_regen_left = 0.0
+		return
+	_regen_left = max(0.0, _regen_left - delta)
+	if _regen_hp > 0.0 and health < _regen_cap:
+		health = min(_regen_cap, health + _regen_hp * delta)
+	if _regen_sh > 0.0 and shield < _regen_shcap:
+		shield = min(_regen_shcap, shield + _regen_sh * delta)
+
+
+# The storm hurts health directly: the shield does not soak it up.
+func storm_damage(amount: float) -> void:
+	var sh := shield
+	shield = 0.0
+	take_damage(amount, null)
+	if not is_dead:
+		shield = sh
+
+
+func _jetpack_spent() -> void:
+	for i in range(1, slots.size()):                                 # the jetpack works from any item slot: find it there
+		var it = slots[i]
+		if it != null and it.kind == "consumable" and it.id == "jetpack":
+			it.count -= 1
+			if it.count <= 0:
+				slots[i] = null
+				if selected == i:
+					selected = 0
+					_apply_selected()
+			emit_signal("slot_changed")
+			break
+	jet_fuel = 100.0                                                 # the next jetpack you find starts full
+	jet_active = false
+	emit_signal("picked_up", "The jetpack ran out of fuel")
+	Audio.play2d("ui_error", -4.0)
 
 
 func tick_weapon(delta: float) -> void:
+	_regen_tick(delta)
 	if boogie_t > 0.0:
 		boogie_t -= delta
 		if is_dead or downed:

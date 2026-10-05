@@ -425,7 +425,50 @@ func _avoid_walls(wish: Vector3, delta: float) -> Vector3:
 	return wish
 
 
+# Slow-progress watchdog: bots that walk into a big mountain or a cliff and just keep pushing do not give up. After a couple of
+# seconds without real progress they hop and sidestep; after four they are lifted over the obstacle in the direction they wanted.
+var _prog_pos := Vector3.ZERO
+var _prog_t := 0.0
+var _prog_fail := 0
+
+
+func _progress_watch(delta: float, wish: Vector3) -> void:
+	if state == State.ATTACK or wish.length() < 0.1 or mode != Mode.GROUND:
+		_prog_t = 0.0
+		_prog_fail = 0
+		_prog_pos = global_transform.origin
+		return
+	_prog_t += delta
+	if _prog_t < 1.0:
+		return
+	_prog_t = 0.0
+	var o := global_transform.origin
+	var moved := Vector2(o.x - _prog_pos.x, o.z - _prog_pos.z).length()
+	_prog_pos = o
+	if moved > 1.8:
+		_prog_fail = 0
+		return
+	_prog_fail += 1
+	if _prog_fail >= 2:
+		_avoid_t = 1.3
+		_avoid_dir = -_avoid_dir
+		if is_on_floor():
+			velocity.y = 7.5                                     # a hop
+		try_mantle(wish)
+	var storm_run: bool = state == State.STORM                    # in the storm every second counts: lift sooner and further
+	if _prog_fail >= (2 if storm_run else 4):                    # lifted over the mountain / ledge towards where it wanted to go
+		_prog_fail = 0
+		var dir := wish.normalized()
+		var np := o + dir * (18.0 if storm_run else 9.0)
+		var lim: float = world.MAP_HALF - 8.0
+		np.x = clamp(np.x, -lim, lim)
+		np.z = clamp(np.z, -lim, lim)
+		global_transform.origin = Vector3(np.x, world.terrain.height_at(np.x, np.z) + 1.4, np.z)
+		velocity = Vector3.ZERO
+
+
 func _check_stuck(delta: float, before: Vector3, wish: Vector3) -> void:
+	_progress_watch(delta, wish)
 	if wish.length() > 0.1 and global_transform.origin.distance_to(before) < 0.01:
 		_stuck_t += delta
 		if _stuck_t > 0.5 and try_mantle(-global_transform.basis.z):

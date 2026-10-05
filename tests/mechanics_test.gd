@@ -144,7 +144,10 @@ func _run() -> void:
 	yield(_frames(3), "completed")
 	for i in range(int(2.8 * 60.0)):
 		p.use_selected(1.0 / 60.0)
-	check(abs(p.health - 55.0) < 0.5 and abs(p.shield - 35.0) < 0.5, "Slurp Juice gives +25 health and +25 shield (%.0f / %.0f)" % [p.health, p.shield])
+	check(p.health < 40.0, "Slurp Juice heals gradually, not all at once (%.0f)" % p.health)
+	for i in range(1300):                                  # 21 seconds of regeneration
+		p._regen_tick(1.0 / 60.0)
+	check(abs(p.health - 70.0) < 0.5 and abs(p.shield - 35.0) < 0.5, "and ends at 70 health with +25 shield (%.0f / %.0f)" % [p.health, p.shield])
 	check(p.slots[4] != null and p.slots[4].count == 1, "one Slurp is used up")
 	p.slots[4] = Items.make_consumable("chug_jug", 1)
 	p.select_slot(4)
