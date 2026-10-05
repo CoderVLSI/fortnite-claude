@@ -8,7 +8,7 @@ const MAX_SPEED := 130.0          # m/s: faster than a skydiver in free fall, a 
 const MAX_HIT := 350.0            # the biggest single legit hit is a sniper headshot (~290)
 const MAX_HIT_RANGE := 750.0      # a bit more than the island is wide
 const MAX_DPS := 900.0            # damage budget per second per player (all weapons together)
-const LIMITS := {"pose": 60.0, "event": 80.0, "shot": 22.0, "build": 45.0, "damage": 60.0}   # messages per second
+const LIMITS := {"pose": 60.0, "event": 80.0, "shot": 22.0, "build": 45.0, "damage": 60.0, "voice": 40.0}   # messages per second
 const KICK_STRIKES := 6.0
 const GRACE := 3.0                # seconds of leniency after a legit teleport (reboot, match start)
 

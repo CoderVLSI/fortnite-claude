@@ -69,6 +69,7 @@ run menu_test
 run social_test
 run party_ui_test
 run guard_test
+run voice_test
 run vault_test --no-bus --skip-menu
 run boss_test --no-bus --skip-menu
 run zerobuild_test --no-bus --skip-menu

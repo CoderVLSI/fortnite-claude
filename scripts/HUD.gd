@@ -99,6 +99,8 @@ var _flash := 0.0
 var _toast_t := 0.0
 var _t := 0.0
 var emote_wheel
+var voice_label: Label
+var mic_button: Button
 var name_tags
 var warn_layer
 var sound_viz
@@ -274,6 +276,20 @@ func _build() -> void:
 	_place(bus_label, 0.5, 0.5, Vector2(-330, -150), Vector2(660, 34))
 	bus_label.visible = false
 	root.add_child(bus_label)
+
+	voice_label = _label("", Label.ALIGN_LEFT, Color(0.55, 1.0, 0.65))     # who is talking (voice chat)
+	_place(voice_label, 0.0, 0.0, Vector2(26, 330), Vector2(360, 90))
+	voice_label.visible = false
+	root.add_child(voice_label)
+	mic_button = Button.new()                                                # phones: hold to talk
+	mic_button.text = "MIC"
+	mic_button.focus_mode = Control.FOCUS_NONE
+	_place(mic_button, 0.0, 1.0, Vector2(250, -330), Vector2(96, 64))
+	mic_button.mouse_filter = Control.MOUSE_FILTER_STOP
+	mic_button.visible = false
+	mic_button.connect("button_down", self, "_mic_down")
+	mic_button.connect("button_up", self, "_mic_up")
+	root.add_child(mic_button)
 
 	hv_root = Control.new()
 	hv_root.rect_size = Vector2(150, 40)
@@ -869,10 +885,34 @@ func _apply_hud_scale() -> void:
 	root.margin_bottom = v.y / s - v.y
 
 
+func _mic_down() -> void:
+	Voice.touch_talk = true
+
+
+func _mic_up() -> void:
+	Voice.touch_talk = false
+
+
+# Voice chat: a mic button on phones (push to talk) and the names of whoever is talking.
+func _update_voice() -> void:
+	var online: bool = Net.active and Net.in_match
+	var on: bool = online and Voice.mode() != 2
+	mic_button.visible = on and Controls.touch_mode and Voice.mode() == 0 and not end_panel.visible
+	mic_button.modulate = Color(0.5, 1.0, 0.55) if Voice.talking else Color.white
+	var names: Array = Voice.talking_names() if on else []
+	voice_label.visible = not names.empty()
+	if voice_label.visible:
+		voice_label.text = "MIC  " + "\nMIC  ".join(names)
+	elif on and Voice.mic_error != "" and (Voice.touch_talk or Input.is_action_pressed("voice")):
+		voice_label.text = Voice.mic_error
+		voice_label.visible = true
+
+
 func _process(delta: float) -> void:
 	if player == null or world == null:
 		return
 	_apply_hud_scale()
+	_update_voice()
 	_t += delta
 	_quest_t -= delta
 	if _quest_t <= 0.0:

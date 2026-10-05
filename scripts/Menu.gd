@@ -593,6 +593,9 @@ func _build_settings() -> Control:
 		["pause_on_focus", "Pause when the window loses focus", "check"],
 		["touch_scale", "On-screen button size (phones)", "slider", 0.7, 1.4],
 		["touch_auto_fire", "Auto-fire: shoot while an enemy is in the crosshair (phones)", "check"],
+		["voice_mode", "Voice chat in online matches", "option", ["Push to talk (hold N / the MIC button)", "Open mic", "Off"]],
+		["voice_volume", "Voice chat volume", "slider", 0.0, 2.0],
+		["voice_team_only", "Hear only my team", "check"],
 	])
 	var reset_row := HBoxContainer.new()
 	var reset_prefs := Button.new()

@@ -55,6 +55,9 @@ const PREF_DEFAULTS := {
 	"colorblind_strength": 1.0,
 	"weather": true,              # rain storms (cosmetic)
 	"hud_scale": 1.0,             # size of the HUD
+	"voice_mode": 0,              # voice chat: 0 push to talk, 1 open mic, 2 off
+	"voice_volume": 1.0,
+	"voice_team_only": false,     # only hear your own team
 	"touch_auto_fire": false,     # phones: shoot automatically while an enemy is in the crosshair
 }
 const CROSSHAIR_COLORS := [Color(1, 1, 1), Color(0.35, 1.0, 0.45), Color(1.0, 0.3, 0.3), Color(0.35, 0.9, 1.0), Color(1.0, 0.9, 0.3)]

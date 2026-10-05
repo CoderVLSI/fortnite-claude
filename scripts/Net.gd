@@ -251,6 +251,9 @@ remote func _set_team_size(n: int) -> void:
 
 
 func leave(reason: String = "") -> void:
+	var voice0 = get_node_or_null("/root/Voice")
+	if voice0 != null:
+		voice0.reset()
 	var was := active
 	_stop_announce()
 	stop_discovery()
@@ -737,6 +740,9 @@ remote func _bye(reason: String) -> void:
 
 # Back to the party screen after a match (the host keeps the party).
 func end_match() -> void:
+	var voice = get_node_or_null("/root/Voice")
+	if voice != null:
+		voice.reset()
 	in_match = false
 	handler = null
 	_ready_peers = {}
@@ -781,6 +787,23 @@ remote func _pose(state: Array) -> void:
 		return
 	if handler != null and handler.has_method("net_pose"):
 		handler.net_pose(get_tree().get_rpc_sender_id(), state)
+
+
+# Voice chat packets (Voice.gd): 40 ms of 16 kHz mono, one byte per sample. Unreliable; the host / server relays them.
+func send_voice(bytes: PoolByteArray, seq: int) -> void:
+	if active and in_match and not dedicated:
+		rpc_unreliable("_voice", bytes, seq)
+
+
+remote func _voice(bytes: PoolByteArray, seq: int) -> void:
+	var sender := get_tree().get_rpc_sender_id()
+	if bytes.size() == 0 or bytes.size() > 1280:
+		return
+	if is_host and not guard.allow(sender, "voice"):
+		return                                                   # a voice flood
+	var voice = get_node_or_null("/root/Voice")
+	if voice != null:
+		voice.receive(sender, bytes, seq)
 
 
 func send_bots(chunk: Array) -> void:
