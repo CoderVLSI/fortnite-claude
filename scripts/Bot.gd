@@ -29,6 +29,8 @@ var _strafe := 1.0
 var _strafe_t := 0.0
 var _avoid_t := 0.0
 var _avoid_dir := 1.0
+var _storm_goal := Vector3.ZERO
+var _storm_goal_center := Vector2.ZERO
 var _stuck_t := 0.0
 var _nade_cd := 6.0             # seconds until this bot may throw a grenade
 
@@ -249,7 +251,12 @@ func _physics_process(delta: float) -> void:
 				_pick_wander()
 			face = wish
 		State.STORM:
-			var c: Vector3 = world.storm.center_3d(origin.y)
+			# every bot runs to its OWN spot inside the safe zone (on dry land), so they spread out instead of queueing in one line
+			var sc: Vector2 = world.storm.center
+			if _storm_goal == Vector3.ZERO or _storm_goal_center.distance_to(sc) > 1.0 or Vector2(origin.x - _storm_goal.x, origin.z - _storm_goal.z).length() < 4.0:
+				_storm_goal = world.random_point_in_safe_zone()
+				_storm_goal_center = sc
+			var c: Vector3 = _storm_goal
 			wish = _flat_dir(c - origin)
 			speed = sprint_speed
 			face = wish
