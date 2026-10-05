@@ -581,6 +581,7 @@ func _build_settings() -> Control:
 		["warn_ammo", "Low ammo warning (RELOAD / NO AMMO)", "check"],
 	])
 	_build_pref_page(holder, "comfort", [
+		["auto_sprint", "Auto sprint (you run whenever you move)", "check"],
 		["toggle_sprint", "Toggle sprint (tap to start, stops when you stop)", "check"],
 		["toggle_crouch", "Toggle crouch (tap to stay down)", "check"],
 		["storm_pace", "Storm pace when you host (1 = quick match, 2 = like the real game, 3 = long)", "slider", 1.0, 3.0],

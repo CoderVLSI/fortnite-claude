@@ -146,6 +146,8 @@ func _vehicle_process(delta: float) -> void:
 func _sprint_wanted(move: Vector2) -> bool:
 	if Controls.auto_run:
 		return move.length() > 0.2
+	if Settings.pref("auto_sprint"):                           # Settings > Comfort: you run whenever you move (not while aiming or crouching)
+		return move.length() > 0.2 and not aiming and not crouching
 	if Settings.pref("toggle_sprint"):
 		var down := Input.is_action_pressed("sprint")
 		if down and not _sprint_was_down:
@@ -364,7 +366,7 @@ func _fire_input(delta: float) -> void:
 		return
 	if _quick_slot >= 0:                        # Quick Heal keeps using the item until it is done or you do something else
 		if selected == _quick_slot and slots[selected] != null and slots[selected].kind == "consumable" and not Input.is_action_pressed("fire") \
-				and Controls.get_move().length() < 0.1 and not Input.is_action_pressed("jump"):
+				and not Input.is_action_pressed("jump"):                 # walking does not interrupt a heal (you just move at half speed)
 			use_selected(delta)
 			return
 		_quick_slot = -1

@@ -45,6 +45,7 @@ run zerobuild_test --no-bus --skip-menu
 run weapons2_test --no-bus --skip-menu
 run assist_test --no-bus --skip-menu
 run gameplay_fixes_test --no-bus --skip-menu
+run qol2_test --no-bus --skip-menu
 run team_test --no-bus --skip-menu
 run qol_test --no-bus --skip-menu
 run a11y_test --no-bus --skip-menu
@@ -68,6 +69,7 @@ run zerobuild_test --no-bus --skip-menu
 run weapons2_test --no-bus --skip-menu
 run assist_test --no-bus --skip-menu
 run gameplay_fixes_test --no-bus --skip-menu
+run qol2_test --no-bus --skip-menu
 run pad_test
 RES=844x390 run mobile_test --touch
 exit $fail
