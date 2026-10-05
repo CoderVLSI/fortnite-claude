@@ -48,6 +48,10 @@ run gameplay_fixes_test --no-bus --skip-menu
 run qol2_test --no-bus --skip-menu
 run buried_test --no-bus --skip-menu
 run shop_ui_test --no-bus --skip-menu
+run bot_nav_test --no-bus --skip-menu
+run npc_menu_test --no-bus --skip-menu
+run zipline_test --no-bus --skip-menu
+run helicopter_test --no-bus --skip-menu
 run team_test --no-bus --skip-menu
 run qol_test --no-bus --skip-menu
 run a11y_test --no-bus --skip-menu
@@ -74,6 +78,10 @@ run gameplay_fixes_test --no-bus --skip-menu
 run qol2_test --no-bus --skip-menu
 run buried_test --no-bus --skip-menu
 run shop_ui_test --no-bus --skip-menu
+run bot_nav_test --no-bus --skip-menu
+run npc_menu_test --no-bus --skip-menu
+run zipline_test --no-bus --skip-menu
+run helicopter_test --no-bus --skip-menu
 run pad_test
 RES=844x390 run mobile_test --touch
 exit $fail
