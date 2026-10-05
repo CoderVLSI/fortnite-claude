@@ -1039,6 +1039,7 @@ func _spawn_boss() -> void:
 		b.name = "Warden" if bosses.empty() else "Warden%d" % (bosses.size() + 1)
 		b.is_boss = true
 		b.keycards = 1
+		b.team = 900 + bosses.size()                  # a boss and his henchmen are one team: they do not shoot each other
 		b.boss_weapons = def.boss.get("weapons", [])
 		b.boss_id = def.boss.get("id", "warden")
 		b.add_to_group("bosses")
@@ -1061,6 +1062,7 @@ func _spawn_boss() -> void:
 			var hb := Bot.new()
 			hb.name = "Henchman%d" % henchmen.size()
 			hb.guard = true
+			hb.team = b.team
 			hb.world = self
 			hb.display_name = "%s's Guard" % def.boss.get("name", "Boss")
 			hb.vest_color = Color(0.12, 0.12, 0.14)
@@ -2039,7 +2041,7 @@ func _on_fighter_died(victim, killer) -> void:
 	_last_alive_mark = alive
 	if victim.net_owner == 0:
 		_drop_inventory(victim)          # puppets drop on the machine that owns them (the loot is sent to everyone)
-	if team_size > 1 and victim.team >= 0 and not victim.has_meta("left") and not ("is_boss" in victim and victim.is_boss) and allies_alive(victim):
+	if team_size > 1 and victim.team >= 0 and not victim.has_meta("left") and not ("is_boss" in victim and victim.is_boss) and not ("guard" in victim and victim.guard) and allies_alive(victim):
 		_spawn_card(victim)              # a team-mate can carry this to a Reboot Van
 
 	if match_over or Net.dedicated:
