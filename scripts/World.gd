@@ -20,6 +20,7 @@ const Npc = preload("res://scripts/Npc.gd")
 const QuestLog = preload("res://scripts/QuestLog.gd")
 const RebootVan = preload("res://scripts/RebootVan.gd")
 const RebootCard = preload("res://scripts/RebootCard.gd")
+const Zipline = preload("res://scripts/Zipline.gd")
 const Vault = preload("res://scripts/Vault.gd")
 const BuriedChest = preload("res://scripts/BuriedChest.gd")
 const GasPump = preload("res://scripts/GasPump.gd")
@@ -84,6 +85,7 @@ var match_over := false
 
 var shared := {}                 # cached meshes/materials shared by loot items
 var pois := []                   # runtime POIs: {id, name, center (Vector2), frame_yaw, def, zone}
+var ziplines := []
 var poi_roads := []              # [Vector2 a, Vector2 b] for the map
 var boss = null
 var henchmen := []                 # the guards standing with each boss
@@ -167,6 +169,7 @@ func _ready() -> void:
 	_spawn_wildlife()
 	_spawn_llamas()
 	_spawn_buried()
+	_spawn_ziplines()
 	weather = Weather.new()
 	weather.world = self
 	weather.name = "Weather"
@@ -757,6 +760,63 @@ func _spawn_buried() -> void:
 		n += 1
 
 
+# Ziplines run along the roads between places (and over the odd valley): same spots on every machine.
+func _spawn_ziplines() -> void:
+	var rr := RandomNumberGenerator.new()
+	rr.seed = SEED + 777
+	var want: int = 5 if profile.mobile else 9
+	var made := []
+	var tries := 0
+	while made.size() < want and tries < 2500:
+		tries += 1
+		var from := Vector2.ZERO
+		var dir := Vector2.ZERO
+		if poi_roads.size() > 0 and tries % 3 != 0:
+			var seg: Array = poi_roads[rr.randi() % poi_roads.size()]
+			var d: Vector2 = seg[1] - seg[0]
+			if d.length() < 220.0:
+				continue
+			dir = d.normalized()
+			from = seg[0] + dir * rr.randf_range(50.0, d.length() - 200.0) + Vector2(-dir.y, dir.x) * 7.0
+		else:
+			from = Vector2(rr.randf_range(-1.0, 1.0), rr.randf_range(-1.0, 1.0)) * MAP_HALF * 0.78
+			dir = Vector2.RIGHT.rotated(rr.randf() * TAU)
+		var length := rr.randf_range(85.0, 150.0)
+		var to := from + dir * length
+		if to.length() > MAP_HALF * 0.85 or from.length() < 40.0:
+			continue
+		var ha: float = terrain.height_at(from.x, from.y)
+		var hb: float = terrain.height_at(to.x, to.y)
+		if ha < 2.5 or hb < 2.5 or abs(ha - hb) > 14.0:
+			continue
+		if not terrain.is_free(from.x, from.y, 3.0) or not terrain.is_free(to.x, to.y, 3.0):
+			continue
+		if _near_building(from, 12.0) or _near_building(to, 12.0) or _near_tree(from, 2.5) or _near_tree(to, 2.5):
+			continue
+		var clear := true
+		for i in range(1, 12):                                          # the cable must stay well above the ground
+			var t := float(i) / 12.0
+			var q := from.linear_interpolate(to, t)
+			var cable_y: float = lerp(ha, hb, t) + Zipline.POLE_H
+			if terrain.height_at(q.x, q.y) > cable_y - 3.2:
+				clear = false
+				break
+		if not clear:
+			continue
+		var near := false
+		for m in made:
+			if m.a.distance_to(Vector3(from.x, ha, from.y)) < 90.0 or m.b.distance_to(Vector3(from.x, ha, from.y)) < 90.0:
+				near = true
+		if near:
+			continue
+		var z := Zipline.new()
+		z.name = "Zipline%d" % made.size()
+		add_child(z)
+		z.setup(Vector3(from.x, ha, from.y), Vector3(to.x, hb, to.y))
+		made.append(z)
+	ziplines = made
+
+
 func add_buried(pos: Vector2, nid: String) -> Node:
 	var b := BuriedChest.new()
 	b.net_id = nid
@@ -816,7 +876,7 @@ func _spawn_wildlife() -> void:
 	var want_chickens: int = 9 if profile.mobile else 18
 	var want_boars: int = 4 if profile.mobile else 9
 	var tries := 0
-	while (chickens < want_chickens or boars < want_boars) and tries < 900:
+	while (chickens < want_chickens or boars < want_boars) and tries < 2500:
 		tries += 1
 		var p := Vector2(rr.randf_range(-1.0, 1.0), rr.randf_range(-1.0, 1.0)) * MAP_HALF * 0.78
 		if p.length() < 55.0 or terrain.height_at(p.x, p.y) < 3.0 or not terrain.is_free(p.x, p.y, 3.0) or _near_building(p, 8.0) or _near_tree(p, 2.0):
@@ -954,7 +1014,7 @@ func _spawn_rifts_and_sprites() -> void:
 	var sprites := 0
 	var tries := 0
 	var want_sprites: int = 18 if profile.mobile else 40
-	while (rifts < 14 or sprites < want_sprites) and tries < 900:
+	while (rifts < 14 or sprites < want_sprites) and tries < 2500:
 		tries += 1
 		var p := Vector2(rr.randf_range(-1.0, 1.0), rr.randf_range(-1.0, 1.0)) * MAP_HALF * 0.8
 		if p.length() < 40.0 or p.length() > MAP_HALF * 0.7:

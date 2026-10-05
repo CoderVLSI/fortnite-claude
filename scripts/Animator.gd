@@ -606,6 +606,19 @@ func _pose_mantle(f) -> void:
 
 
 func _pose_vehicle(f) -> void:
+	if f.vehicle != null and is_instance_valid(f.vehicle) and f.vehicle.get("kind") == "zipline":      # hanging from the handle
+		_to("ShoulderL", Vector3(2.9, 0, -0.12))
+		_to("ShoulderR", Vector3(2.9, 0, 0.12))
+		_to("ElbowL", Vector3(0.1, 0, 0))
+		_to("ElbowR", Vector3(0.1, 0, 0))
+		_to("HipL", Vector3(0.25, 0, -0.05))
+		_to("HipR", Vector3(0.15, 0, 0.05))
+		_to("KneeL", Vector3(-0.3, 0, 0))
+		_to("KneeR", Vector3(-0.15, 0, 0))
+		_to("Spine", Vector3(-0.05, 0, 0))
+		_to("Head", Vector3.ZERO)
+		hips_target_y = 0.0
+		return
 	var steer: float = f.vehicle_steer
 	_to("HipL", Vector3(1.45, 0, -0.06))
 	_to("HipR", Vector3(1.45, 0, 0.06))
