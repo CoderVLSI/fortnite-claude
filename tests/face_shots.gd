@@ -57,7 +57,7 @@ func _run() -> void:
 		var has_face := false
 		for c in m.find_node("Head", true, false).get_children():
 			for k in c.get_children():
-				if k is MeshInstance and k.mesh is CubeMesh and abs(k.translation.z + 0.152) < 0.001:
+				if k is MeshInstance and k.mesh is CubeMesh and abs(k.translation.z + 0.134) < 0.001:
 					has_face = true
 		check(has_face != masked, "%s: %s" % [id, "blank face (masked)" if masked else "nose, mouth%s" % (" and moustache" if id in ["pirate", "cowboy"] else "")])
 		n += 1

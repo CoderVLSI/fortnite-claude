@@ -28,9 +28,9 @@ const LIST := {
 	"dino": {"name": "Rex Hoodie", "desc": "Rawr (it means eliminate)", "skin": Color(0.35, 0.72, 0.30), "vest": Color(0.30, 0.62, 0.26),
 		"pants": Color(0.27, 0.52, 0.22), "boots": Color(0.22, 0.40, 0.18), "hair": Color(0.30, 0.62, 0.26),
 		"glove": Color(0.27, 0.52, 0.22), "pack": Color(0.95, 0.55, 0.15), "acc": ["spikes", "tail"]},
-	"banana": {"name": "Banana Bandit", "desc": "Peel out, split fast", "skin": Color(0.85, 0.62, 0.40), "vest": Color(1.0, 0.86, 0.15),
-		"pants": Color(0.95, 0.78, 0.12), "boots": Color(0.45, 0.30, 0.10), "hair": Color(0.30, 0.20, 0.08),
-		"glove": Color(0.45, 0.30, 0.10), "pack": Color(0.55, 0.38, 0.12), "acc": ["bananahat"]},
+	"banana": {"name": "Banana Bandit", "desc": "A whole banana. Do not slip.", "skin": Color(1.0, 0.86, 0.15), "vest": Color(1.0, 0.86, 0.15),
+		"pants": Color(0.98, 0.82, 0.12), "boots": Color(0.42, 0.28, 0.10), "hair": Color(1.0, 0.86, 0.15),
+		"glove": Color(1.0, 0.86, 0.15), "pack": Color(0.82, 0.62, 0.10), "eyes": Color(0.08, 0.05, 0.03), "no_nose": true, "acc": ["bananabody"]},
 	"fishhead": {"name": "Captain Fishbone", "desc": "Something is fishy about this one", "skin": Color(0.45, 0.62, 0.72), "vest": Color(0.20, 0.32, 0.45),
 		"pants": Color(0.16, 0.22, 0.32), "boots": Color(0.08, 0.10, 0.14), "hair": Color(0.45, 0.62, 0.72),
 		"glove": Color(0.45, 0.62, 0.72), "pack": Color(0.55, 0.30, 0.15), "no_face": true, "acc": ["fishhead"]},
@@ -169,6 +169,11 @@ static func _face(head: Spatial, id: String, d: Dictionary, vest_override) -> vo
 	var skin: Color = d.skin
 	var nose_mat := _mat(skin.darkened(0.14))
 	var mouth_mat := _mat(Color(0.36, 0.12, 0.10) if skin.v > 0.3 else Color(0.8, 0.45, 0.4))
+	if d.get("no_nose", false):                                                                   # a banana has a big smile and no nose
+		_box(head, Vector3(0.14, 0.02, 0.012), Vector3(0, 0.07, -0.134), mouth_mat)
+		_box(head, Vector3(0.025, 0.04, 0.012), Vector3(-0.075, 0.09, -0.134), mouth_mat)
+		_box(head, Vector3(0.025, 0.04, 0.012), Vector3(0.075, 0.09, -0.134), mouth_mat)
+		return
 	_box(head, Vector3(0.045, 0.06, 0.05), Vector3(0, 0.115, -0.152), nose_mat)                 # nose
 	_box(head, Vector3(0.09, 0.014, 0.012), Vector3(0, 0.05, -0.134), mouth_mat)                 # mouth
 	var moustache: bool = d.get("stache", false)
@@ -239,11 +244,16 @@ static func _accessory(name: String, head: Spatial, spine: Spatial, hips: Spatia
 		"spikes":
 			for i in range(4):
 				_cone(spine, 0.06, 0.0, 0.18, Vector3(0, 0.1 + i * 0.16, 0.2), _mat(Color(0.95, 0.55, 0.15)), Vector3(0.6, 0, 0))
-		"bananahat":
+		"bananabody":
 			var yel := _mat(Color(1.0, 0.86, 0.15))
-			_ball(head, 0.14, Vector3(0, 0.34, 0), yel, Vector3(0.75, 1.9, 0.75))
-			_ball(head, 0.045, Vector3(0, 0.62, 0), _mat(Color(0.40, 0.26, 0.08)))
-			_box(head, Vector3(0.30, 0.04, 0.30), Vector3(0, 0.27, 0), yel)
+			var tip := _mat(Color(0.38, 0.24, 0.08))
+			_ball(head, 0.17, Vector3(0.0, 0.28, 0.0), yel, Vector3(1.0, 1.35, 1.0))               # a long curved banana for a head:
+			_ball(head, 0.15, Vector3(0.02, 0.45, 0.01), yel, Vector3(0.95, 1.3, 0.95))            # three overlapping lumps bend to one side
+			_ball(head, 0.12, Vector3(0.07, 0.62, 0.02), yel, Vector3(0.9, 1.2, 0.9))
+			_ball(head, 0.05, Vector3(0.12, 0.76, 0.03), tip, Vector3(0.9, 1.3, 0.9))              # the brown stem
+			_box(head, Vector3(0.012, 0.15, 0.012), Vector3(-0.1, 0.38, -0.13), _mat(Color(0.85, 0.65, 0.08)))   # a ridge down the front
+			_box(spine, Vector3(0.50, 0.04, 0.30), Vector3(0, 0.38, 0), _mat(Color(0.85, 0.65, 0.08)))            # the peel line round the middle
+			_box(spine, Vector3(0.10, 0.12, 0.03), Vector3(0, 0.12, -0.16), _mat(Color(0.38, 0.24, 0.08)))         # a brown belly spot
 		"fishhead":
 			var fm := _mat(Color(0.45, 0.62, 0.72))
 			_ball(head, 0.20, Vector3(0, 0.15, -0.02), fm, Vector3(0.9, 1.0, 1.15))
