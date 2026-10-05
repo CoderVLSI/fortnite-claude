@@ -77,6 +77,7 @@ run mods_test --no-bus --skip-menu
 run daynight_test --no-bus --skip-menu
 run season_test --no-bus --skip-menu
 run killcam_test --no-bus --skip-menu
+run perf_options_test --no-bus --skip-menu
 run vault_test --no-bus --skip-menu
 run boss_test --no-bus --skip-menu
 run boss_phase_test --no-bus --skip-menu

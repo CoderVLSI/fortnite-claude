@@ -249,6 +249,13 @@ func _make_profile() -> Dictionary:
 		"cell": 5.0 if mobile else 4.0,
 		"use_bus": not ("--no-bus" in args),
 	}
+	var pick: int = Settings.BOT_CHOICES[int(clamp(int(Settings.pref("bots")), 0, Settings.BOT_CHOICES.size() - 1))]
+	if pick > 0:
+		p.bots = int(min(p.bots, pick)) if mobile else pick
+	if bool(Settings.pref("battery_saver")):                 # fewer fighters and trees, no shadows
+		p.bots = int(min(p.bots, 30))
+		p.trees = int(p.trees * 0.7)
+		p.shadows = false
 	if Net.active and Net.in_match:
 		p.bots = Net.bot_count
 	for a in args:

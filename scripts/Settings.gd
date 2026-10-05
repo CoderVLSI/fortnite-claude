@@ -40,6 +40,8 @@ const PREF_DEFAULTS := {
 	"crosshair_color": 0,         # index into CROSSHAIR_COLORS
 	"crosshair_size": 1.0,
 	"fps_cap": 0,                 # frames per second limit, 0 = none
+	"bots": 0,                    # offline / hosting: 0 automatic for the device, 1 few (20), 2 normal (50), 3 many (99)
+	"battery_saver": false,       # 30 fps, fewer bots and trees, no shadows or rain: for phones and old laptops
 	"vsync": true,
 	"minimap_rotate": false,      # the minimap turns with you
 	"pause_on_focus": true,       # pause when the window loses focus
@@ -63,6 +65,7 @@ const PREF_DEFAULTS := {
 }
 const CROSSHAIR_COLORS := [Color(1, 1, 1), Color(0.35, 1.0, 0.45), Color(1.0, 0.3, 0.3), Color(0.35, 0.9, 1.0), Color(1.0, 0.9, 0.3)]
 const FPS_CAPS := [0, 30, 60, 120, 144]
+const BOT_CHOICES := [0, 20, 50, 99]
 var prefs := PREF_DEFAULTS.duplicate()
 var padbinds := {}                # action -> controller button (-1 = none); only the ones the player changed
 var keybinds := {}                # action -> [[type, code], ...]; only the actions the player changed
@@ -180,7 +183,10 @@ func crosshair_color() -> Color:
 
 # Frame limit, vertical sync and the master volume.
 func apply_display() -> void:
-	Engine.target_fps = int(prefs.fps_cap)
+	var cap := int(prefs.fps_cap)
+	if bool(prefs.battery_saver) and (cap == 0 or cap > 30):
+		cap = 30
+	Engine.target_fps = cap
 	OS.vsync_enabled = bool(prefs.vsync)
 	AudioServer.set_bus_volume_db(0, linear2db(max(float(prefs.master_volume), 0.0001)))
 	if filter != null:

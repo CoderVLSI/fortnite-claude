@@ -139,7 +139,7 @@ func target_at(t: float) -> float:
 func _process(delta: float) -> void:
 	if world == null or env == null:
 		return
-	enabled = bool(Settings.pref("weather"))
+	enabled = bool(Settings.pref("weather")) and not bool(Settings.pref("battery_saver"))
 	clock += delta
 	var want: float = target_at(clock) if enabled else 0.0
 	intensity = move_toward(intensity, want, delta * 0.25)

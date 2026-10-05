@@ -571,6 +571,8 @@ func _build_settings() -> Control:
 		["colorblind", "Colour-blind mode", "option", ["Off", "Protanopia (red)", "Deuteranopia (green)", "Tritanopia (blue)"]],
 		["colorblind_strength", "Colour-blind strength", "slider", 0.3, 1.0],
 		["fps_cap", "Frame rate limit", "option", ["No limit", "30", "60", "120", "144"], Settings.FPS_CAPS],
+		["battery_saver", "Battery saver (30 fps, fewer bots and trees, no shadows or rain; applies to the next match)", "check"],
+		["bots", "Number of bots when you play alone or host", "option", ["Automatic for this device", "Few (20)", "Normal (50)", "Many (99)"]],
 		["vsync", "Vertical sync (smoother, caps at your screen's rate)", "check"],
 		["minimap_rotate", "Minimap turns with you", "check"],
 		["map_extras", "Extra map icons (Keepers, Reboot Vans, fuel pumps)", "check"],
@@ -2132,8 +2134,12 @@ func _process(delta: float) -> void:
 	fps_label.visible = Settings.show_fps
 	if Settings.show_fps:
 		var P = Performance
-		fps_label.text = "%d FPS   script %.1f ms  physics %.1f ms  draws %d\n%s" % [Engine.get_frames_per_second(), P.get_monitor(P.TIME_PROCESS) * 1000.0,
-			P.get_monitor(P.TIME_PHYSICS_PROCESS) * 1000.0, P.get_monitor(P.RENDER_DRAW_CALLS_IN_FRAME), VisualServer.get_video_adapter_name()]
+		var fps: int = Engine.get_frames_per_second()
+		fps_label.text = "%d FPS (%.1f ms)   script %.1f ms  physics %.1f ms  draws %d\nfighters %d  nodes %d  memory %d MB   quality %d%s\n%s" % [fps,
+			1000.0 / max(fps, 1), P.get_monitor(P.TIME_PROCESS) * 1000.0, P.get_monitor(P.TIME_PHYSICS_PROCESS) * 1000.0,
+			P.get_monitor(P.RENDER_DRAW_CALLS_IN_FRAME), get_tree().get_nodes_in_group("fighters").size(), int(P.get_monitor(P.OBJECT_NODE_COUNT)),
+			int(P.get_monitor(P.MEMORY_STATIC) / 1048576.0), Settings.quality, "  (battery saver)" if bool(Settings.pref("battery_saver")) else "",
+			VisualServer.get_video_adapter_name()]
 	if queue_banner != null:
 		queue_banner.visible = Net.active and Net.is_queueing() and state == "title"
 		if queue_banner.visible:
