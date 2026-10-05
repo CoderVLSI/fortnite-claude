@@ -1681,7 +1681,7 @@ func take_damage(amount: float, source = null) -> void:
 
 # Team modes: the last blow does not eliminate you while a teammate is still standing - you go down instead.
 func _can_go_down() -> bool:
-	if team < 0 or downed or mode != Mode.GROUND or bool(get("is_boss")) or bool(get("guard")):
+	if team < 0 or downed or mode != Mode.GROUND or get("is_boss") == true or get("guard") == true:
 		return false                             # a boss or a henchman is simply eliminated (they share a team, but there is no reviving them)
 	for w in get_tree().get_nodes_in_group("world"):
 		return w.allies_standing(self)
