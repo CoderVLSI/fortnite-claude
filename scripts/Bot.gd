@@ -52,9 +52,31 @@ func _ready() -> void:
 		air_pivot.scale = Vector3(1.2, 1.2, 1.2)
 	walk_speed = 4.6
 	sprint_speed = 7.4
+	if is_boss:
+		connect("damaged", self, "_boss_hurt")
 	_think = rand_range(0.0, 0.5)
 	_wander_to = global_transform.origin
 	connect("died", self, "_on_died")
+
+
+# Boss fights have three phases. Below 2/3 health: a fresh shield and two reinforcements. Below 1/3: enraged (faster, hits harder).
+var boss_phase := 1
+
+
+func _boss_hurt(_amount, _source) -> void:
+	if net_owner != 0 or is_dead:
+		return
+	var ratio: float = health / max_health
+	if boss_phase == 1 and ratio <= 0.66:
+		boss_phase = 2
+		shield = max_shield
+		world.boss_phase_change(self, 2)
+	elif boss_phase == 2 and ratio <= 0.33:
+		boss_phase = 3
+		damage_scale *= 1.25
+		sprint_speed *= 1.2
+		walk_speed *= 1.15
+		world.boss_phase_change(self, 3)
 
 
 func _equip_loadout() -> void:

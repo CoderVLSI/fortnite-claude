@@ -41,6 +41,7 @@ run perf_test --no-bus --skip-menu
 run farm_test --no-bus --skip-menu
 run vault_test --no-bus --skip-menu
 run boss_test --no-bus --skip-menu
+run boss_phase_test --no-bus --skip-menu
 run zerobuild_test --no-bus --skip-menu
 run weapons2_test --no-bus --skip-menu
 run assist_test --no-bus --skip-menu
@@ -76,6 +77,7 @@ run mods_test --no-bus --skip-menu
 run daynight_test --no-bus --skip-menu
 run vault_test --no-bus --skip-menu
 run boss_test --no-bus --skip-menu
+run boss_phase_test --no-bus --skip-menu
 run zerobuild_test --no-bus --skip-menu
 run weapons2_test --no-bus --skip-menu
 run assist_test --no-bus --skip-menu

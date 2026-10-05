@@ -1236,6 +1236,98 @@ func _spawn_boss() -> void:
 			henchmen.append(db)
 
 
+# Boss phase changes: phase 2 = shield back + two reinforcements, phase 3 = enraged. Announced to everybody.
+func boss_phase_change(boss, phase: int) -> void:
+	var nm: String = boss.display_name
+	if phase == 2:
+		hud.add_feed("%s calls for backup!" % nm, Color(1.0, 0.6, 0.2))
+		hud.show_toast("%s: PHASE 2 - shield restored, reinforcements!" % nm)
+		boss_reinforce(boss, 2)
+		if net_live:
+			Net.send_event("reinforce", [boss.name, 2])
+	else:
+		hud.add_feed("%s is ENRAGED!" % nm, Color(1.0, 0.3, 0.2))
+		hud.show_toast("%s: PHASE 3 - enraged!" % nm)
+		if net_live:
+			Net.send_event("enrage", boss.name)
+	Audio.play3d("boss_%s_intro" % boss.boss_id if ResourceLoader.exists("res://assets/audio/boss_%s_intro.wav" % boss.boss_id) else "explosion", boss.global_transform.origin + Vector3(0, 1.0, 0), 2.0)
+
+
+func boss_reinforce(boss, n: int) -> void:
+	for i in range(n):
+		var a: float = float(i) / float(max(n, 1)) * TAU + 0.7
+		var pos: Vector3 = boss.global_transform.origin + Vector3(cos(a) * 5.0, 1.0, sin(a) * 5.0)
+		pos.y = terrain.height_at(pos.x, pos.z) + 1.0
+		var hb := Bot.new()
+		hb.name = "Henchman%d" % henchmen.size()
+		hb.guard = true
+		hb.team = boss.team
+		hb.world = self
+		hb.display_name = "%s's Guard" % boss.display_name.replace("The ", "")
+		hb.vest_color = Color(0.12, 0.12, 0.14)
+		hb.skill = 0.55
+		hb.map_half = MAP_HALF - 4.0
+		hb.net_key_v = hb.name
+		if net_match and not Net.is_host:
+			hb.net_owner = 1
+		hb.translation = pos
+		add_child(hb)
+		hb.connect("died", self, "_on_fighter_died")
+		henchmen.append(hb)
+
+
+# Bounties: whoever carries a Mythic weapon is marked on the map for everybody; the one who takes them down gets paid.
+const BOUNTY_GOLD := 150
+var bounties := []
+var boss_kills := {}                  # boss id -> true for the bosses the local player has defeated
+var _bounty_t := 0.0
+var _conquered := false
+
+
+func _bounty_tick(delta: float) -> void:
+	_bounty_t -= delta
+	if _bounty_t > 0.0:
+		return
+	_bounty_t = 1.0
+	var now := []
+	for f in get_tree().get_nodes_in_group("fighters"):
+		if f.is_dead or ("is_boss" in f and f.is_boss) or ("guard" in f and f.guard):
+			continue
+		for it in f.slots:
+			if it != null and it.kind == "weapon" and it.rarity == Items.MYTHIC:
+				now.append(f)
+				break
+	for f in now:
+		if not (f in bounties) and f != player and hud != null:
+			hud.show_toast("BOUNTY: %s carries a Mythic (%d gold)" % [f.display_name, BOUNTY_GOLD])
+			hud.add_feed("Bounty on %s" % f.display_name, Color(1.0, 0.4, 0.3))
+	bounties = now
+
+
+func _pay_bounty(victim, killer) -> void:
+	if killer == player and victim in bounties and victim != player:
+		player.gold += BOUNTY_GOLD
+		hud.add_feed("Bounty claimed on %s: +%d gold" % [victim.display_name, BOUNTY_GOLD], Color(1.0, 0.85, 0.3))
+		hud.show_toast("Bounty claimed: +%d gold" % BOUNTY_GOLD)
+		Audio.play2d("quest_complete", -3.0)
+		bounties.erase(victim)
+
+
+func _boss_slain(victim, killer) -> void:
+	if killer != player or not ("is_boss" in victim and victim.is_boss):
+		return
+	boss_kills[victim.boss_id] = true
+	var total := {}
+	for b in bosses:
+		total[b.boss_id] = true
+	if not _conquered and boss_kills.size() >= total.size() and total.size() >= 2:
+		_conquered = true
+		player.gold += 500
+		hud.show_toast("ISLAND CONQUEROR! Every boss is down: +500 gold")
+		hud.add_feed("%s is the ISLAND CONQUEROR" % player.display_name, Color(1.0, 0.85, 0.3))
+		Audio.play2d("quest_complete", 0.0)
+
+
 # ------------------------------------------------------------------ props
 
 func _scatter_props(model: String, count: int, smin: float, smax: float, col_radius: float, col_height: float, min_h: float, harvest_kind: String) -> void:
@@ -2164,6 +2256,7 @@ func _process(delta: float) -> void:
 			Net.leave("The other players did not finish loading.")
 	_weak_tick(delta)
 	_ping_tick(delta)
+	_bounty_tick(delta)
 	if net_live:
 		_net_process(delta)
 	_audio_process(delta)
@@ -2216,6 +2309,8 @@ func _on_fighter_died(victim, killer) -> void:
 			color = Color(1.0, 0.45, 0.4)
 	if hud:
 		hud.add_feed(text, color)
+	_pay_bounty(victim, killer)
+	_boss_slain(victim, killer)
 	if "is_boss" in victim and victim.is_boss:
 		Audio.play3d("boss_defeated" if victim.boss_id != "warden" else "warden_down", victim.global_transform.origin + Vector3(0, 1.0, 0), 2.0)
 	for mark in [75, 50, 25, 10]:                          # a soft tick when the counter passes these
@@ -2493,6 +2588,14 @@ func net_event(from: int, kind: String, data) -> void:
 			break_pieces_near(data[0], data[1], false)
 		"ping":
 			add_ping(data[0], data[1], data[2], int(data[3]), false)
+		"reinforce":
+			var rb = get_node_or_null(NodePath(str(data[0])))
+			if rb != null and is_instance_valid(rb):
+				boss_reinforce(rb, int(data[1]))
+		"enrage":
+			var eb = get_node_or_null(NodePath(str(data)))
+			if eb != null and is_instance_valid(eb):
+				hud.add_feed("%s is ENRAGED!" % eb.display_name, Color(1.0, 0.3, 0.2))
 		"chat":
 			if typeof(data) == TYPE_ARRAY and data.size() >= 3:
 				_on_chat(data[0], data[1], int(data[2]))
