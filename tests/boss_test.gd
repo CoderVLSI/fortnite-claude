@@ -55,6 +55,7 @@ func _run() -> void:
 	check(v != null and v.selected_item() != null and v.selected_item().id == "charge_shotgun", "Voltra shoots with the shotgun, not the launcher")
 	check(h != null and h.selected_item() != null and h.selected_item().id != "grappler", "Hookshot does not shoot with the grappler")
 	check(get_nodes_in_group("bosses").size() == 4, "the bosses are on the map")
+	check(h != null and h.skin_id == "ranger_f" and Items != null, "Hookshot is a woman (%s)" % (h.skin_id if h != null else "-"))
 	check(Items.name_of(Items.make_weapon("grappler", 5)) == "Hookshot's Grappler", "mythic names read well (%s)" % Items.name_of(Items.make_weapon("drum_gun", 5)))
 	for id in ["drum_gun", "shockwave_launcher", "grappler"]:
 		check(ResourceLoader.exists("res://assets/icons/weapon_%s.png" % id) and ResourceLoader.exists("res://assets/models/%s.glb" % Items.WEAPONS[id].mesh), "%s has an icon and a model" % id)

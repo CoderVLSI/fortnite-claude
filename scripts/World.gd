@@ -1039,6 +1039,9 @@ func _spawn_boss() -> void:
 		b.name = "Warden" if bosses.empty() else "Warden%d" % (bosses.size() + 1)
 		b.is_boss = true
 		b.keycards = 1
+		b.skin_id = def.boss.get("skin", "ranger")
+		if def.boss.has("vest"):
+			b.vest_color = def.boss.vest
 		b.team = 900 + bosses.size()                  # a boss and his henchmen are one team: they do not shoot each other
 		b.boss_weapons = def.boss.get("weapons", [])
 		b.boss_id = def.boss.get("id", "warden")
@@ -1048,7 +1051,8 @@ func _spawn_boss() -> void:
 			b.net_owner = 1
 		b.world = self
 		b.display_name = def.boss.get("name", "The Warden")
-		b.vest_color = Color(1.0, 0.72, 0.1)
+		if not def.boss.has("vest"):
+			b.vest_color = Color(1.0, 0.72, 0.1)
 		b.skill = 0.95
 		b.map_half = MAP_HALF - 4.0
 		b.translation = p + Vector3(0, 1.0, 0)

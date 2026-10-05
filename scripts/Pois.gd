@@ -414,7 +414,7 @@ const POIS := [
 		],
 		"items": [Vector2(4, 8), Vector2(-8, 4), Vector2(10, -2), Vector2(-4, -10)],
 		"vault": {"at": Vector2(-4, 28), "yaw": 180.0},
-		"boss": {"at": Vector2(8, 10), "name": "Goldhand", "id": "goldhand", "weapons": ["drum_gun"], "henchmen": 4},
+		"boss": {"at": Vector2(8, 10), "name": "Goldhand", "id": "goldhand", "skin": "ranger", "vest": Color(0.95, 0.75, 0.15), "weapons": ["drum_gun"], "henchmen": 4},
 		"helipad": Vector2(22, -2),
 		"vehicles": [{"kind": "buggy", "at": Vector2(6, -12), "yaw": 90}],
 	},
@@ -437,7 +437,7 @@ const POIS := [
 		],
 		"items": [Vector2(10, 8), Vector2(-8, 8), Vector2(2, -10)],
 		"vault": {"at": Vector2(-8, -26), "yaw": 0.0},
-		"boss": {"at": Vector2(-6, 7), "name": "Hookshot", "id": "hookshot", "weapons": ["assault", "grappler"], "henchmen": 3},
+		"boss": {"at": Vector2(-6, 7), "name": "Hookshot", "id": "hookshot", "skin": "ranger_f", "vest": Color(0.85, 0.15, 0.22), "weapons": ["assault", "grappler"], "henchmen": 3},
 		"vehicles": [{"kind": "quad", "at": Vector2(12, -8), "yaw": 90}],
 	},
 	{
@@ -533,7 +533,7 @@ const POIS := [
 			{"in": 2, "at": Vector2(-1.8, -1.6), "kind": "ammo_box"},
 		],
 		"items": [Vector2(4, 6), Vector2(-6, 6), Vector2(6, -6)],
-		"boss": {"at": Vector2(5, 8), "name": "Voltra", "id": "voltra", "weapons": ["charge_shotgun", "shockwave_launcher"], "henchmen": 3},
+		"boss": {"at": Vector2(5, 8), "name": "Voltra", "id": "voltra", "skin": "ranger", "vest": Color(0.20, 0.40, 0.95), "weapons": ["charge_shotgun", "shockwave_launcher"], "henchmen": 3},
 		"vehicles": [{"kind": "buggy", "at": Vector2(10, 4), "yaw": 90}],
 	},
 	{

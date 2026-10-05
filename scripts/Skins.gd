@@ -171,7 +171,7 @@ static func apply(model: Spatial, id: String, vest_override = null) -> void:
 	var d: Dictionary = LIST[id]
 	model.scale = Vector3.ONE * float(d.get("scale", 1.0))          # the girls are a little smaller
 	var metal: bool = d.get("metal", false)
-	var vest: Color = vest_override if (vest_override != null and id == "ranger") else d.vest
+	var vest: Color = vest_override if (vest_override != null and (id == "ranger" or id == "ranger_f")) else d.vest
 	var roles := {"skin": _mat(d.skin, metal), "vest": _mat(vest, metal), "pants": _mat(d.pants, metal), "boots": _mat(d.boots, metal),
 		"hair": _mat(d.hair, metal), "glove": _mat(d.glove), "pack": _mat(d.pack),
 		"eyes": _mat(d.get("eyes", Color(0.05, 0.05, 0.08)), false, d.get("glow_eyes", false))}
@@ -241,7 +241,7 @@ static func _face(head: Spatial, id: String, d: Dictionary, vest_override) -> vo
 		_ball(head, 0.022, Vector3(-0.135, 0.07, -0.02), gold)                                            # earrings
 		_ball(head, 0.022, Vector3(0.135, 0.07, -0.02), gold)
 	var moustache: bool = d.get("stache", false)
-	if id == "ranger" and vest_override != null:
+	if (id == "ranger" or id == "ranger_f") and vest_override != null and not d.get("fem", false):
 		moustache = (int(vest_override.r * 10.0) + int(vest_override.g * 7.0) + int(vest_override.b * 5.0)) % 2 == 0
 	if moustache:
 		var hair_mat := _mat(d.hair.darkened(0.1))
