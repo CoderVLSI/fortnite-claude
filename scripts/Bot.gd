@@ -294,11 +294,12 @@ func _physics_process(delta: float) -> void:
 						shoot = false
 
 	sprinting = speed > walk_speed + 0.5
+	var goal_dir := wish                                           # where it wants to go (the side-step below only bends the walk)
 	wish = _avoid_walls(wish, delta)
 	var want_jump := is_on_wall() and is_on_floor() and randf() < 0.08
 	var before := origin
 	move_body(delta, wish, speed, want_jump)
-	_check_stuck(delta, before, wish)
+	_check_stuck(delta, before, wish, goal_dir)
 
 	if face.length() > 0.01:
 		var yaw := atan2(-face.x, -face.z)
@@ -445,7 +446,7 @@ var _prog_t := 0.0
 var _prog_fail := 0
 
 
-func _progress_watch(delta: float, wish: Vector3) -> void:
+func _progress_watch(delta: float, wish: Vector3, goal: Vector3 = Vector3.ZERO) -> void:
 	if state == State.ATTACK or wish.length() < 0.1 or mode != Mode.GROUND:
 		_prog_t = 0.0
 		_prog_fail = 0
@@ -471,7 +472,7 @@ func _progress_watch(delta: float, wish: Vector3) -> void:
 	var storm_run: bool = state == State.STORM                    # in the storm every second counts: lift sooner and further
 	if _prog_fail >= (2 if storm_run else 4):                    # lifted over the mountain / ledge towards where it wanted to go
 		_prog_fail = 0
-		var dir := wish.normalized()
+		var dir := (goal if goal.length() > 0.1 else wish).normalized()
 		var np := o + dir * (18.0 if storm_run else 9.0)
 		var lim: float = world.MAP_HALF - 8.0
 		np.x = clamp(np.x, -lim, lim)
@@ -480,8 +481,8 @@ func _progress_watch(delta: float, wish: Vector3) -> void:
 		velocity = Vector3.ZERO
 
 
-func _check_stuck(delta: float, before: Vector3, wish: Vector3) -> void:
-	_progress_watch(delta, wish)
+func _check_stuck(delta: float, before: Vector3, wish: Vector3, goal: Vector3) -> void:
+	_progress_watch(delta, wish, goal)
 	if wish.length() > 0.1 and global_transform.origin.distance_to(before) < 0.01:
 		_stuck_t += delta
 		if _stuck_t > 0.5 and try_mantle(-global_transform.basis.z):
