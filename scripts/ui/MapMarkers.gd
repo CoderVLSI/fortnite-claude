@@ -23,7 +23,8 @@ static func draw(ci: CanvasItem, cache: Dictionary, tree: SceneTree, mid: Vector
 	for n in tree.get_nodes_in_group("llamas"):
 		if is_instance_valid(n) and not n.is_dead:
 			_icon(ci, cache, "ui_llama", mid + Vector2(n.global_transform.origin.x, n.global_transform.origin.z) * s, 30.0 if big else 15.0, Color(1.0, 0.4, 0.8))
-	for n in tree.get_nodes_in_group("reboot_vans"):
+	var extras: bool = Settings.pref("map_extras")           # Keepers, Reboot Vans and fuel pumps only when asked for: the map stays readable
+	for n in (tree.get_nodes_in_group("reboot_vans") if extras else []):
 		if is_instance_valid(n):
 			_icon(ci, cache, "ui_reboot_card", mid + Vector2(n.global_transform.origin.x, n.global_transform.origin.z) * s, 26.0 if big else 13.0, Color(0.4, 0.9, 1.0))
 	for n in tree.get_nodes_in_group("bosses"):
@@ -32,7 +33,7 @@ static func draw(ci: CanvasItem, cache: Dictionary, tree: SceneTree, mid: Vector
 	for n in tree.get_nodes_in_group("vaults"):
 		if is_instance_valid(n):
 			_icon(ci, cache, "ui_vault", mid + Vector2(n.global_transform.origin.x, n.global_transform.origin.z) * s, 26.0 if big else 13.0, Color(1.0, 0.35, 0.1))
-	for n in tree.get_nodes_in_group("npcs"):
+	for n in (tree.get_nodes_in_group("npcs") if extras else []):
 		if not is_instance_valid(n):
 			continue
 		var at: Vector2 = mid + Vector2(n.global_transform.origin.x, n.global_transform.origin.z) * s
@@ -41,7 +42,7 @@ static func draw(ci: CanvasItem, cache: Dictionary, tree: SceneTree, mid: Vector
 		else:
 			ci.draw_circle(at, 3.0, Color(1.0, 0.85, 0.25))
 			ci.draw_arc(at, 3.0, 0, TAU, 10, Color(0.2, 0.1, 0.0), 1.0)
-	if big:
+	if big and extras:
 		for n in tree.get_nodes_in_group("gas_pumps"):
 			if is_instance_valid(n):
 				_icon(ci, cache, "ui_fuel", mid + Vector2(n.global_transform.origin.x, n.global_transform.origin.z) * s, 20.0, Color(1.0, 0.5, 0.3))

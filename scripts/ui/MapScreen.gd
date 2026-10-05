@@ -82,19 +82,7 @@ func _draw() -> void:
 			var sp := Vector2(sup.global_transform.origin.x, sup.global_transform.origin.z)
 			draw_rect(Rect2(mid + sp * s - Vector2(6, 6), Vector2(12, 12)), Color(1.0, 0.3, 0.25))
 			draw_rect(Rect2(mid + sp * s - Vector2(6, 6), Vector2(12, 12)), Color.white, false, 2.0)
-	if world.boss != null and is_instance_valid(world.boss) and not world.boss.is_dead:
-		var bp := Vector2(world.boss.global_transform.origin.x, world.boss.global_transform.origin.z)
-		draw_circle(mid + bp * s, 6.0, Color(1.0, 0.3, 0.1))
-		draw_circle(mid + bp * s, 3.0, Color(1.0, 0.9, 0.3))
-	for v in get_tree().get_nodes_in_group("vehicles"):
-		if is_instance_valid(v):
-			var vp := Vector2(v.global_transform.origin.x, v.global_transform.origin.z)
-			var vt = _icon("vehicle_" + str(v.kind))
-			if vt != null:
-				draw_texture_rect(vt, Rect2(mid + vp * s - Vector2(15, 15), Vector2(30, 30)), false)
-			else:
-				draw_rect(Rect2(mid + vp * s - Vector2(3, 3), Vector2(6, 6)), Color(0.4, 0.9, 1.0))
-	MapMarkers.draw(self, _icons, get_tree(), mid, s, true)          # Keepers, llamas, vans, pumps
+	MapMarkers.draw(self, _icons, get_tree(), mid, s, true)          # bosses, vaults, llamas (and Keepers, vans, pumps if the player asks for them)
 	if world.bus != null and is_instance_valid(world.bus):
 		var bus_p := Vector2(world.bus.global_transform.origin.x, world.bus.global_transform.origin.z)
 		var bd := Vector2(world.bus.direction.x, world.bus.direction.z)

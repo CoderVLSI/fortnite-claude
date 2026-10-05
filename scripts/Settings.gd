@@ -30,6 +30,7 @@ var last_emote := "boogie"
 # Display / comfort options (Settings > DISPLAY and COMFORT). Every key here is saved automatically under [prefs].
 const PREF_DEFAULTS := {
 	"storm_pace": 2.0,            # match length: 1 = quick matches, 2 = about like the real game, 3 = long (the host decides)
+	"map_extras": false,          # also draw Keepers, Reboot Vans and fuel pumps on the maps (off: only places, bosses, vaults and llamas)
 	"aim_assist": true,           # phones and controllers: the crosshair is gently pulled onto an enemy you are shooting at
 	"toggle_sprint": false,       # tap Sprint to start running, again (or stop moving) to stop
 	"toggle_crouch": false,       # tap Crouch to stay down
