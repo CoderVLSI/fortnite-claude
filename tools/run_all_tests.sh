@@ -6,7 +6,7 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 GODOT="${GODOT:-godot3}"
 # Start every run from default settings: earlier runs (the soak test, the menu tests) save options to the same file.
-rm -f "$HOME/.local/share/godot/app_userdata/Storm Island/settings.cfg"
+rm -f "$HOME/.local/share/godot/app_userdata/Storm Island/settings.cfg" "$HOME/.local/share/godot/app_userdata/Storm Island/accounts.json"
 RES="${RES:-640x360}"
 fail=0
 run() {   # name extra-args (RES=WxH run ... for another window size)
@@ -75,6 +75,7 @@ run voice_test
 run quickchat_test --no-bus --skip-menu
 run mods_test --no-bus --skip-menu
 run daynight_test --no-bus --skip-menu
+run season_test --no-bus --skip-menu
 run vault_test --no-bus --skip-menu
 run boss_test --no-bus --skip-menu
 run boss_phase_test --no-bus --skip-menu

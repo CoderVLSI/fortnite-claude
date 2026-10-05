@@ -1394,6 +1394,8 @@ func profile_show(view: String) -> void:
 			profile_error = _pf_label("", 15, Vector2(24, 232), Color(1.0, 0.45, 0.4))
 			_pf_button("SIGN IN", Vector2(24, 270), Vector2(452, 52), "profile_submit", ["signin"])
 			_pf_button("BACK", Vector2(24, 334), Vector2(452, 46), "profile_show", ["home"])
+		"season":
+			_pf_season()
 		"create":
 			_pf_label("CREATE ACCOUNT", 30, Vector2(24, 14), Color(1.0, 0.82, 0.25))
 			_pf_label("Your guest progress (stats and Locker) moves into the new account.", 14, Vector2(24, 52), Color(0.85, 0.9, 1.0))
@@ -1408,8 +1410,69 @@ func profile_show(view: String) -> void:
 			_pf_home()
 
 
+# The season pass: tier bar, what the next tiers give, titles to wear and today's three daily challenges.
+func _pf_season() -> void:
+	var Season = load("res://scripts/Season.gd")
+	var sx: int = int(Accounts.profile().season.xp)
+	var tier: int = Season.tier_of(sx)
+	var tp: Array = Season.tier_progress(sx)
+	_pf_label("SEASON 1: STORM RISING", 26, Vector2(24, 12), Color(1.0, 0.82, 0.25))
+	_pf_label("TIER %d / %d" % [tier, Season.TIERS], 20, Vector2(24, 52))
+	var bar := ProgressBar.new()
+	bar.rect_position = Vector2(150, 58)
+	bar.rect_size = Vector2(326, 18)
+	bar.max_value = tp[1]
+	bar.value = tp[0]
+	bar.percent_visible = false
+	profile_body.add_child(bar)
+	var y := 92.0
+	_pf_label("NEXT REWARDS", 15, Vector2(24, y), Color(0.65, 0.78, 1.0))
+	y += 24.0
+	var shown := 0
+	for t in range(tier + 1, Season.TIERS + 1):
+		var txt := ""
+		if Season.PERKS.has(t):
+			txt = Season.PERKS[t].text
+		if Season.TITLES.has(t):
+			txt += ("   " if txt != "" else "") + "Title: " + Season.TITLES[t]
+		if txt == "":
+			continue
+		_pf_label("Tier %d" % t, 15, Vector2(24, y), Color(1.0, 0.82, 0.25))
+		_pf_label(txt, 15, Vector2(100, y))
+		y += 24.0
+		shown += 1
+		if shown >= 4:
+			break
+	if shown == 0:
+		_pf_label("Every reward unlocked. You are the Storm King!", 15, Vector2(24, y), Color(0.55, 1.0, 0.65))
+		y += 24.0
+	y += 12.0
+	_pf_label("TITLE", 15, Vector2(24, y), Color(0.65, 0.78, 1.0))
+	var cur: String = str(Accounts.profile().season.title)
+	var tb := _pf_button(cur if cur != "" else "(none) - tap to change", Vector2(100, y - 6), Vector2(376, 34), "_cycle_title")
+	y += 46.0
+	_pf_label("DAILY CHALLENGES  (+%d XP each)" % Season.CHALLENGE_XP, 15, Vector2(24, y), Color(0.65, 0.78, 1.0))
+	y += 26.0
+	for it in Accounts.daily():
+		var done: bool = it.done
+		_pf_label(Season.text_of(it), 17, Vector2(24, y), Color(0.55, 1.0, 0.65) if done else Color.white)
+		_pf_label("DONE" if done else "%d / %d" % [it.progress, it.goal], 17, Vector2(390, y), Color(0.55, 1.0, 0.65) if done else Color(1.0, 0.85, 0.4))
+		y += 32.0
+	_pf_label("New challenges every day. Play solo or online: both count.", 13, Vector2(24, y + 6), Color(0.65, 0.78, 1.0))
+	_pf_button("BACK", Vector2(24, 560), Vector2(452, 46), "profile_show", ["home"])
+
+
+func _cycle_title() -> void:
+	var list: Array = [""] + Accounts.titles()
+	var cur: String = str(Accounts.profile().season.title)
+	var i: int = list.find(cur)
+	Accounts.set_title(list[(i + 1) % list.size()])
+	profile_show("season")
+
+
 func _pf_home() -> void:
 	var guest: bool = Accounts.is_guest()
+	_pf_button("SEASON", Vector2(372, 12), Vector2(104, 36), "profile_show", ["season"])
 	_pf_label(Accounts.display_name(), 32, Vector2(24, 12))
 	_pf_label("GUEST - progress is saved on this device only" if guest else Accounts.email(), 15, Vector2(24, 54), Color(0.65, 0.78, 1.0))
 	var lp: Array = Accounts.level_progress()

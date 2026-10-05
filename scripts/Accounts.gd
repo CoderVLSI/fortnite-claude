@@ -37,6 +37,8 @@ static func new_profile() -> Dictionary:
 		"loadout": {"skin": "ranger", "pickaxe": "classic", "backbling": "none", "contrail": "none", "glider": "classic"},
 		"starter": "earth",
 		"xp": 0,
+		"season": {"id": 1, "xp": 0, "title": ""},
+		"daily": {"date": "", "items": []},
 		"stats": {"matches": 0, "wins": 0, "top3": 0, "elims": 0, "deaths": 0, "damage": 0, "headshots": 0, "chests": 0, "builds": 0,
 			"playtime": 0, "best_kills": 0, "best_placement": 0, "longest_survival": 0},
 	}
@@ -66,6 +68,9 @@ func _fill_defaults(profile: Dictionary) -> void:
 	for k in base:
 		if not profile.has(k):
 			profile[k] = base[k]
+	for k in base.season:
+		if not profile.season.has(k):
+			profile.season[k] = base.season[k]
 	for k in base.stats:
 		if not profile.stats.has(k):
 			profile.stats[k] = base.stats[k]
@@ -278,9 +283,55 @@ func record_match(info: Dictionary) -> void:
 		s.best_placement = place
 	s.longest_survival = int(max(s.longest_survival, survival))
 	var gained: int = 25 + kills * 20 + (150 if info.get("victory", false) else 0) + (40 if place > 0 and place <= 3 else 0) + int(survival / 20) + int(info.get("bonus_xp", 0))
+	var bonus: int = Season.apply_match(p, info, Season.today())        # daily challenges finished by this match
+	gained += bonus
 	p.xp += gained
+	p.season.xp = int(p.season.xp) + gained
+	last_challenge_bonus = bonus
 	save()
 	emit_signal("changed")
+
+
+# ---- season pass and daily challenges
+const Season = preload("res://scripts/Season.gd")
+var last_challenge_bonus := 0
+
+
+func season_tier() -> int:
+	return Season.tier_of(int(profile().season.xp))
+
+
+func daily() -> Array:
+	var p := profile()
+	if p.daily.get("date", "") != Season.today():
+		p.daily = {"date": Season.today(), "items": Season.daily_for(Season.today())}
+		save()
+	return p.daily.items
+
+
+func titles() -> Array:
+	return Season.titles_at(season_tier())
+
+
+func set_title(t: String) -> void:
+	if t == "" or t in titles():
+		profile().season.title = t
+		save()
+		emit_signal("changed")
+
+
+# What this account gets at the start of a SOLO match: [[gold, ...], consumables].
+func solo_perks() -> Dictionary:
+	var gold := 0
+	var items := []
+	var tier := season_tier()
+	for t in Season.PERKS:
+		if tier >= t:
+			var pk: Dictionary = Season.PERKS[t]
+			gold += int(pk.get("gold", 0))
+			if pk.has("heal"):
+				items.append(pk.heal)
+	return {"gold": gold, "items": items}
 
 
 func level() -> int:

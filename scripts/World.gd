@@ -172,6 +172,7 @@ func _ready() -> void:
 	_spawn_llamas()
 	_spawn_buried()
 	_spawn_ziplines()
+	_apply_solo_perks()
 	weather = Weather.new()
 	weather.world = self
 	weather.name = "Weather"
@@ -771,6 +772,17 @@ func _spawn_buried() -> void:
 			continue
 		add_buried(p, "B%d" % n)
 		n += 1
+
+
+# Season pass perks: a little starting gold and heals, in solo matches only (online everybody starts equal).
+func _apply_solo_perks() -> void:
+	if net_match or player == null:
+		return
+	var pk: Dictionary = Accounts.solo_perks()
+	if pk.gold > 0:
+		player.gold += int(pk.gold)
+	for it in pk.items:
+		player.pickup(Items.make_consumable(it[0], int(it[1])))
 
 
 # Ziplines run along the roads between places (and over the odd valley): same spots on every machine.
@@ -2358,6 +2370,8 @@ func _record_match(victory: bool, placement: int) -> void:
 	Accounts.record_match({"victory": victory, "placement": placement, "kills": player.kills, "damage": ms.get("damage", 0),
 		"headshots": ms.get("headshots", 0), "chests": ms.get("chests", 0), "builds": ms.get("builds", 0),
 		"survival": int((OS.get_ticks_msec() - _match_start_ms) / 1000.0), "bonus_xp": quests.bonus_xp if quests != null else 0})
+	if Accounts.last_challenge_bonus > 0 and hud != null:
+		hud.show_toast("Daily challenge complete! +%d season XP" % Accounts.last_challenge_bonus)
 
 
 # ------------------------------------------------------------------ network match (see Net.gd)
