@@ -1,0 +1,23 @@
+[remap]
+
+importer="wav"
+type="AudioStreamSample"
+path="res://.import/ui_toggle_off.wav-f5b2bb5afb204135431a157e6608ab7f.sample"
+
+[deps]
+
+source_file="res://assets/audio/ui_toggle_off.wav"
+dest_files=[ "res://.import/ui_toggle_off.wav-f5b2bb5afb204135431a157e6608ab7f.sample" ]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=1
