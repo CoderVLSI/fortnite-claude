@@ -33,6 +33,7 @@ func _run() -> void:
 	for f in get_nodes_in_group("fighters"):
 		if f != world.player:
 			f.set_physics_process(false)
+	settings.set_pref("day_night", 1)                    # a fixed day, so the light only changes with the weather
 	var w = world.weather
 	check(w != null and w.env != null, "the world has a weather system")
 	check(w.timetable.size() >= 5 and w.timetable[0][0] > 60.0, "storms are scheduled (%d, first at %.0f s)" % [w.timetable.size(), w.timetable[0][0]])
