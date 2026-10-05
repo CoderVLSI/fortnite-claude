@@ -80,7 +80,7 @@ func _run() -> void:
 	p.select_slot(1)
 	yield(_frames(4), "completed")
 	var gun = p.selected_item()
-	check(gun != null and gun.mag == 75, "the mythic Drum Gun holds 75 rounds (%d)" % (gun.mag if gun != null else -1))
+	check(gun != null and gun.get("mag", -1) == 75, "the mythic Drum Gun holds 75 rounds (%d)" % (gun.get("mag", -1) if gun != null else -1))
 	p.slots[1] = null
 	p.give_weapon("shockwave_launcher", 5, 20)
 	p.select_slot(1)
