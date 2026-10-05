@@ -1590,7 +1590,113 @@ def make_item_models():
 
 
 
+def make_tactical_shotgun():
+    # Matches assets/icons/weapon_tactical_shotgun.png: a black short-barrel pump with a pistol grip and a short stock.
+    m = _gun_mats()
+    g = Part("TacticalShotgun")
+    g.box((0, 0.12, 0.03), (0.085, 0.34, 0.115), m["dark"])                             # receiver
+    sbox(g, 0.0435, 0.12, 0.035, (0.004, 0.16, 0.03), m["accent"])                      # rarity strip (both sides)
+    g.box((0, 0.12, 0.092), (0.03, 0.30, 0.012), m["steel"])                            # top rail
+    g.cone((0, 0.52, 0.045), 0.027, 0.027, 0.50, m["steel"], segments=10, axis="Y")     # short barrel
+    g.cone((0, 0.46, -0.005), 0.032, 0.032, 0.40, m["dark"], segments=10, axis="Y")     # magazine tube
+    g.box((0, 0.40, -0.005), (0.088, 0.24, 0.088), m["poly"])                           # pump forend
+    for yy in (0.31, 0.35, 0.39, 0.43, 0.47):                                           # grip ribs
+        g.box((0, yy, -0.005), (0.094, 0.014, 0.094), m["dark"])
+    g.cone((0, 0.80, 0.045), 0.034, 0.034, 0.05, m["dark"], segments=10, axis="Y")      # muzzle
+    g.box((0, 0.78, 0.082), (0.012, 0.012, 0.03), m["brass"])                           # front sight
+    g.box((0, -0.12, 0.02), (0.06, 0.20, 0.10), m["poly"], rot=(-0.05, 0, 0))           # short stock
+    g.box((0, -0.23, 0.0), (0.066, 0.03, 0.14), m["dark"])                              # butt pad
+    g.box((0, -0.04, -0.085), (0.048, 0.07, 0.14), m["poly"], rot=(0.3, 0, 0))          # pistol grip
+    _trigger_guard(g, m, y=0.03)
+    export("tactical_shotgun", [g.build(), empty("Muzzle", (0, 0.82, 0.045))])
+
+
+def make_revolver():
+    # Matches assets/icons/weapon_revolver.png: gunmetal six-shooter with a long barrel and a walnut grip.
+    m = _gun_mats()
+    blue = material("rev_blue", (0.13, 0.17, 0.20), rough=0.3)
+    g = Part("Revolver")
+    g.box((0, 0.04, 0.06), (0.05, 0.22, 0.10), blue)                                    # frame
+    g.cone((0, 0.14, 0.055), 0.058, 0.058, 0.13, m["steel"], segments=12, axis="Y")     # cylinder
+    for k in range(6):                                                                  # six flutes round the cylinder (symmetric)
+        import math as _m
+        a = k * _m.pi / 3.0
+        g.box((0.058 * _m.cos(a), 0.14, 0.055 + 0.058 * _m.sin(a)), (0.012, 0.09, 0.012), m["dark"], rot=(0, a, 0))
+    g.cone((0, 0.42, 0.075), 0.022, 0.022, 0.50, blue, segments=10, axis="Y")           # long barrel
+    g.box((0, 0.42, 0.045), (0.034, 0.46, 0.03), blue)                                  # underlug
+    g.box((0, 0.66, 0.098), (0.012, 0.014, 0.03), m["brass"])                           # front sight
+    g.box((0, -0.05, 0.125), (0.014, 0.05, 0.03), m["steel"], rot=(0.5, 0, 0))          # hammer
+    g.box((0, -0.07, 0.07), (0.056, 0.05, 0.09), blue)                                  # rear of the frame
+    g.box((0, -0.12, -0.06), (0.052, 0.085, 0.17), m["wood"], rot=(0.35, 0, 0))         # walnut grip
+    sbox(g, 0.028, -0.12, -0.06, (0.004, 0.06, 0.14), m["dark"], rot=(0.35, 0, 0))      # grip panels
+    _trigger_guard(g, m, y=0.03, z=-0.03)
+    export("revolver", [g.build(), empty("Muzzle", (0, 0.68, 0.075))])
+
+
+def make_dmr():
+    # Matches assets/icons/weapon_dmr.png: olive marksman rifle, scope with purple trim, box magazine, adjustable stock.
+    m = _gun_mats()
+    purple = material("dmr_purple", (0.55, 0.20, 0.75), rough=0.4, emit=(0.35, 0.1, 0.5), emit_strength=0.4)
+    g = Part("Dmr")
+    g.box((0, 0.10, 0.03), (0.07, 0.46, 0.10), m["olive"])                              # receiver
+    g.box((0, 0.10, 0.092), (0.04, 0.44, 0.012), m["steel"])                            # top rail
+    sbox(g, 0.037, 0.10, 0.035, (0.006, 0.26, 0.03), purple)                            # purple strip (both sides)
+    g.box((0, 0.58, 0.03), (0.07, 0.34, 0.085), m["olive"])                             # handguard
+    for yy in (0.46, 0.52, 0.58, 0.64, 0.70):                                           # vents
+        sbox(g, 0.036, yy, 0.03, (0.004, 0.03, 0.04), m["dark"])
+    g.cone((0, 0.95, 0.035), 0.022, 0.022, 0.40, m["steel"], segments=10, axis="Y")     # barrel
+    g.cone((0, 1.17, 0.035), 0.034, 0.034, 0.08, m["dark"], segments=10, axis="Y")      # flash hider
+    # scope: tube, bell, ocular, two purple rings
+    g.cone((0, 0.20, 0.15), 0.040, 0.040, 0.36, m["dark"], segments=10, axis="Y")
+    g.cone((0, 0.40, 0.15), 0.060, 0.050, 0.12, m["dark"], segments=10, axis="Y")
+    g.cone((0, 0.02, 0.15), 0.048, 0.048, 0.08, m["dark"], segments=10, axis="Y")
+    g.box((0, 0.462, 0.15), (0.09, 0.006, 0.09), m["glass"])
+    for yy in (0.10, 0.30):
+        g.cone((0, yy, 0.15), 0.046, 0.046, 0.02, purple, segments=10, axis="Y")
+    sbox(g, 0.0, 0.10, 0.10, (0.02, 0.03, 0.06), m["steel"])                            # scope mounts
+    g.box((0, 0.30, 0.10), (0.02, 0.03, 0.06), m["steel"])
+    g.box((0, 0.12, -0.12), (0.05, 0.09, 0.22), m["dark"], rot=(0.0, 0, 0))             # long box magazine
+    g.box((0, 0.12, -0.24), (0.056, 0.095, 0.02), m["steel"])
+    g.box((0, -0.26, 0.015), (0.062, 0.40, 0.11), m["olive"], rot=(-0.04, 0, 0))        # stock
+    g.box((0, -0.18, 0.085), (0.05, 0.18, 0.03), m["olive"])                            # cheek riser
+    g.box((0, -0.46, -0.005), (0.07, 0.03, 0.14), m["dark"])                            # butt pad
+    g.box((0, -0.06, -0.08), (0.045, 0.065, 0.14), m["dark"], rot=(0.25, 0, 0))         # grip
+    _trigger_guard(g, m)
+    export("dmr", [g.build(), empty("Muzzle", (0, 1.22, 0.035))])
+
+
+def make_grenade_launcher():
+    # Matches assets/icons/weapon_grenade_launcher.png: black body, orange drum and accents, short fat barrel, folding stock.
+    m = _gun_mats()
+    g = Part("GrenadeLauncher")
+    g.box((0, 0.10, 0.03), (0.08, 0.34, 0.11), m["dark"])                               # receiver
+    g.box((0, 0.10, 0.092), (0.04, 0.32, 0.012), m["steel"])                            # top rail
+    sbox(g, 0.0415, 0.10, 0.035, (0.004, 0.18, 0.03), m["orange"])                      # orange strip (both sides)
+    g.cone((0, 0.50, 0.04), 0.050, 0.050, 0.46, m["dark"], segments=12, axis="Y")       # fat barrel
+    g.cone((0, 0.74, 0.04), 0.062, 0.062, 0.06, m["orange"], segments=12, axis="Y")     # orange muzzle ring
+    g.cone((0, 0.38, -0.075), 0.115, 0.115, 0.20, m["orange"], segments=14, axis="Y")   # the drum under the barrel
+    g.cone((0, 0.38, -0.075), 0.082, 0.082, 0.215, m["dark"], segments=14, axis="Y")    # drum core
+    for yy in (0.30, 0.46):                                                             # drum bands
+        g.cone((0, yy, -0.075), 0.12, 0.12, 0.018, m["dark"], segments=14, axis="Y")
+    g.box((0, 0.12, 0.13), (0.03, 0.05, 0.05), m["dark"])                               # rear sight
+    g.box((0, 0.62, 0.105), (0.014, 0.014, 0.04), m["orange"])                          # front sight
+    g.box((0, -0.14, 0.02), (0.06, 0.24, 0.10), m["dark"], rot=(-0.05, 0, 0))           # stock
+    g.box((0, -0.27, 0.0), (0.066, 0.03, 0.14), m["orange"])                            # butt pad
+    g.box((0, -0.04, -0.085), (0.046, 0.07, 0.14), m["poly"], rot=(0.3, 0, 0))          # grip
+    _trigger_guard(g, m)
+    export("grenade_launcher", [g.build(), empty("Muzzle", (0, 0.78, 0.04))])
+
+
+def make_new_weapons():
+    for fn in (make_tactical_shotgun, make_revolver, make_dmr, make_grenade_launcher):
+        reset_scene()
+        fn()
+
+
 def main():
+    if os.environ.get("ONLY") == "weapons":        # ONLY=weapons blender -b -P tools/blender/generate_assets.py
+        make_new_weapons()
+        return
     if os.environ.get("ONLY") == "items":          # ONLY=items blender -b -P tools/blender/generate_assets.py
         make_item_models()
         return

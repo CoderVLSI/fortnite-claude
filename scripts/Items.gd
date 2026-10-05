@@ -47,19 +47,19 @@ const WEAPONS := {
 	# Tactical Shotgun: a fast-pumping short-range shotgun (8 shells, about 2 shots a second).
 	"tactical_shotgun": {"name": "Tactical Shotgun", "damage": 7.7, "dmg": [7.7, 8.1, 8.5, 8.9, 9.4], "interval": 0.5, "mag": 8, "reload": 5.5,
 		"rel": [5.5, 5.2, 4.95, 4.7, 4.4], "spread": 5.2, "pellets": 10, "auto": false, "ammo": "shells", "range": 34.0, "head": 1.5,
-		"model": "shotgun", "mesh": "shotgun", "icon": "shotgun"},
+		"model": "shotgun", "mesh": "tactical_shotgun"},
 	# Revolver: six heavy rounds, slow to cock, hits hard at range.
 	"revolver": {"name": "Revolver", "damage": 58.0, "dmg": [58.0, 61.0, 63.0, 66.0, 69.0], "interval": 0.55, "mag": 6, "reload": 2.9,
 		"rel": [2.9, 2.8, 2.7, 2.55, 2.4], "spread": 0.7, "pellets": 1, "auto": false, "ammo": "medium", "range": 130.0, "head": 2.0,
-		"model": "pistol", "mesh": "pistol", "icon": "pistol"},
+		"model": "pistol", "mesh": "revolver"},
 	# Semi-Auto Sniper: ten rounds, a shot a second, less punch than the bolt sniper.
 	"dmr": {"name": "Semi-Auto Sniper", "damage": 63.0, "dmg": [63.0, 66.0, 69.0, 72.0, 75.0], "interval": 0.85, "mag": 10, "reload": 3.4,
 		"rel": [3.4, 3.3, 3.1, 2.9, 2.7], "spread": 0.1, "pellets": 1, "auto": false, "ammo": "heavy", "range": 240.0, "head": 2.5,
-		"model": "sniper", "mesh": "sniper", "icon": "sniper"},
+		"model": "sniper", "mesh": "dmr"},
 	# Grenade Launcher: lobs a bouncing grenade that blows up after about a second; heavy splash, hurts you too.
 	"grenade_launcher": {"name": "Grenade Launcher", "damage": 100.0, "dmg": [100.0, 105.0, 110.0, 115.0, 120.0], "interval": 0.85, "mag": 6, "reload": 3.3,
 		"rel": [3.3, 3.2, 3.0, 2.8, 2.6], "spread": 0.0, "pellets": 1, "auto": false, "ammo": "heavy", "range": 200.0, "head": 1.0,
-		"projectile": "grenade", "sound": "sniper", "model": "rocket_launcher", "mesh": "rocket_launcher", "icon": "rocket_launcher"},
+		"projectile": "grenade", "sound": "grenade_launcher", "model": "rocket_launcher", "mesh": "grenade_launcher"},
 	"sniper": {"name": "Bolt Sniper", "damage": 95.0, "dmg": [95.0, 100.0, 105.0, 110.0, 116.0], "interval": 1.5, "mag": 1, "reload": 3.3,
 		"rel": [3.3, 3.2, 3.0, 2.5, 2.3], "spread": 0.0, "pellets": 1, "auto": false, "ammo": "heavy", "range": 260.0, "head": 2.5},
 }
