@@ -61,7 +61,7 @@ func _run() -> void:
 					has_face = true
 		check(has_face != masked, "%s: %s" % [id, "blank face (masked)" if masked else "nose, mouth%s" % (" and moustache" if id in ["pirate", "cowboy"] else "")])
 		n += 1
-	for row in range(2):
+	for row in range(3):
 		var x0: float = float(row) * 10.0
 		cam.translation = Vector3(x0, 1.72, 4.6)
 		cam.look_at(Vector3(x0, 1.62, 0), Vector3.UP)

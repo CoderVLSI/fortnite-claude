@@ -58,9 +58,12 @@ const LIST := {
 	"cactus": {"name": "Prickly Pete", "desc": "Hug at your own risk", "skin": Color(0.35, 0.65, 0.30), "vest": Color(0.28, 0.55, 0.25),
 		"pants": Color(0.22, 0.45, 0.20), "boots": Color(0.55, 0.30, 0.15), "hair": Color(0.28, 0.55, 0.25),
 		"glove": Color(0.35, 0.65, 0.30), "pack": Color(0.95, 0.55, 0.65), "acc": ["flower", "spikes"]},
+	"chicken": {"name": "Big Chicken", "desc": "Fluffy, plump and very proud", "skin": Color(0.98, 0.94, 0.86), "vest": Color(0.98, 0.94, 0.86),
+		"pants": Color(0.96, 0.90, 0.80), "boots": Color(0.95, 0.55, 0.12), "hair": Color(0.98, 0.94, 0.86),
+		"glove": Color(0.97, 0.78, 0.20), "pack": Color(0.85, 0.22, 0.18), "eyes": Color(0.05, 0.04, 0.03), "no_face": true, "acc": ["chicken"]},
 }
 const ORDER := ["ranger", "ninja", "astronaut", "knight", "robot", "pirate", "cowboy", "dino",
-	"banana", "fishhead", "marine", "wristhero", "pumpkin", "shark", "panda", "viking", "chef", "cactus"]
+	"banana", "fishhead", "marine", "wristhero", "pumpkin", "shark", "panda", "viking", "chef", "cactus", "chicken"]
 
 
 static func _mat(c: Color, metal: bool = false, emissive: bool = false) -> SpatialMaterial:
@@ -254,6 +257,28 @@ static func _accessory(name: String, head: Spatial, spine: Spatial, hips: Spatia
 			_box(head, Vector3(0.012, 0.15, 0.012), Vector3(-0.1, 0.38, -0.13), _mat(Color(0.85, 0.65, 0.08)))   # a ridge down the front
 			_box(spine, Vector3(0.50, 0.04, 0.30), Vector3(0, 0.38, 0), _mat(Color(0.85, 0.65, 0.08)))            # the peel line round the middle
 			_box(spine, Vector3(0.10, 0.12, 0.03), Vector3(0, 0.12, -0.16), _mat(Color(0.38, 0.24, 0.08)))         # a brown belly spot
+		"chicken":
+			var cream := _mat(Color(0.98, 0.94, 0.86))
+			var down := _mat(Color(0.99, 0.80, 0.45))
+			var red := _mat(Color(0.88, 0.16, 0.14))
+			var org := _mat(Color(0.97, 0.58, 0.12))
+			_ball(head, 0.17, Vector3(0, 0.14, 0.0), cream, Vector3(1.05, 1.0, 1.0))                  # a round fluffy head
+			_ball(head, 0.055, Vector3(0, 0.34, -0.02), red)                                           # comb
+			_ball(head, 0.06, Vector3(0, 0.38, 0.03), red)
+			_ball(head, 0.05, Vector3(0, 0.33, 0.07), red)
+			_cone(head, 0.05, 0.0, 0.12, Vector3(0, 0.12, -0.2), org, Vector3(-1.5708, 0, 0))          # beak
+			_ball(head, 0.04, Vector3(0, 0.03, -0.15), red)                                            # wattle
+			_ball(head, 0.022, Vector3(-0.08, 0.2, -0.155), _mat(Color(0.04, 0.03, 0.03)))             # dot eyes
+			_ball(head, 0.022, Vector3(0.08, 0.2, -0.155), _mat(Color(0.04, 0.03, 0.03)))
+			_ball(spine, 0.34, Vector3(0, 0.2, -0.06), cream, Vector3(1.25, 1.0, 1.0))                 # a big round belly
+			for r in range(3):                                                                         # scalloped feathers down the front
+				for c in range(3 - (r % 2)):
+					var fx := (float(c) - float(2 - (r % 2)) / 2.0) * 0.17
+					_ball(spine, 0.07, Vector3(fx, 0.32 - float(r) * 0.12, -0.3 + float(r) * 0.01), down, Vector3(1.2, 0.8, 0.5))
+			_box(spine, Vector3(0.16, 0.34, 0.22), Vector3(-0.44, 0.2, 0.0), cream, Vector3(0, 0, 0.35))   # stubby wings
+			_box(spine, Vector3(0.16, 0.34, 0.22), Vector3(0.44, 0.2, 0.0), cream, Vector3(0, 0, -0.35))
+			for i in range(3):                                                                         # tail feathers
+				_cone(hips, 0.06, 0.0, 0.3, Vector3(float(i - 1) * 0.1, 0.12, 0.25), down if i == 1 else cream, Vector3(-0.9, 0, float(i - 1) * 0.3))
 		"fishhead":
 			var fm := _mat(Color(0.45, 0.62, 0.72))
 			_ball(head, 0.20, Vector3(0, 0.15, -0.02), fm, Vector3(0.9, 1.0, 1.15))
