@@ -31,6 +31,7 @@ var weather
 const Pois = preload("res://scripts/Pois.gd")
 const BuildPiece = preload("res://scripts/BuildPiece.gd")
 const Vehicle = preload("res://scripts/Vehicle.gd")
+const Helicopter = preload("res://scripts/Helicopter.gd")
 const Boat = preload("res://scripts/Boat.gd")
 const Rift = preload("res://scripts/Rift.gd")
 const AutoDoor = preload("res://scripts/AutoDoor.gd")
@@ -1102,13 +1103,15 @@ func spawn_vehicle(kind: String, pos: Vector3, yaw: float) -> Node:
 	var v: Node
 	if kind == "boat":
 		v = Boat.new()
+	elif kind == "helicopter":
+		v = Helicopter.new()
 	else:
 		v = Vehicle.new()
 		v.kind = kind
 	v.translation = pos
 	v.rotation.y = yaw
 	v.net_id = "v%d" % _veh_seq
-	v.fuel = 45.0 + float(_veh_seq * 37 % 56)                    # parked vehicles hold between about half and a full tank
+	v.fuel = 100.0 if kind == "helicopter" else 45.0 + float(_veh_seq * 37 % 56)    # parked vehicles hold between about half and a full tank
 	net_nodes[v.net_id] = v
 	_veh_seq += 1
 	add_child(v)
@@ -1133,6 +1136,10 @@ func _spawn_vehicles() -> void:
 			else:
 				p.y += 1.2
 			spawn_vehicle(def.kind, p, yaw)
+	for poi in pois:                               # a helicopter waits on every helipad
+		if poi.def.has("helipad"):
+			var hp := _poi_point(poi, poi.def.helipad)
+			spawn_vehicle("helicopter", Vector3(hp.x, hp.y + 0.5, hp.z), poi.frame_yaw)
 	# a few extra along the roads
 	for i in range(6 if profile.mobile else 12):
 		var seg: Array = poi_roads[rng.randi() % poi_roads.size()]

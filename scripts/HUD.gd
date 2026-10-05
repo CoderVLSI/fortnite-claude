@@ -1100,6 +1100,8 @@ func _update_prompts() -> void:
 			var keys := "" if Controls.touch_mode else "  [E] exit  [R] horn  [Shift] boost  [Space] brake"
 			var fuel_txt := ("   FUEL %d%%" % int(player.vehicle.fuel)) if player.vehicle != null and is_instance_valid(player.vehicle) and "fuel" in player.vehicle else ""
 			bus_label.text = ("%d km/h" % kmh) + fuel_txt + (keys if player.vehicle_seat == 0 else "   [E] exit")
+			if player.vehicle != null and is_instance_valid(player.vehicle) and player.vehicle.get("kind") == "helicopter":
+				bus_label.text = "%d km/h   ALT %d m%s%s" % [kmh, int(player.vehicle.altitude()), fuel_txt, ("" if Controls.touch_mode else "   [Space] up  [Ctrl] down  [Shift] boost  [E] exit") if player.vehicle_seat == 0 else "   [E] exit"]
 			if player.vehicle != null and is_instance_valid(player.vehicle) and player.vehicle.get("kind") == "zipline":
 				bus_label.text = "ZIPLINE  %d km/h%s" % [kmh, "" if Controls.touch_mode else "   [Space] let go   [E] drop"]
 			bus_label.visible = true

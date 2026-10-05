@@ -126,6 +126,8 @@ func _vehicle_process(delta: float) -> void:
 		v.input_move = Controls.get_move()
 		v.handbrake = Input.is_action_pressed("jump")
 		v.boost = Input.is_action_pressed("sprint")
+		if "descend" in v:
+			v.descend = Input.is_action_pressed("crouch")
 		if Input.is_action_just_pressed("reload"):
 			Audio.play3d("car_horn", v.global_transform.origin, 2.0)
 		vehicle_steer = clamp(v.steer_visual * 2.0 if "steer_visual" in v else v.input_move.x * -0.5, -1.0, 1.0)

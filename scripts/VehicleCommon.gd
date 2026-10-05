@@ -3,7 +3,7 @@ extends Reference
 # damage and the explosion. The vehicle node supplies: occupants[], seat_offsets[], health,
 # exploded, is_dead, title, model, last_attacker.
 
-const TITLES := {"buggy": "Buggy", "quad": "Quad Bike", "boat": "Motor Boat"}
+const TITLES := {"buggy": "Buggy", "quad": "Quad Bike", "boat": "Motor Boat", "helicopter": "Helicopter"}
 
 
 static func free_seat(v) -> int:

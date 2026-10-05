@@ -952,6 +952,9 @@ func exit_vehicle(eject: bool = false) -> void:
 	air_pivot.rotation = Vector3.ZERO
 	air_pivot.translation = Vector3(0, 0.9, 0)
 	grounded = false
+	if v != null and is_instance_valid(v) and v.get("kind") == "helicopter" and ground_distance() > 9.0:
+		mode = Mode.FREEFALL                           # bailed out high above the island: skydive, jump opens the glider
+		air_pivot.visible = true
 	Audio.play3d("door", global_transform.origin, -2.0)
 
 
