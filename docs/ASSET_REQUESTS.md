@@ -73,6 +73,16 @@ versions are the same gun in gold and purple with a soft glow (`tools/images/der
 - [x] `assets/ui/ui_boss_hookshot.png` 128x128. Bust: infiltrator in a red hood and black mask, goggles pushed up, hook on a rope over the shoulder.
 - [x] `assets/ui/ui_boss.png` 64x64. Skull wearing a gold crown on a red map pin (generic boss minimap marker).
 
+## App icon redo
+
+- [x] New app icon: gold-rimmed shield badge with a green island and a golden lightning bolt on a swirling purple/orange
+  storm backdrop. Replaces the thin pickaxe-in-a-purple-ring icon. Files: `icon.png` (512x512, also the Godot window icon),
+  `icon.ico` (Windows, 256/128/64/48/32/16), `assets/icons/launcher_main_192.png` (192x192),
+  `assets/icons/launcher_fg_432.png` (432x432, transparent, emblem inside the central 58 % so round and squircle masks
+  never crop it) and `assets/icons/launcher_bg_432.png` (432x432, backdrop only). All PNGs are under 300 KB.
+  Built from two generated images (emblem on a magenta key, and the backdrop) composed locally, so the adaptive
+  foreground/background pair matches the full icon exactly.
+
 ## Format fixes
 
 - [x] `lobby_bg`, `victory_bg`, `eliminated_bg`, `loading_bg` converted from JPG to 256-colour PNG at 1280x720
