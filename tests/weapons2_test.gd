@@ -54,9 +54,15 @@ func _run() -> void:
 
 	for id in ["tactical_shotgun", "revolver", "dmr", "grenade_launcher"]:
 		p.slots = [Items.pickaxe(), null, null, null, null, null]
+		p.mode = p.Mode.GROUND
 		p.give_weapon(id, 2, 60)
 		p.select_slot(1)
+		yield(_frames(2), "completed")
 		var gun = p.selected_item()
+		if gun == null or not gun.has("mag"):
+			p.select_slot(1)
+			yield(_frames(2), "completed")
+			gun = p.selected_item()
 		var m0: int = gun.mag
 		var g0 := 0
 		for n in get_nodes_in_group("world")[0].get_children():
