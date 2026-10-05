@@ -44,7 +44,7 @@ func _run() -> void:
 	for id in Skins.ORDER:
 		var m: Spatial = scene.instance()
 		world.add_child(m)
-		m.translation = Vector3(float(n) * 0.6 - 2.1, 0, 0)
+		m.translation = Vector3(float(n % 9) * 0.6 - 2.4 + float(n / 9) * 10.0, 0, 0)
 		m.rotation.y = PI                      # face the camera (the model faces -Z)
 		Skins.apply(m, id, Color(0.9, 0.3, 0.2) if id == "ranger" else null)
 		var head := m.find_node("Head", true, false)
@@ -61,15 +61,14 @@ func _run() -> void:
 					has_face = true
 		check(has_face != masked, "%s: %s" % [id, "blank face (masked)" if masked else "nose, mouth%s" % (" and moustache" if id in ["pirate", "cowboy"] else "")])
 		n += 1
-	cam.look_at_from_position(Vector3(-0.0, 1.78, -4.2).rotated(Vector3.UP, PI) , Vector3(0, 1.62, 0), Vector3.UP)
-	cam.translation = Vector3(0, 1.72, 4.6)
-	cam.look_at(Vector3(0, 1.62, 0), Vector3.UP)
-	for i in range(4):
-		yield(self, "idle_frame")
-	var img := root.get_texture().get_data()
-	img.flip_y()
-	img.save_png(out + "/faces_row.png")
-	for k in range(2):                          # two close-ups: ranger with a moustache, pirate
-		pass
+	for row in range(2):
+		var x0: float = float(row) * 10.0
+		cam.translation = Vector3(x0, 1.72, 4.6)
+		cam.look_at(Vector3(x0, 1.62, 0), Vector3.UP)
+		for i in range(4):
+			yield(self, "idle_frame")
+		var img := root.get_texture().get_data()
+		img.flip_y()
+		img.save_png(out + "/faces_row%d.png" % (row + 1))
 	print("FACE_RESULT failures=", failures.size())
 	quit(1 if failures.size() > 0 else 0)
