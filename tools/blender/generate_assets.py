@@ -1597,18 +1597,18 @@ def make_tactical_shotgun():
     g.box((0, 0.12, 0.03), (0.085, 0.34, 0.115), m["dark"])                             # receiver
     sbox(g, 0.0435, 0.12, 0.035, (0.004, 0.16, 0.03), m["accent"])                      # rarity strip (both sides)
     g.box((0, 0.12, 0.092), (0.03, 0.30, 0.012), m["steel"])                            # top rail
-    g.cone((0, 0.52, 0.045), 0.027, 0.027, 0.50, m["steel"], segments=10, axis="Y")     # short barrel
-    g.cone((0, 0.46, -0.005), 0.032, 0.032, 0.40, m["dark"], segments=10, axis="Y")     # magazine tube
-    g.box((0, 0.40, -0.005), (0.088, 0.24, 0.088), m["poly"])                           # pump forend
-    for yy in (0.31, 0.35, 0.39, 0.43, 0.47):                                           # grip ribs
+    g.cone((0, 0.44, 0.045), 0.027, 0.027, 0.34, m["steel"], segments=10, axis="Y")     # short barrel
+    g.cone((0, 0.38, -0.005), 0.032, 0.032, 0.30, m["dark"], segments=10, axis="Y")     # magazine tube
+    g.box((0, 0.34, -0.005), (0.088, 0.20, 0.088), m["poly"])                           # pump forend
+    for yy in (0.27, 0.31, 0.35, 0.39, 0.43):                                           # grip ribs
         g.box((0, yy, -0.005), (0.094, 0.014, 0.094), m["dark"])
-    g.cone((0, 0.80, 0.045), 0.034, 0.034, 0.05, m["dark"], segments=10, axis="Y")      # muzzle
-    g.box((0, 0.78, 0.082), (0.012, 0.012, 0.03), m["brass"])                           # front sight
+    g.cone((0, 0.62, 0.045), 0.034, 0.034, 0.05, m["dark"], segments=10, axis="Y")      # muzzle
+    g.box((0, 0.60, 0.082), (0.012, 0.012, 0.03), m["brass"])                           # front sight
     g.box((0, -0.12, 0.02), (0.06, 0.20, 0.10), m["poly"], rot=(-0.05, 0, 0))           # short stock
     g.box((0, -0.23, 0.0), (0.066, 0.03, 0.14), m["dark"])                              # butt pad
     g.box((0, -0.04, -0.085), (0.048, 0.07, 0.14), m["poly"], rot=(0.3, 0, 0))          # pistol grip
     _trigger_guard(g, m, y=0.03)
-    export("tactical_shotgun", [g.build(), empty("Muzzle", (0, 0.82, 0.045))])
+    export("tactical_shotgun", [g.build(), empty("Muzzle", (0, 0.65, 0.045))])
 
 
 def make_revolver():
@@ -1622,15 +1622,15 @@ def make_revolver():
         import math as _m
         a = k * _m.pi / 3.0
         g.box((0.058 * _m.cos(a), 0.14, 0.055 + 0.058 * _m.sin(a)), (0.012, 0.09, 0.012), m["dark"], rot=(0, a, 0))
-    g.cone((0, 0.42, 0.075), 0.022, 0.022, 0.50, blue, segments=10, axis="Y")           # long barrel
-    g.box((0, 0.42, 0.045), (0.034, 0.46, 0.03), blue)                                  # underlug
-    g.box((0, 0.66, 0.098), (0.012, 0.014, 0.03), m["brass"])                           # front sight
+    g.cone((0, 0.32, 0.075), 0.022, 0.022, 0.34, blue, segments=10, axis="Y")           # long barrel
+    g.box((0, 0.30, 0.045), (0.034, 0.30, 0.03), blue)                                  # underlug
+    g.box((0, 0.47, 0.098), (0.012, 0.014, 0.03), m["brass"])                           # front sight
     g.box((0, -0.05, 0.125), (0.014, 0.05, 0.03), m["steel"], rot=(0.5, 0, 0))          # hammer
     g.box((0, -0.07, 0.07), (0.056, 0.05, 0.09), blue)                                  # rear of the frame
     g.box((0, -0.12, -0.06), (0.052, 0.085, 0.17), m["wood"], rot=(0.35, 0, 0))         # walnut grip
     sbox(g, 0.028, -0.12, -0.06, (0.004, 0.06, 0.14), m["dark"], rot=(0.35, 0, 0))      # grip panels
     _trigger_guard(g, m, y=0.03, z=-0.03)
-    export("revolver", [g.build(), empty("Muzzle", (0, 0.68, 0.075))])
+    export("revolver", [g.build(), empty("Muzzle", (0, 0.50, 0.075))])
 
 
 def make_dmr():
@@ -1641,8 +1641,8 @@ def make_dmr():
     g.box((0, 0.10, 0.03), (0.07, 0.46, 0.10), m["olive"])                              # receiver
     g.box((0, 0.10, 0.092), (0.04, 0.44, 0.012), m["steel"])                            # top rail
     sbox(g, 0.037, 0.10, 0.035, (0.006, 0.26, 0.03), purple)                            # purple strip (both sides)
-    g.box((0, 0.58, 0.03), (0.07, 0.34, 0.085), m["olive"])                             # handguard
-    for yy in (0.46, 0.52, 0.58, 0.64, 0.70):                                           # vents
+    g.box((0, 0.54, 0.03), (0.07, 0.42, 0.085), m["olive"])                             # handguard
+    for yy in (0.44, 0.50, 0.56, 0.62, 0.68):                                           # vents
         sbox(g, 0.036, yy, 0.03, (0.004, 0.03, 0.04), m["dark"])
     g.cone((0, 0.95, 0.035), 0.022, 0.022, 0.40, m["steel"], segments=10, axis="Y")     # barrel
     g.cone((0, 1.17, 0.035), 0.034, 0.034, 0.08, m["dark"], segments=10, axis="Y")      # flash hider
