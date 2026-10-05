@@ -43,7 +43,7 @@ downscaled to 128 (no glow), and `keycard` is the card centred at ~76 % of the c
 - [x] `assets/icons/weapon_revolver.png` 128x128, transparent. Six-shot revolver, long barrel, gunmetal and walnut grip.
 - [x] `assets/icons/weapon_dmr.png` 128x128, transparent. Semi-auto marksman rifle, scope, box magazine, olive and black.
 - [x] `assets/icons/weapon_grenade_launcher.png` 128x128, transparent. Drum-fed launcher, thick short barrel, orange and dark grey.
-- [ ] Mythic variants (optional): `weapon_revolver_mythic`, `weapon_dmr_mythic`, `weapon_tactical_shotgun_mythic`,
+- [x] Mythic variants (optional, 128x128 transparent): `weapon_revolver_mythic`, `weapon_dmr_mythic`, `weapon_tactical_shotgun_mythic`,
   `weapon_grenade_launcher_mythic` (gold/purple glow versions, transparent).
 - [x] `assets/ui/ui_zero_build.png` 128x128, transparent. Wooden wall panel with a diagonal red slash.
 - [x] `assets/ui/ui_building.png` 128x128, transparent. The same wall panel without the slash.
