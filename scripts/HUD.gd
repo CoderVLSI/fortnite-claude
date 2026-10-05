@@ -100,7 +100,9 @@ var _toast_t := 0.0
 var _t := 0.0
 var emote_wheel
 var voice_label: Label
+const QuickChatScript = preload("res://scripts/QuickChat.gd")
 var mic_button: Button
+var chat_button: Button
 var name_tags
 var warn_layer
 var sound_viz
@@ -290,6 +292,14 @@ func _build() -> void:
 	mic_button.connect("button_down", self, "_mic_down")
 	mic_button.connect("button_up", self, "_mic_up")
 	root.add_child(mic_button)
+	chat_button = Button.new()                                               # phones: the quick chat list
+	chat_button.text = "CHAT"
+	chat_button.focus_mode = Control.FOCUS_NONE
+	_place(chat_button, 0.0, 1.0, Vector2(356, -330), Vector2(96, 64))
+	chat_button.mouse_filter = Control.MOUSE_FILTER_STOP
+	chat_button.visible = false
+	chat_button.connect("pressed", self, "open_quickchat")
+	root.add_child(chat_button)
 
 	hv_root = Control.new()
 	hv_root.rect_size = Vector2(150, 40)
@@ -604,6 +614,14 @@ func open_npc(npc) -> void:
 	shop.show_menu(npc.npc_name, npc.greeting(), npc.options(player), player.gold)
 
 
+# Quick chat: pick a radio line for the team.
+func open_quickchat() -> void:
+	if not _shop_enter():
+		return
+	_shop_source = QuickChatScript.new()
+	shop.show_menu("Quick chat", _shop_source.greeting(), _shop_source.options(player), -1)
+
+
 func _shop_bought(index: int) -> void:
 	if _shop_source == null or not is_instance_valid(_shop_source):
 		return
@@ -899,6 +917,7 @@ func _update_voice() -> void:
 	var on: bool = online and Voice.mode() != 2
 	mic_button.visible = on and Controls.touch_mode and Voice.mode() == 0 and not end_panel.visible
 	mic_button.modulate = Color(0.5, 1.0, 0.55) if Voice.talking else Color.white
+	chat_button.visible = online and Controls.touch_mode and not end_panel.visible
 	var names: Array = Voice.talking_names() if on else []
 	voice_label.visible = not names.empty()
 	if voice_label.visible:
@@ -928,6 +947,8 @@ func _process(delta: float) -> void:
 	_update_poi(delta)
 	if Input.is_action_just_pressed("map"):
 		toggle_map()
+	if Input.is_action_just_pressed("quick_chat") and not inventory.visible and not map_screen.visible and not end_panel.visible and not Controls.menu_open:
+		open_quickchat()
 	if Input.is_action_just_pressed("ping") and not inventory.visible and not map_screen.visible and not end_panel.visible and not Controls.menu_open:
 		world.player_ping()
 	if Input.is_action_just_pressed("inventory") and not end_panel.visible:

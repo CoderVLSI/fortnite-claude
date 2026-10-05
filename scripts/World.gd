@@ -1588,6 +1588,25 @@ func add_ping(pos: Vector3, kind: String, owner: String, team: int, local: bool)
 	Audio.play2d("hitmarker", -6.0, 1.7 if local else 1.4)
 
 
+# Quick chat: show the line to ourselves and send it to the team (everybody when there are no teams).
+func send_chat(text: String, ping_kind: String = "") -> void:
+	if player == null or player.is_dead:
+		return
+	hud.add_feed("%s: %s" % [player.display_name, text], Color(0.55, 1.0, 0.65))
+	Audio.play2d("ui_click", -8.0)
+	if net_live:
+		Net.send_event("chat", [text, player.display_name, player.team])
+	if ping_kind != "":
+		player_ping()
+
+
+func _on_chat(text, owner, team: int) -> void:
+	if team >= 0 and (player == null or player.team != team):
+		return                                       # only your team hears its radio
+	hud.add_feed("%s: %s" % [str(owner), str(text).left(40)], Color(0.55, 1.0, 0.65))
+	Audio.play2d("hitmarker", -6.0, 1.2)
+
+
 func _ping_tick(delta: float) -> void:
 	_ping_cd = max(0.0, _ping_cd - delta)
 	for i in range(pings.size() - 1, -1, -1):
@@ -2462,6 +2481,9 @@ func net_event(from: int, kind: String, data) -> void:
 			break_pieces_near(data[0], data[1], false)
 		"ping":
 			add_ping(data[0], data[1], data[2], int(data[3]), false)
+		"chat":
+			if typeof(data) == TYPE_ARRAY and data.size() >= 3:
+				_on_chat(data[0], data[1], int(data[2]))
 		"revive":
 			var rv = fighter_by_key(data)
 			if rv != null and is_instance_valid(rv) and rv.net_owner == 0:
