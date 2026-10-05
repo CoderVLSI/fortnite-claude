@@ -10,6 +10,7 @@ const ATTACK_RANGE := 48.0
 var world                       # set by World before add_child (duck-typed)
 var boss_weapons := []           # a named boss carries these mythics (weapon ids); empty = a random mythic (the Warden)
 var boss_id := "warden"
+var ally_of = null                # hired as an ally: follows this fighter and fights for them
 var guard := false                # a henchman: stays near its boss's post, like the boss does
 var is_boss := false             # "The Warden": guards a POI with a mythic weapon
 var home := Vector3.ZERO
@@ -235,6 +236,14 @@ func _physics_process(delta: float) -> void:
 
 	match state:
 		State.WANDER:
+			if ally_of != null and is_instance_valid(ally_of):
+				var d_ally: float = origin.distance_to(ally_of.global_transform.origin)
+				if d_ally > 14.0:                                        # catch up with the boss
+					_wander_to = ally_of.global_transform.origin
+					speed = sprint_speed
+				if d_ally > 80.0:                                        # lost: pop back next to them
+					var ap2: Vector3 = ally_of.global_transform.origin
+					global_transform.origin = Vector3(ap2.x + 2.0, ap2.y + 0.5, ap2.z + 2.0)
 			wish = _flat_dir(_wander_to - origin)
 			if origin.distance_to(_wander_to) < 3.0:
 				_pick_wander()
@@ -399,6 +408,10 @@ func _line_of_sight(f) -> bool:
 
 
 func _pick_wander() -> void:
+	if ally_of != null and is_instance_valid(ally_of):
+		var ap: Vector3 = ally_of.global_transform.origin
+		_wander_to = ap + Vector3(world.rng.randf_range(-6.0, 6.0), 0.0, world.rng.randf_range(-6.0, 6.0))
+		return
 	if is_boss or guard:
 		_wander_to = home + Vector3(world.rng.randf_range(-18.0, 18.0), 0.0, world.rng.randf_range(-18.0, 18.0))
 		return

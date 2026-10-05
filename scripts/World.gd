@@ -767,6 +767,35 @@ func add_buried(pos: Vector2, nid: String) -> Node:
 	return b
 
 
+# An NPC joins the player as a bodyguard: a bot on the player's team that follows and fights for them (solo matches).
+func hire_ally(by, npc) -> Node:
+	if net_match or by == null or by.is_dead:
+		return null
+	if by.team < 0:
+		by.team = 800                                   # solo: the player and the ally become a two-fighter team
+	var b := Bot.new()
+	b.name = "Ally%d" % _ally_seq
+	_ally_seq += 1
+	b.world = self
+	b.display_name = "%s (ally)" % npc.npc_name
+	b.skin_id = npc.skin
+	b.vest_color = Color(0.3, 0.75, 0.4)
+	b.skill = 0.7
+	b.map_half = MAP_HALF - 4.0
+	b.team = by.team
+	b.ally_of = by
+	b.net_key_v = b.name
+	b.translation = by.global_transform.origin + Vector3(1.8, 0.4, 1.0)
+	add_child(b)
+	b.connect("died", self, "_on_fighter_died")
+	b.give_weapon(["assault", "smg", "shotgun"][_ally_seq % 3], 3, 200)
+	b.select_slot(b._weapon_slot())
+	return b
+
+
+var _ally_seq := 0
+
+
 func add_llama(pos: Vector2, nid: String) -> Node:
 	var l := Llama.new()
 	l.net_id = nid

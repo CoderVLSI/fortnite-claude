@@ -45,8 +45,8 @@ func _run() -> void:
 	p.global_transform.origin = Vector3(npc.translation.x + 2.0, y + 1.0, npc.translation.z)
 	p.mode = p.Mode.GROUND
 	yield(_frames(30), "completed")
-	check(npc.can_interact() and npc.prompt_text().begins_with("Quest:"), "a Keeper offers a quest (%s)" % npc.prompt_text())
-	npc.interact(p)
+	check(npc.can_interact() and npc.prompt_text().begins_with("Talk to"), "a Keeper offers a quest (%s)" % npc.prompt_text())
+	npc.quick_interact(p)
 	check(q.active_count() == 1, "talking to a Keeper accepts the quest")
 	var first: Dictionary = q.entries[0].def
 	var gold0: int = p.gold
@@ -64,8 +64,8 @@ func _run() -> void:
 			p.stat_add(first.stat, int(first.goal))
 	yield(create_timer(0.6), "timeout")
 	check(q.ready_count() == 1, "finishing the goal marks the quest done (%s)" % first.id)
-	check(npc.prompt_text().begins_with("Collect"), "the Keeper now offers the reward")
-	npc.interact(p)
+	check("reward" in npc.prompt_text(), "the Keeper now offers the reward")
+	npc.quick_interact(p)
 	check(p.gold == gold0 + int(first.gold), "the reward pays gold (%d -> %d)" % [gold0, p.gold])
 	check(q.bonus_xp == int(first.xp), "and XP for the profile (%d)" % q.bonus_xp)
 	check(q.active_count() == 0 and q.finished.has(first.id), "the quest is finished")
