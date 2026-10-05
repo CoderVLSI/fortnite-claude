@@ -85,10 +85,29 @@ const LIST := {
 	"bunny": {"name": "Bunny Hoodie", "desc": "Hop to it", "skin": Color(0.92, 0.72, 0.60), "vest": Color(0.98, 0.78, 0.86),
 		"pants": Color(0.95, 0.90, 0.92), "boots": Color(0.98, 0.78, 0.86), "hair": Color(0.60, 0.38, 0.20),
 		"glove": Color(0.98, 0.78, 0.86), "pack": Color(1.0, 1.0, 1.0), "fem": true, "scale": 0.85, "acc": ["bunnyears", "bow"]},
+	"rodeo": {"name": "Rodeo Queen", "desc": "Rides hard, aims harder", "skin": Color(0.86, 0.60, 0.44), "vest": Color(0.75, 0.25, 0.30),
+		"pants": Color(0.22, 0.30, 0.50), "boots": Color(0.35, 0.20, 0.10), "hair": Color(0.90, 0.62, 0.22),
+		"glove": Color(0.40, 0.25, 0.12), "pack": Color(0.40, 0.26, 0.14), "fem": true, "acc": ["longhair", "cowboyhat", "bandana"]},
+	"piratequeen": {"name": "Pirate Queen", "desc": "The seven seas, politely conquered", "skin": Color(0.82, 0.56, 0.40), "vest": Color(0.12, 0.30, 0.45),
+		"pants": Color(0.30, 0.12, 0.14), "boots": Color(0.20, 0.12, 0.07), "hair": Color(0.10, 0.06, 0.05),
+		"glove": Color(0.22, 0.14, 0.08), "pack": Color(0.35, 0.22, 0.10), "fem": true, "acc": ["longhair", "tricorn", "skirt"], "skirt": Color(0.30, 0.12, 0.14)},
+	"shieldmaiden": {"name": "Shieldmaiden", "desc": "Braids, axes and zero fear", "skin": Color(0.92, 0.70, 0.55), "vest": Color(0.48, 0.30, 0.16),
+		"pants": Color(0.28, 0.24, 0.20), "boots": Color(0.20, 0.13, 0.08), "hair": Color(0.88, 0.66, 0.25),
+		"glove": Color(0.30, 0.20, 0.12), "pack": Color(0.70, 0.45, 0.20), "fem": true, "acc": ["vikinghelm", "braids"]},
+	"chefbella": {"name": "Chef Bella", "desc": "Plates up eliminations", "skin": Color(0.88, 0.64, 0.48), "vest": Color(0.96, 0.96, 0.98),
+		"pants": Color(0.24, 0.24, 0.30), "boots": Color(0.10, 0.10, 0.12), "hair": Color(0.20, 0.10, 0.08),
+		"glove": Color(0.96, 0.96, 0.98), "pack": Color(0.85, 0.25, 0.30), "fem": true, "acc": ["bun", "chefhat"]},
+	"astroada": {"name": "Astro Ada", "desc": "Mission control, we have a style", "skin": Color(0.90, 0.88, 0.92), "vest": Color(0.95, 0.95, 0.98),
+		"pants": Color(0.90, 0.90, 0.94), "boots": Color(0.55, 0.57, 0.62), "hair": Color(0.15, 0.10, 0.20),
+		"glove": Color(0.95, 0.45, 0.65), "pack": Color(0.70, 0.72, 0.78), "fem": true, "acc": ["ponytail", "bubble", "bigpack"]},
+	"dame": {"name": "Dame Silver", "desc": "Plate armour with a pink plume", "skin": Color(0.62, 0.64, 0.70), "vest": Color(0.66, 0.68, 0.74),
+		"pants": Color(0.50, 0.52, 0.58), "boots": Color(0.34, 0.35, 0.40), "hair": Color(0.62, 0.64, 0.70),
+		"glove": Color(0.44, 0.46, 0.52), "pack": Color(0.90, 0.35, 0.55), "metal": true, "eyes": Color(0.02, 0.02, 0.04), "no_face": true, "acc": ["helm", "pinkplume", "cape"]},
 }
 const ORDER := ["ranger", "ninja", "astronaut", "knight", "robot", "pirate", "cowboy", "dino",
 	"banana", "fishhead", "marine", "wristhero", "pumpkin", "shark", "panda", "viking", "chef", "cactus", "chicken",
-	"ranger_f", "aviator", "scientist", "witch", "pigtails", "princess", "soccer", "bunny"]
+	"ranger_f", "aviator", "scientist", "witch", "pigtails", "princess", "soccer", "bunny",
+	"rodeo", "piratequeen", "shieldmaiden", "chefbella", "astroada", "dame"]
 
 
 static func _mat(c: Color, metal: bool = false, emissive: bool = false) -> SpatialMaterial:
@@ -210,6 +229,17 @@ static func _face(head: Spatial, id: String, d: Dictionary, vest_override) -> vo
 		_box(head, Vector3(0.06, 0.012, 0.012), Vector3(-0.06, 0.2, -0.134), lash, Vector3(0, 0, 0.25))
 		_box(head, Vector3(0.06, 0.012, 0.012), Vector3(0.06, 0.2, -0.134), lash, Vector3(0, 0, -0.25))
 		_box(head, Vector3(0.075, 0.02, 0.014), Vector3(0, 0.05, -0.135), _mat(Color(0.82, 0.18, 0.28)))   # red lips
+		_box(head, Vector3(0.06, 0.012, 0.012), Vector3(-0.06, 0.208, -0.134), lash, Vector3(0, 0, 0.25))  # a second, fuller lash line
+		_box(head, Vector3(0.06, 0.012, 0.012), Vector3(0.06, 0.208, -0.134), lash, Vector3(0, 0, -0.25))
+		var blush := _mat(Color(0.98, 0.55, 0.60))
+		_box(head, Vector3(0.05, 0.035, 0.012), Vector3(-0.085, 0.095, -0.134), blush)                    # rosy cheeks
+		_box(head, Vector3(0.05, 0.035, 0.012), Vector3(0.085, 0.095, -0.134), blush)
+		var shadow := _mat(Color(0.70, 0.45, 0.80))
+		_box(head, Vector3(0.055, 0.012, 0.012), Vector3(-0.06, 0.225, -0.134), shadow)                   # eyeshadow
+		_box(head, Vector3(0.055, 0.012, 0.012), Vector3(0.06, 0.225, -0.134), shadow)
+		var gold := _mat(Color(0.98, 0.85, 0.30), true)
+		_ball(head, 0.022, Vector3(-0.135, 0.07, -0.02), gold)                                            # earrings
+		_ball(head, 0.022, Vector3(0.135, 0.07, -0.02), gold)
 	var moustache: bool = d.get("stache", false)
 	if id == "ranger" and vest_override != null:
 		moustache = (int(vest_override.r * 10.0) + int(vest_override.g * 7.0) + int(vest_override.b * 5.0)) % 2 == 0
@@ -368,6 +398,14 @@ static func _accessory(name: String, head: Spatial, spine: Spatial, hips: Spatia
 				_ball(head, 0.06, Vector3(sx * 0.08, 0.5, 0.0), bn, Vector3(0.75, 2.4, 0.5))
 				_ball(head, 0.035, Vector3(sx * 0.08, 0.5, -0.02), inner, Vector3(0.6, 2.0, 0.4))
 			_box(head, Vector3(0.30, 0.1, 0.3), Vector3(0, 0.28, 0.0), bn)
+		"braids":
+			var br := _mat(d.hair)
+			for sx in [-1.0, 1.0]:
+				for i in range(4):
+					_ball(head, 0.055, Vector3(sx * 0.16, 0.08 - float(i) * 0.09, -0.02 + float(i) * 0.02), br)
+				_box(head, Vector3(0.05, 0.04, 0.05), Vector3(sx * 0.16, -0.28, 0.0), _mat(Color(0.8, 0.2, 0.3)))
+		"pinkplume":
+			_box(head, Vector3(0.05, 0.16, 0.28), Vector3(0, 0.38, 0.02), _mat(Color(0.95, 0.35, 0.55)))
 		"fishhead":
 			var fm := _mat(Color(0.45, 0.62, 0.72))
 			_ball(head, 0.20, Vector3(0, 0.15, -0.02), fm, Vector3(0.9, 1.0, 1.15))

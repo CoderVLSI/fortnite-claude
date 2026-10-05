@@ -35,7 +35,7 @@ func _run() -> void:
 	yield(self, "idle_frame")
 	var Skins = load("res://scripts/Skins.gd")
 	var p = world.player
-	check(Skins.ORDER.size() == 27 and Skins.LIST.size() == 27, "twenty-seven skins exist")
+	check(Skins.ORDER.size() == 33 and Skins.LIST.size() == 33, "thirty-three skins exist")
 
 	var torso: MeshInstance = p.model.find_node("TorsoMesh", true, false)
 	var base_vest: Color = torso.get_surface_material(0).albedo_color
