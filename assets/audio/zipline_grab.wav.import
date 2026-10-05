@@ -1,0 +1,23 @@
+[remap]
+
+importer="wav"
+type="AudioStreamSample"
+path="res://.import/zipline_grab.wav-fd6b3554b4c13741650e582f89682160.sample"
+
+[deps]
+
+source_file="res://assets/audio/zipline_grab.wav"
+dest_files=[ "res://.import/zipline_grab.wav-fd6b3554b4c13741650e582f89682160.sample" ]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=1
