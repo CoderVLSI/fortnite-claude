@@ -29,7 +29,7 @@ Effects", Turbo Building, weapon and item lists). Storm Island is an original ga
 | World life | NPCs, wildlife, vehicles with fuel, trains, weather | Boss, wild Sprites, **Keeper NPCs, chickens and boars (Roast Meat), vehicles with fuel + pumps, rain storms**. **ziplines, helicopters, hireable ally NPCs, buried chests**. No trains |
 | Loot | Chests, floor loot, vending machines, supply drops, llamas | All, **including Supply Llamas** (burst them for loot) |
 | Players per match | 100 | 100 (humans + bots; the map is 1 km) |
-| Servers | Dedicated, matchmaking, voice chat | LAN only, no voice |
+| Servers | Dedicated, matchmaking, voice chat | Dedicated server (code + docs, not deployed anywhere yet), LAN / IP play, **voice chat and quick chat** |
 
 ## Still to do
 
@@ -37,7 +37,7 @@ Effects", Turbo Building, weapon and item lists). Storm Island is an original ga
    "Playing over the internet" in the README: Tailscale / ZeroTier or forwarding UDP 7777).
 2. A train that circles the island (a moving platform that carries riders).
 3. A grenade launcher, boogie / stink bomb variants, a battle-pass style reward track.
-4. Voice chat and dedicated servers.
+4. A public matchmaking server.
 
 ## How it is tested
 

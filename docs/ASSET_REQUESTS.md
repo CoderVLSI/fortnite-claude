@@ -164,3 +164,9 @@ Image agent (`assets/icons`, `assets/ui`, same style as the existing `vehicle_*.
 - [ ] `map_zipline.png` and `map_helicopter.png` small map markers (shown only with the "extra map icons" option)
 - [ ] `npc_portrait_talk.png`, `npc_portrait_hire.png`, `npc_portrait_buy.png` 128x128 button icons for the NPC menu (speech bubble, handshake, coin bag)
 - [ ] `buried_mound.png` 256x256 seamless dirt-mound texture with a faint golden glint (optional)
+
+Also wanted (optional; the code already looks for these names and falls back to stand-ins):
+- [ ] Image agent: `assets/icons/mod_ext_mag.png`, `mod_fast_mag.png`, `mod_grip.png`, `mod_sight.png` (shop icons for the weapon mods, same style as `ammo_*.png`)
+- [ ] Image agent: `assets/icons/ui_workbench.png` map / shop icon of a workbench (optional)
+- [ ] Audio agent: `voice_on.wav` 0.15 s (soft radio "click on") and `voice_off.wav` 0.15 s ("click off"): played when you start / stop transmitting (not wired yet)
+- [ ] Audio agent: `boss_phase.wav` 1.5 s (a heavy hit and a rising roar) for the boss phase change (stand-in: the boss's intro sound)
