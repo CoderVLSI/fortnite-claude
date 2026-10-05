@@ -52,7 +52,7 @@ static func table(cat: String) -> Dictionary:
 	match cat:
 		"skin":
 			var t := {}
-			var rar := {"ranger": 0, "cowboy": 1, "pirate": 2, "ninja": 3, "astronaut": 3, "knight": 4, "dino": 4, "robot": 5, "banana": 3, "fishhead": 3, "marine": 4, "wristhero": 3, "pumpkin": 2, "shark": 2, "panda": 2, "viking": 3, "chef": 2, "cactus": 1, "chicken": 3}
+			var rar := {"ranger": 0, "cowboy": 1, "pirate": 2, "ninja": 3, "astronaut": 3, "knight": 4, "dino": 4, "robot": 5, "banana": 3, "fishhead": 3, "marine": 4, "wristhero": 3, "pumpkin": 2, "shark": 2, "panda": 2, "viking": 3, "chef": 2, "cactus": 1, "chicken": 3, "ranger_f": 0, "aviator": 2, "scientist": 2, "witch": 3, "pigtails": 1, "princess": 3, "soccer": 1, "bunny": 2}
 			for id in Skins.ORDER:
 				t[id] = {"name": Skins.LIST[id].name, "rarity": rar.get(id, 1), "desc": Skins.LIST[id].desc}
 			return t
