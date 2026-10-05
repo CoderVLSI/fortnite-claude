@@ -72,6 +72,7 @@ run party_ui_test
 run guard_test
 run voice_test
 run quickchat_test --no-bus --skip-menu
+run mods_test --no-bus --skip-menu
 run vault_test --no-bus --skip-menu
 run boss_test --no-bus --skip-menu
 run zerobuild_test --no-bus --skip-menu

@@ -23,6 +23,8 @@ func _ready() -> void:
 		_model = _material_sprite()
 	elif item.kind == "keycard":
 		_model = _keycard_model()
+	elif item.kind == "mod":
+		_model = _mod_model()
 	elif item.kind == "consumable" and Items.CONSUMABLES[item.id].has("gadget"):
 		_model = preload("res://scripts/Gadgets.gd").build(Items.CONSUMABLES[item.id].gadget)
 		_model.scale = Vector3(1.7, 1.7, 1.7)
@@ -47,6 +49,33 @@ func _ready() -> void:
 	ring.cast_shadow = GeometryInstance.SHADOW_CASTING_SETTING_OFF
 	add_child(ring)
 	_rest_y = 0.55
+
+
+func _mod_model() -> Spatial:
+	var mi := MeshInstance.new()                     # a small glowing module with a coloured band
+	var cm := CubeMesh.new()
+	cm.size = Vector3(0.5, 0.22, 0.26)
+	mi.mesh = cm
+	var m := SpatialMaterial.new()
+	m.albedo_color = Color(0.2, 0.22, 0.26)
+	m.metallic = 0.6
+	mi.material_override = m
+	var band := MeshInstance.new()
+	var bm := CubeMesh.new()
+	bm.size = Vector3(0.14, 0.24, 0.28)
+	band.mesh = bm
+	var c := Items.color_of(item)
+	var bmat := SpatialMaterial.new()
+	bmat.albedo_color = c
+	bmat.emission_enabled = true
+	bmat.emission = c
+	bmat.emission_energy = 1.1
+	band.material_override = bmat
+	band.translation = Vector3(0.12, 0, 0)
+	var root := Spatial.new()
+	root.add_child(mi)
+	root.add_child(band)
+	return root
 
 
 func _keycard_model() -> Spatial:

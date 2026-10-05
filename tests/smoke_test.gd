@@ -302,7 +302,7 @@ func _run() -> void:
 		chest.interact(p)
 		yield(_frames(2), "completed")
 		var dropped := _loot_near(cpos, 6.0) - before
-		check(chest.opened and dropped == expected[i], "%s drops %d items (%d)" % [kinds[i], expected[i], dropped])
+		check(chest.opened and (dropped == expected[i] or (kinds[i] == "chest" and dropped == expected[i] + 1)), "%s drops %d items (%d)" % [kinds[i], expected[i], dropped])
 
 	# --- supply drop falls then becomes openable
 	var drop = world._add_chest("supply", p.global_transform.origin + Vector3(10, 0, 10), 0.0)

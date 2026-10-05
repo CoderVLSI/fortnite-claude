@@ -172,6 +172,45 @@ static func pickaxe() -> Dictionary:
 	return {"kind": "pickaxe", "id": "pickaxe"}
 
 
+# Weapon mods: found as loot or crafted at a Workbench. A weapon carries up to two (item.mods). Picked up with a weapon in hand they
+# snap onto it; otherwise they wait in the "mod stash" and attach to the next weapon you take out.
+const MODS := {
+	"ext_mag": {"name": "Extended Mag", "desc": "+50% magazine size, a little slower to reload", "color": Color(0.95, 0.75, 0.2), "price": 80},
+	"fast_mag": {"name": "Speed Loader", "desc": "Reloads 35% faster", "color": Color(0.35, 0.85, 1.0), "price": 70},
+	"grip": {"name": "Stabiliser Grip", "desc": "30% less spread", "color": Color(0.5, 1.0, 0.5), "price": 70},
+	"sight": {"name": "Magnified Sight", "desc": "Zooms in further when aiming", "color": Color(1.0, 0.5, 0.9), "price": 90},
+}
+const MAX_MODS := 2
+
+
+static func make_mod(id: String) -> Dictionary:
+	return {"kind": "mod", "id": id, "count": 1}
+
+
+static func random_mod(rng: RandomNumberGenerator) -> Dictionary:
+	return make_mod(MODS.keys()[rng.randi() % MODS.size()])
+
+
+# Can this weapon take mod `id`? (guns only, two at most, no repeats; the Grappler and launchers have no use for them)
+static func can_mod(item, id: String) -> bool:
+	if item == null or item.kind != "weapon" or not WEAPONS.has(item.id):
+		return false
+	if WEAPONS[item.id].get("tool", "") != "" or WEAPONS[item.id].get("projectile", "") != "":
+		return false
+	var m: Array = item.get("mods", [])
+	return m.size() < MAX_MODS and not (id in m)
+
+
+# Scope settings for a weapon item, with a Magnified Sight applied.
+static func scope_for(item) -> Dictionary:
+	var sc: Dictionary = scope_of(item.id)
+	if item.get("mods", []).has("sight") and sc.kind != "scope":
+		sc = sc.duplicate()
+		sc.fov = sc.fov * 0.62
+		sc.sens = sc.sens * 0.8
+	return sc
+
+
 static func make_weapon(id: String, rarity: int = 0) -> Dictionary:
 	var mag: int = WEAPONS[id].mag
 	if rarity == MYTHIC:
@@ -229,6 +268,8 @@ static func color_of(item: Dictionary) -> Color:
 		return GOLD_COLOR
 	if item.kind == "keycard":
 		return Color(1.0, 0.35, 0.1)
+	if item.kind == "mod":
+		return MODS[item.id].color
 	if item.kind == "pickaxe":
 		return RARITIES[0].color
 	if item.kind == "consumable" and CONSUMABLES[item.id].has("color"):
@@ -254,6 +295,8 @@ static func name_of(item: Dictionary) -> String:
 			return "Gold Bars x%d" % item.count
 		"keycard":
 			return "Vault Keycard"
+		"mod":
+			return MODS[item.id].name
 	return "Pickaxe"
 
 
@@ -269,7 +312,7 @@ static func model_of(item: Dictionary) -> String:
 		return MODEL_DIR + "ammo_pickup.glb"
 	if item.kind == "gold":
 		return MODEL_DIR + "gold_bars.glb"
-	if item.kind == "keycard":
+	if item.kind == "keycard" or item.kind == "mod":
 		return ""
 	return MODEL_DIR + "pickaxe.glb"
 
@@ -288,6 +331,15 @@ static func weapon_stats(item: Dictionary) -> Dictionary:
 		s.interval = s.interval * 0.85
 		s.spread = s.spread * 0.6
 		s.reload = s.reload * 0.8
+	for m in item.get("mods", []):
+		match m:
+			"ext_mag":
+				s.mag = int(ceil(s.mag * 1.5))
+				s.reload = s.reload * 1.1
+			"fast_mag":
+				s.reload = s.reload * 0.65
+			"grip":
+				s.spread = s.spread * 0.7
 	return s
 
 
@@ -352,8 +404,10 @@ static func random_floor_item(rng: RandomNumberGenerator) -> Dictionary:
 	var r := rng.randf()
 	if r < 0.42:
 		return random_weapon(rng)
-	if r < 0.78:
+	if r < 0.76:
 		return random_consumable(rng)
+	if r < 0.81:
+		return random_mod(rng)
 	return make_ammo(AMMO.keys()[rng.randi() % AMMO.size()])
 
 
@@ -373,6 +427,8 @@ static func chest_loot(kind: String, rng: RandomNumberGenerator) -> Array:
 			loot.append(random_consumable(rng))
 			loot.append(random_material(rng, 30, 70))
 			loot.append(make_gold(rng.randi_range(10, 30) / 5 * 5))
+			if rng.randf() < 0.3:
+				loot.append(random_mod(rng))
 		"ammo_box":   # ammo box: lots of ammo, two types
 			var types: Array = AMMO.keys()
 			types.shuffle()

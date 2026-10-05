@@ -115,6 +115,7 @@ var _srng := RandomNumberGenerator.new()
 var gun_damage := 20.0
 var fire_interval := 0.5
 var mag_size := 0
+var mod_stash := []                  # weapon mods waiting for a weapon that can take them (Items.MODS)
 var reload_time := 1.5
 var spread_deg := 1.0
 var pellets := 1
@@ -385,6 +386,31 @@ func cycle_slot(direction: int) -> void:
 			return
 
 
+# Put a mod on the weapon in hand. Returns false when it does not fit.
+func attach_mod(id: String) -> bool:
+	var held = selected_item()
+	if not Items.can_mod(held, id):
+		return false
+	var m: Array = held.get("mods", []).duplicate()
+	m.append(id)
+	held["mods"] = m
+	_apply_selected()
+	Audio.play2d("loot_pickup", -4.0) if is_in_group("player") else null
+	emit_signal("slot_changed")
+	return true
+
+
+func _use_stash() -> void:
+	var held = selected_item()
+	for i in range(mod_stash.size() - 1, -1, -1):
+		if Items.can_mod(held, mod_stash[i]):
+			var id: String = mod_stash[i]
+			mod_stash.remove(i)
+			attach_mod(id)
+			emit_signal("picked_up", "%s fitted to %s" % [Items.MODS[id].name, Items.name_of(held)])
+			return
+
+
 func _apply_selected() -> void:
 	charge = 0.0
 	_reload_left = 0.0
@@ -394,6 +420,8 @@ func _apply_selected() -> void:
 	ammo_type = ""
 	mag_size = 0
 	var item = selected_item()
+	if item != null and item.kind == "weapon" and not mod_stash.empty() and Items.can_mod(item, mod_stash[0]):
+		call_deferred("_use_stash")
 	if item != null and item.kind == "weapon":
 		var s: Dictionary = Items.weapon_stats(item)
 		gun_damage = s.damage * damage_scale
@@ -495,6 +523,15 @@ func pickup(item: Dictionary) -> Dictionary:
 		"keycard":
 			keycards += item.count
 			return {"ok": true, "text": "Vault Keycard - find a vault door", "dropped": null}
+		"mod":
+			var held = selected_item()
+			if Items.can_mod(held, item.id):
+				attach_mod(item.id)
+				return {"ok": true, "text": "%s fitted to %s" % [Items.MODS[item.id].name, Items.name_of(held)], "dropped": null}
+			if mod_stash.size() >= 6:
+				return {"ok": false, "text": "Mod stash full", "dropped": null}
+			mod_stash.append(item.id)
+			return {"ok": true, "text": "%s (fits the next weapon you hold)" % Items.MODS[item.id].name, "dropped": null}
 		"material":
 			add_material(item.id, item.count)
 			return {"ok": true, "text": "+%d %s" % [item.count, Items.MATERIAL_NAMES[item.id]], "dropped": null}

@@ -254,7 +254,7 @@ func _ground_process(delta: float) -> void:
 	if charge > 0.0:
 		speed *= 0.75                              # bracing the charge slows you
 	if aiming:
-		speed *= Items.scope_of(selected_item().id).move
+		speed *= Items.scope_for(selected_item()).move
 	move_body(delta, wish, speed, want_jump)
 	aim_pitch = pitch
 	animate(delta)
@@ -339,7 +339,7 @@ func _update_aim() -> void:
 
 
 func is_scoped() -> bool:
-	return aiming and Items.scope_of(selected_item().id).kind == "scope"
+	return aiming and Items.scope_for(selected_item()).kind == "scope"
 
 
 var _jet_hold := 0.0
@@ -616,7 +616,7 @@ func _process(delta: float) -> void:
 	run_fov += float(Settings.pref("fov")) - 72.0
 	var fov_rate := 5.0
 	if aiming and selected_item() != null:      # zoom in over the shoulder, or right up to the eye behind a scope
-		var sc: Dictionary = Items.scope_of(selected_item().id)
+		var sc: Dictionary = Items.scope_for(selected_item())
 		run_fov = sc.fov
 		dist = sc.dist
 		offset = Vector3(0.0, 1.62, 0.0) if sc.kind == "scope" else Vector3(0.72, 1.5, 0.0)
@@ -639,7 +639,7 @@ func _process(delta: float) -> void:
 
 
 func _look(delta: float) -> void:
-	Controls.look_scale = Items.scope_of(selected_item().id).sens if (aiming and selected_item() != null) else 1.0
+	Controls.look_scale = Items.scope_for(selected_item()).sens if (aiming and selected_item() != null) else 1.0
 	var l := Controls.consume_look(delta)
 	if l.length() > 0.002:
 		_last_look_time = OS.get_ticks_msec() / 1000.0

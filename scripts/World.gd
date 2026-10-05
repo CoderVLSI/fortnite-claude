@@ -21,6 +21,7 @@ const QuestLog = preload("res://scripts/QuestLog.gd")
 const RebootVan = preload("res://scripts/RebootVan.gd")
 const RebootCard = preload("res://scripts/RebootCard.gd")
 const Zipline = preload("res://scripts/Zipline.gd")
+const Workbench = preload("res://scripts/Workbench.gd")
 const Vault = preload("res://scripts/Vault.gd")
 const BuriedChest = preload("res://scripts/BuriedChest.gd")
 const GasPump = preload("res://scripts/GasPump.gd")
@@ -721,6 +722,17 @@ func _spawn_vending() -> void:
 		if spot != Vector2.INF:
 			add_vending(VENDING_KINDS[n % 3], spot, poi.center)
 			n += 1
+	# a workbench next to every other machine
+	var vms := get_tree().get_nodes_in_group("vending")
+	for i in range(vms.size()):
+		if i % 2 == 0:
+			var v: Spatial = vms[i]
+			var side: Vector3 = v.global_transform.basis.x * 3.4
+			var wb := Workbench.new()
+			wb.translation = Vector3(v.translation.x + side.x, 0.0, v.translation.z + side.z)
+			wb.translation.y = terrain.height_at(wb.translation.x, wb.translation.z)
+			wb.rotation.y = v.rotation.y
+			add_child(wb)
 
 
 # ------------------------------------------------------------------ supply llamas

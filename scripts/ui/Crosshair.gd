@@ -54,7 +54,7 @@ func _draw() -> void:
 		spread = player.spread_deg
 	var sc: Dictionary = {}
 	if item != null and item.kind == "weapon":
-		sc = Items.scope_of(item.id)
+		sc = Items.scope_for(item)
 	if sc.empty():                                  # pickaxe, items, building: a plain dot
 		draw_circle(c, 2.2, Color(0, 0, 0, 0.5))
 		draw_circle(c, 1.5, white)
