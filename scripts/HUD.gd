@@ -970,7 +970,7 @@ func _update_poi(delta: float) -> void:
 	if show_boss and b != _boss_shown:
 		_boss_shown = b
 		boss_label.text = str(b.display_name).to_upper()
-		var pic := "res://assets/ui/ui_boss_%s.png" % b.boss_id
+		var pic: String = "res://assets/ui/ui_boss_%s.png" % b.boss_id
 		if not ResourceLoader.exists(pic):
 			pic = "res://assets/ui/ui_boss.png"
 		boss_portrait.texture = load(pic) if ResourceLoader.exists(pic) else null
