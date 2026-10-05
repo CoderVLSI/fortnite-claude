@@ -37,6 +37,25 @@ downscaled to 128 (no glow), and `keycard` is the card centred at ~76 % of the c
   `heal_skateboard`, `heal_rift_to_go`, `heal_grenade`, `heal_slurp_juice`, `heal_chug_jug`;
   `weapon_charge_shotgun`; `sprite_*` (earth, fire, water, duck, ghost, demon, king, dream, punk, aegis, lucky).
 
+## New weapons, ZERO BUILD and settings icons
+
+- [x] `assets/icons/weapon_tactical_shotgun.png` 128x128, transparent. Short-barrel tactical pump, pistol grip, black and dark grey.
+- [x] `assets/icons/weapon_revolver.png` 128x128, transparent. Six-shot revolver, long barrel, gunmetal and walnut grip.
+- [x] `assets/icons/weapon_dmr.png` 128x128, transparent. Semi-auto marksman rifle, scope, box magazine, olive and black.
+- [x] `assets/icons/weapon_grenade_launcher.png` 128x128, transparent. Drum-fed launcher, thick short barrel, orange and dark grey.
+- [ ] Mythic variants (optional): `weapon_revolver_mythic`, `weapon_dmr_mythic`, `weapon_tactical_shotgun_mythic`,
+  `weapon_grenade_launcher_mythic` (gold/purple glow versions, transparent).
+- [x] `assets/ui/ui_zero_build.png` 128x128, transparent. Wooden wall panel with a diagonal red slash.
+- [x] `assets/ui/ui_building.png` 128x128, transparent. The same wall panel without the slash.
+- [x] `assets/ui/ui_aim_assist.png` 128x128, transparent. Crosshair with a magnet pulling toward a target.
+- [x] `assets/ui/ui_storm_pace.png` 128x128, transparent. Purple storm cloud with a clock dial and a lightning bolt.
+- [x] Place art for THE BUREAU, STEALTH STRONGHOLD, LAZY LAGOON, MURKY MIRE, MARKET STREET, SULFUR SPRINGS,
+  CRAFTY CORNER, BRAMBLE HEDGES: **none exist** (`assets/ui/` still has no per-place banners), so nothing was added.
+
+The new weapon icons use the same prompt text, angle and outline as the existing `weapon_*` icons but are transparent,
+not on the blue slot tile (the existing weapon icons keep their tile). `ui_zero_build` is `ui_building` plus a slash and
+the Mythic glow is added locally: both come from `tools/images/derive_icons.py` (no API call).
+
 ## Format fixes
 
 - [x] `lobby_bg`, `victory_bg`, `eliminated_bg`, `loading_bg` converted from JPG to 256-colour PNG at 1280x720
