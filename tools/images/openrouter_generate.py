@@ -215,6 +215,31 @@ add("ui_warden", "plain", "%sa heavily armoured guard helmet with a visor, gold 
 add("keycard", "plain", "%san orange (#FF5A1A) security keycard with a black stripe and a small gold chip, tilted 15 "
     "degrees, %s" % (STYLE_PLAIN, KEYED), size=256)
 
+# New weapons: same STYLE / angle as the weapon_* icons but transparent (group "plain" has no tile).
+_NEW_GUNS = [
+    ("tactical_shotgun", "a short-barrel tactical pump shotgun with a pistol grip, black and dark grey"),
+    ("revolver", "a six-shot revolver with a long barrel, gunmetal and walnut grip"),
+    ("dmr", "a semi-automatic marksman rifle with a scope and a box magazine, olive and black"),
+    ("grenade_launcher", "a drum-fed grenade launcher with a thick short barrel, orange and dark grey"),
+]
+for _n, _d in _NEW_GUNS:
+    add("weapon_" + _n, "plain", "%sside view of %s, barrel pointing right, %s" % (STYLE, _d, KEYED))
+# Mythic variants: ornate gold and purple. Lime key (purple would clash with magenta); the glow is added locally by
+# tools/images/derive_icons.py mythic-glow.
+for _n, _d in _NEW_GUNS:
+    add("weapon_%s_mythic" % _n, "plain_mythic", "%sside view of a legendary ornate gold and purple version of %s, "
+        "engraved gold trim and glowing purple details, barrel pointing right, %s" % (STYLE, _d, _GREEN),
+        key_colour="0x00FF00")
+
+# Settings / lobby UI icons (transparent). ui_zero_build is derived from ui_building: derive_icons.py zero-build.
+_UIP = lambda n: os.path.join(ROOT, "assets", "ui", n + ".png")
+add("ui_building", "plain", "%sa single upright wooden building wall panel with planks, build piece icon, %s"
+    % (STYLE_PLAIN, KEYED), dest=_UIP("ui_building"))
+add("ui_aim_assist", "plain", "%sa crosshair with a small red and silver horseshoe magnet pulling toward a small "
+    "target, settings icon, %s" % (STYLE_PLAIN, KEYED), dest=_UIP("ui_aim_assist"))
+add("ui_storm_pace", "plain", "%sa stylised purple storm cloud with a yellow lightning bolt and a clock hand, "
+    "settings icon, %s" % (STYLE_PLAIN, _GREEN), dest=_UIP("ui_storm_pace"), key_colour="0x00FF00")
+
 GROUPS = sorted({a["group"] for a in ASSETS.values()})
 
 
