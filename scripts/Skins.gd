@@ -8,17 +8,17 @@ const LIST := {
 		"glove": Color(0.14, 0.14, 0.16), "pack": Color(0.27, 0.23, 0.17)},
 	"ninja": {"name": "Shadow Ninja", "desc": "Quiet, dark and fast", "skin": Color(0.10, 0.10, 0.13), "vest": Color(0.09, 0.09, 0.12),
 		"pants": Color(0.08, 0.08, 0.10), "boots": Color(0.05, 0.05, 0.06), "hair": Color(0.05, 0.05, 0.06),
-		"glove": Color(0.06, 0.06, 0.08), "pack": Color(0.55, 0.08, 0.08), "eyes": Color(1.0, 1.0, 1.0), "acc": ["headband", "scarf"]},
+		"glove": Color(0.06, 0.06, 0.08), "pack": Color(0.55, 0.08, 0.08), "eyes": Color(1.0, 1.0, 1.0), "no_face": true, "acc": ["headband", "scarf"]},
 	"astronaut": {"name": "Astro", "desc": "One small step for a battle royale", "skin": Color(0.88, 0.88, 0.92), "vest": Color(0.92, 0.92, 0.95),
 		"pants": Color(0.88, 0.88, 0.92), "boots": Color(0.55, 0.57, 0.62), "hair": Color(0.88, 0.88, 0.92),
 		"glove": Color(0.95, 0.60, 0.15), "pack": Color(0.70, 0.72, 0.78), "acc": ["bubble", "bigpack"]},
 	"knight": {"name": "Silver Knight", "desc": "Plate armour, plume and all", "skin": Color(0.62, 0.64, 0.70), "vest": Color(0.60, 0.62, 0.68),
 		"pants": Color(0.46, 0.48, 0.54), "boots": Color(0.30, 0.31, 0.35), "hair": Color(0.60, 0.62, 0.68),
-		"glove": Color(0.40, 0.42, 0.48), "pack": Color(0.70, 0.12, 0.12), "metal": true, "eyes": Color(0.02, 0.02, 0.04), "acc": ["helm", "plume", "cape"]},
+		"glove": Color(0.40, 0.42, 0.48), "pack": Color(0.70, 0.12, 0.12), "metal": true, "eyes": Color(0.02, 0.02, 0.04), "no_face": true, "acc": ["helm", "plume", "cape"]},
 	"robot": {"name": "Unit 7", "desc": "Beep. Boop. Eliminate.", "skin": Color(0.55, 0.60, 0.68), "vest": Color(0.25, 0.30, 0.42),
 		"pants": Color(0.35, 0.38, 0.46), "boots": Color(0.15, 0.16, 0.20), "hair": Color(0.55, 0.60, 0.68),
 		"glove": Color(0.20, 0.22, 0.28), "pack": Color(0.18, 0.20, 0.26), "metal": true, "eyes": Color(0.2, 1.0, 1.0), "glow_eyes": true,
-		"acc": ["antenna"]},
+		"no_face": true, "acc": ["antenna"]},
 	"pirate": {"name": "Captain Jolly", "desc": "Arr, mind the storm", "skin": Color(0.78, 0.50, 0.34), "vest": Color(0.55, 0.12, 0.12),
 		"pants": Color(0.18, 0.22, 0.38), "boots": Color(0.20, 0.12, 0.07), "hair": Color(0.12, 0.08, 0.05),
 		"glove": Color(0.22, 0.14, 0.08), "pack": Color(0.35, 0.22, 0.10), "acc": ["tricorn", "eyepatch"]},
@@ -128,6 +128,28 @@ static func apply(model: Spatial, id: String, vest_override = null) -> void:
 	hips.add_child(hp)
 	for acc in d.get("acc", []):
 		_accessory(acc, hh, sh, hp, d)
+	if not d.get("no_face", false):                 # helmets, masks and robots keep a blank face
+		_face(hh, id, d, vest_override)
+
+
+# A nose and a mouth on every visible face, and a moustache on pirates, cowboys and about half of the other fighters.
+# Head-local coordinates: the face plane is z = -0.13, the eyes sit at y = 0.16.
+static func _face(head: Spatial, id: String, d: Dictionary, vest_override) -> void:
+	var skin: Color = d.skin
+	var nose_mat := _mat(skin.darkened(0.14))
+	var mouth_mat := _mat(Color(0.36, 0.12, 0.10) if skin.v > 0.3 else Color(0.8, 0.45, 0.4))
+	_box(head, Vector3(0.045, 0.06, 0.05), Vector3(0, 0.115, -0.152), nose_mat)                 # nose
+	_box(head, Vector3(0.09, 0.014, 0.012), Vector3(0, 0.05, -0.134), mouth_mat)                 # mouth
+	var moustache: bool = id == "pirate" or id == "cowboy"
+	if id == "ranger" and vest_override != null:
+		moustache = (int(vest_override.r * 10.0) + int(vest_override.g * 7.0) + int(vest_override.b * 5.0)) % 2 == 0
+	if moustache:
+		var hair_mat := _mat(d.hair.darkened(0.1))
+		_box(head, Vector3(0.12, 0.024, 0.03), Vector3(0, 0.083, -0.142), hair_mat)               # moustache: a bar...
+		_box(head, Vector3(0.03, 0.03, 0.03), Vector3(-0.065, 0.07, -0.14), hair_mat, Vector3(0, 0, 0.5))   # ...and curled ends
+		_box(head, Vector3(0.03, 0.03, 0.03), Vector3(0.065, 0.07, -0.14), hair_mat, Vector3(0, 0, -0.5))
+	if id == "pirate":
+		_box(head, Vector3(0.10, 0.07, 0.03), Vector3(0, 0.0, -0.13), _mat(d.hair.darkened(0.1)))   # and a short beard on the chin
 
 
 static func _find_props(model: Node) -> Array:

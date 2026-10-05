@@ -69,3 +69,5 @@ and any script errors.
 * **Weapon bloom**: spraying an automatic gun widens the cone (up to +90%); it settles in about half a second.
 * Not done (deliberately): a battle-pass reward track, because every cosmetic is already unlocked and locking them would get in the way of testing with friends.
 * **Storm pace** (Settings > Comfort, default 2.0): the circle waits and shrinks twice as long as before, so a 100-fighter match on the 1 km island lasts closer to a real match (set it to 1 for quick matches). The host's value counts.
+* **Faces**: noses and mouths on every visible face, moustaches on pirates, cowboys and about half of the Ranger-suit fighters, a beard for the pirate. Knight, Unit 7 and Shadow Ninja keep a blank (covered) face. See `docs/faces.png`; `tests/face_shots.gd` re-renders it.
+* **Bosses**: Voltra (Crafty Corner: mythic Charge Shotgun + Shockwave Launcher), Goldhand (The Bureau: mythic Drum Gun), Hookshot (Stealth Stronghold: mythic Grappler + rifle) and the Warden (Iron Bunker), each with 3-4 henchmen on the same team and a vault keycard. `tests/boss_test.gd`.
