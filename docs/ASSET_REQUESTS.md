@@ -56,6 +56,23 @@ The new weapon icons use the same prompt text, angle and outline as the existing
 not on the blue slot tile (the existing weapon icons keep their tile). `ui_zero_build` is `ui_building` plus a slash and
 the Mythic glow is added locally: both come from `tools/images/derive_icons.py` (no API call).
 
+## Boss characters and their Mythic weapons
+
+All transparent PNG, under 300 KB. Weapon icons use the same STYLE/angle as the other `weapon_*` icons; the Mythic
+versions are the same gun in gold and purple with a soft glow (`tools/images/derive_icons.py mythic-glow`).
+
+- [x] `assets/icons/weapon_drum_gun.png` 128x128. SMG with a big drum magazine, black body, gold trim and drum, tan foregrip.
+- [x] `assets/icons/weapon_drum_gun_mythic.png` 128x128.
+- [x] `assets/icons/weapon_shockwave_launcher.png` 128x128. Tube launcher, four glowing blue shock-coil rings, flared muzzle dish with a blue core.
+- [x] `assets/icons/weapon_shockwave_launcher_mythic.png` 128x128.
+- [x] `assets/icons/weapon_grappler.png` 128x128. Pistol-sized grapple launcher, two-pronged hook, red cable spool, red stripe, wooden grip.
+- [x] `assets/icons/weapon_grappler_mythic.png` 128x128.
+- [x] `assets/icons/weapon_charge_shotgun_mythic.png` 128x128 (did not exist before; the base `weapon_charge_shotgun.png` already did).
+- [x] `assets/ui/ui_boss_voltra.png` 128x128. Bust: armoured engineer, dark blue helmet, glowing blue visor, electric sparks.
+- [x] `assets/ui/ui_boss_goldhand.png` 128x128. Bust: tycoon in a black suit, gold-plated mask, gold glove, coins.
+- [x] `assets/ui/ui_boss_hookshot.png` 128x128. Bust: infiltrator in a red hood and black mask, goggles pushed up, hook on a rope over the shoulder.
+- [x] `assets/ui/ui_boss.png` 64x64. Skull wearing a gold crown on a red map pin (generic boss minimap marker).
+
 ## Format fixes
 
 - [x] `lobby_bg`, `victory_bg`, `eliminated_bg`, `loading_bg` converted from JPG to 256-colour PNG at 1280x720
