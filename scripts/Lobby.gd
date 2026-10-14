@@ -122,12 +122,44 @@ func _build_character() -> void:
 	apply_loadout(Settings.loadout)
 
 
+var _char_hd := ""                  # the HD skin path the lobby character is built from ("" = the pixel player)
+
+
+# HD Mode: show the HD model of the chosen skin (rebuilds the lobby character when the model changes).
+func _swap_character(skin: String) -> void:
+	var want: String = Gfx.skin_path(skin)
+	if want == _char_hd:
+		return
+	var old: Spatial = character
+	var res = load(want) if want != "" else load(MODEL)
+	if res == null:
+		return
+	character = res.instance()
+	character.transform = old.transform
+	add_child(character)
+	old.queue_free()
+	nodes.clear()
+	_cur.clear()
+	for n in ["Hips", "Spine", "Head", "ShoulderL", "ElbowL", "HandL", "ShoulderR", "ElbowR", "HandR", "HipL", "KneeL", "HipR", "KneeR"]:
+		var node := character.find_node(n, true, false)
+		if node:
+			nodes[n] = node
+			_cur[n] = Vector3.ZERO
+	if nodes.has("Hips"):
+		rest_hips = nodes["Hips"].translation
+	_char_hd = want
+	if _backbling != null:
+		_backbling = null                 # it was parented to the old model
+
+
 # Dress the lobby character and its showcase glider in a Locker loadout.
 func apply_loadout(d: Dictionary, wave_it: bool = false) -> void:
 	var lo: Dictionary = Cosmetics.sanitize(d)
 	if character == null:
 		return
-	Skins.apply(character, lo.skin, Color(0.20, 0.45, 0.95))
+	_swap_character(lo.skin)
+	if _char_hd == "":
+		Skins.apply(character, lo.skin, Color(0.20, 0.45, 0.95))
 	if _backbling != null:
 		_backbling.queue_free()
 		_backbling = null

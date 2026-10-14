@@ -7,6 +7,9 @@ func _run() -> void:
 	yield(self, "idle_frame")
 	var S = root.get_node("Settings")
 	S.prefs["graphics_mode"] = 0 if "--pixel" in OS.get_cmdline_args() else 1
+	for a in OS.get_cmdline_args():
+		if a.begins_with("skin="):
+			S.loadout["skin"] = a.substr(5)
 	var world = load("res://scenes/Main.tscn").instance()
 	root.add_child(world)
 	current_scene = world

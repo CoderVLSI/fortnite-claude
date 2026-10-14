@@ -86,6 +86,8 @@ rmn, rmx = bbox(rpts)
 rdim = rmx - rmn
 rcen = (rmn + rmx) / 2
 rprof = [profile(rpts, a, rmn, rmx) for a in range(3)]
+# named helper empties on the pixel model (the weapon "Muzzle"): the HD model gets the same ones at the same places
+ref_empties = [(o.name, o.matrix_world.translation.copy()) for o in bpy.context.scene.objects if o.type == "EMPTY" and o.name in ("Muzzle", "Grip", "Scope")]
 
 # ---- source
 clear()
@@ -228,6 +230,11 @@ for img in bpy.data.images:
         k = opts["tex"] / max(img.size[0], img.size[1])
         img.scale(max(1, int(img.size[0] * k)), max(1, int(img.size[1] * k)))
 
+for nm, pos in ref_empties:
+    e = bpy.data.objects.new(nm, None)
+    bpy.context.scene.collection.objects.link(e)
+    e.location = pos
+    print("NORMALIZE copied empty", nm, tuple(round(v, 3) for v in pos))
 os.makedirs(os.path.dirname(out), exist_ok=True)
 bpy.ops.export_scene.gltf(filepath=out, export_format="GLB", export_image_format="AUTO", export_apply=True, export_yup=True)
 final_tris = sum(len(p.vertices) - 2 for p in obj.data.polygons)

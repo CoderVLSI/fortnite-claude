@@ -221,13 +221,16 @@ func _build_model() -> void:
 	air_pivot.name = "AirPivot"
 	air_pivot.translation = Vector3(0, 0.9, 0)
 	add_child(air_pivot)
-	var scene = load(MODEL_PATH)
+	var hd_skin: String = Gfx.skin_path(skin_id)
+	_model_hd = hd_skin
+	var scene = load(hd_skin) if hd_skin != "" else load(MODEL_PATH)
 	model = scene.instance() if scene != null else _fallback_model()
 	model.translation = Vector3(0, -0.9, 0)
 	air_pivot.add_child(model)
 	animator = Animator.new()
 	animator.setup(model)
-	Skins.apply(model, skin_id, vest_color)       # the default Ranger wears the fighter's vest colour
+	if hd_skin == "":
+		Skins.apply(model, skin_id, vest_color)   # the default Ranger wears the fighter's vest colour (an HD character is dressed already)
 
 	_make_glider()
 	_make_backbling()
@@ -1907,11 +1910,38 @@ func reboot(pos: Vector3) -> void:
 	emit_signal("picked_up", "REBOOTED - back in the fight")
 
 
+var _model_hd := ""                  # HD skin path of the current model ("" = the pixel player)
+
+
 func set_skin(id: String) -> void:
 	skin_id = id if Skins.LIST.has(id) else "ranger"
 	loadout["skin"] = skin_id
-	if model != null:
+	if model == null:
+		return
+	if Gfx.skin_path(skin_id) != _model_hd:
+		_rebuild_model()                             # pixel <-> HD character: a different model altogether
+	elif _model_hd == "":
 		Skins.apply(model, skin_id, vest_color)
+
+
+func _rebuild_model() -> void:
+	if model != null:
+		model.queue_free()
+	_model_hd = Gfx.skin_path(skin_id)
+	var scene = load(_model_hd) if _model_hd != "" else load(MODEL_PATH)
+	model = scene.instance() if scene != null else _fallback_model()
+	model.translation = Vector3(0, -0.9, 0)
+	air_pivot.add_child(model)
+	animator = Animator.new()
+	animator.setup(model)
+	if _model_hd == "":
+		Skins.apply(model, skin_id, vest_color)
+	_make_glider()
+	_make_backbling()
+	_make_contrail()
+	held = null
+	muzzle = null
+	_equip_model(selected_item())
 
 
 # ------------------------------------------------------------------ network (see Net.gd)

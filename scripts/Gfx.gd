@@ -34,3 +34,13 @@ func has_hd(path: String) -> bool:
 
 func style_name() -> String:
 	return "HD Mode" if is_hd() else "OG Pixel Mode"
+
+
+# HD Mode character for a skin id (res://hd/models/skin_<id>.glb), or "" when that skin has no HD model (it then stays pixel).
+func skin_path(skin_id: String) -> String:
+	if not is_hd():
+		return ""
+	var p: String = HD_DIR + "skin_%s.glb" % skin_id
+	if not _exists.has(p):
+		_exists[p] = ResourceLoader.exists(p)
+	return p if _exists[p] else ""
