@@ -135,7 +135,7 @@ for m in mats:
     pts = [m @ p for p in spts[::step]]
     mn, mx = bbox(pts)
     dim = mx - mn
-    scale = {"longest": max(rdim) / max(max(dim), 1e-9), "volume": (rdim.x * rdim.y * rdim.z / max(dim.x * dim.y * dim.z, 1e-12)) ** (1 / 3)}[opts["fit"]]
+    scale = {"longest": max(rdim) / max(max(dim), 1e-9), "volume": (rdim.x * rdim.y * rdim.z / max(dim.x * dim.y * dim.z, 1e-12)) ** (1 / 3), "box": (rdim.x * rdim.y * rdim.z / max(dim.x * dim.y * dim.z, 1e-12)) ** (1 / 3)}[opts["fit"]]
     dsc = Vector((dim.x * scale, dim.y * scale, dim.z * scale))
     size_err = sum(abs(dsc[a] - rdim[a]) / max(rdim[a], 1e-6) for a in range(3))
     prof_err = 0.0
@@ -153,11 +153,13 @@ obj.data.update()
 pts = [v.co.copy() for v in obj.data.vertices]
 mn, mx = bbox(pts)
 dim = mx - mn
-scale = {"longest": max(rdim) / max(max(dim), 1e-9), "volume": (rdim.x * rdim.y * rdim.z / max(dim.x * dim.y * dim.z, 1e-12)) ** (1 / 3)}[opts["fit"]]
+scale = {"longest": max(rdim) / max(max(dim), 1e-9), "volume": (rdim.x * rdim.y * rdim.z / max(dim.x * dim.y * dim.z, 1e-12)) ** (1 / 3), "box": 1.0}[opts["fit"]]
 cen = (mn + mx) / 2
+axis_scale = Vector((rdim.x / max(dim.x, 1e-9), rdim.y / max(dim.y, 1e-9), rdim.z / max(dim.z, 1e-9))) if opts["fit"] == "box" else Vector((scale, scale, scale))
 print("NORMALIZE src dims %s scale %.4f" % (tuple(round(v, 3) for v in dim), scale))
 for v in obj.data.vertices:
-    v.co = (v.co - cen) * scale + rcen
+    d = v.co - cen
+    v.co = Vector((d.x * axis_scale.x, d.y * axis_scale.y, d.z * axis_scale.z)) + rcen
 obj.data.update()
 obj.location = (0, 0, 0)
 obj.rotation_euler = (0, 0, 0)

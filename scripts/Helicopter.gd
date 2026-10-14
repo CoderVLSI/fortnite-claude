@@ -75,7 +75,48 @@ func _box(parent: Node, size: Vector3, pos: Vector3, color: Color, metal := 0.4)
 	return m
 
 
+# HD Mode: a Sketchfab helicopter body; its rotor blades are static, so a faint spinning disc sits over them for the motion blur.
+func _build_hd(path: String) -> void:
+	model = Spatial.new()
+	add_child(model)
+	_tilt = Spatial.new()
+	model.add_child(_tilt)
+	var inst: Spatial = load(path).instance()
+	_tilt.add_child(inst)
+	var top := 2.6
+	var found := false
+	var stack := [inst]
+	while not stack.empty():
+		var n = stack.pop_back()
+		for c in n.get_children():
+			stack.append(c)
+		if n is MeshInstance:
+			var bb: AABB = n.get_transformed_aabb()
+			top = bb.position.y + bb.size.y if not found else max(top, bb.position.y + bb.size.y)
+			found = true
+	_rotor = Spatial.new()
+	_rotor.translation = Vector3(0, top - 0.05, 0.1)
+	_tilt.add_child(_rotor)
+	var disc := MeshInstance.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = 4.6
+	cm.bottom_radius = 4.6
+	cm.height = 0.02
+	cm.radial_segments = 24
+	disc.mesh = cm
+	var mat := SpatialMaterial.new()
+	mat.flags_transparent = true
+	mat.flags_unshaded = true
+	mat.albedo_color = Color(0.85, 0.88, 0.95, 0.10)
+	disc.material_override = mat
+	_rotor.add_child(disc)
+
+
 func _build_model() -> void:
+	var hd_path := Gfx.model_path("res://assets/models/helicopter.glb")
+	if hd_path != "res://assets/models/helicopter.glb":
+		_build_hd(hd_path)
+		return
 	model = Spatial.new()
 	add_child(model)
 	_tilt = Spatial.new()

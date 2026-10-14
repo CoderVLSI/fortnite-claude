@@ -16,6 +16,8 @@ name, uid = sys.argv[1], sys.argv[2]
 extra = sys.argv[3:]
 ref = os.path.join(ROOT, "assets", "models", name + ".glb")
 if not os.path.exists(ref):
+    ref = os.path.join(HERE, "refs", name + ".glb")                  # a hand-made reference for things that have no pixel .glb (the helicopter)
+if not os.path.exists(ref):
     sys.exit("no pixel model " + ref)
 work = tempfile.mkdtemp(prefix="hd_" + name + "_", dir=os.environ.get("HD_WORK", "/tmp"))
 meta = sketchfab.get(uid, work)
