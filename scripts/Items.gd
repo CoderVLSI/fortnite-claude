@@ -301,6 +301,11 @@ static func name_of(item: Dictionary) -> String:
 
 
 static func model_of(item: Dictionary) -> String:
+	if item.kind == "weapon" and Gfx.is_hd():                         # HD Mode: the HD base model (mythics have no bespoke HD model; their beam and name show it)
+		var base: String = "rifle" if item.id == "assault" else WEAPONS[item.id].get("mesh", WEAPONS[item.id].get("model", item.id))
+		var pixel := MODEL_DIR + base + ".glb"
+		if Gfx.has_hd(pixel):
+			return Gfx.model_path(pixel)
 	return Gfx.model_path(_pixel_model_of(item))
 
 
