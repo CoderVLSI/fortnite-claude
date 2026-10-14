@@ -38,7 +38,7 @@ func _run() -> void:
 	p.global_transform.origin = Vector3(0, -300, 0)
 	var expect := 0
 	for f in get_nodes_in_group("fighters"):
-		if not f.is_dead and not f.is_boss and not f.guard and f.ally_of == null:
+		if not f.is_dead and not f.get("is_boss") and not f.get("guard") and f.get("ally_of") == null:
 			expect += 1
 	check(world.alive_count() == expect and expect >= 80 and expect <= world.profile.bots + 1, "ALIVE counts only the players and bots, not bosses or guards (%d, %d fighters in all)" % [world.alive_count(), get_nodes_in_group("fighters").size()])
 	check(world.team_size != 1 or world.alive_teams() == expect, "and so do the teams in solo (%d teams)" % world.alive_teams())
