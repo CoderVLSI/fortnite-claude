@@ -35,5 +35,5 @@ HD Mode uses 3D models from Sketchfab under CC0 or CC Attribution licences. Than
 | sniper | Sniper | [DJMaesen](https://sketchfab.com/bumstrum) | CC BY 4.0 | [Sketchfab](https://sketchfab.com/3d-models/sniper-cdefd833b4b5407ba32c53c9e7f50cae) |
 | spike_trap | Spike Trap | [Helyx Silveira](https://sketchfab.com/helyxsilveira) | CC BY 4.0 | [Sketchfab](https://sketchfab.com/3d-models/spike-trap-26602c98bc424d079af7793edc4c0418) |
 | tactical_shotgun | SPAS 12 Tactical | [nebula075](https://sketchfab.com/nebula075) | CC BY 4.0 | [Sketchfab](https://sketchfab.com/3d-models/spas-12-tactical-cd1783b31aea40f497d5dea186d64bbc) |
-| tree | Pine Tree - Proto Series - Free | [BitGem](https://sketchfab.com/bitgem) | CC BY 4.0 | [Sketchfab](https://sketchfab.com/3d-models/pine-tree-proto-series-free-08014e92a59244c992884091218230b8) |
+| tree | Stylized Pine Tree Tree | [Batuhan13](https://sketchfab.com/Batuhan13) | CC BY 4.0 | [Sketchfab](https://sketchfab.com/3d-models/stylized-pine-tree-tree-deadcadc915545a7b4701dbe6eb419e8) |
 | vending_machine | [Stylized] Vending machine | [metrosp](https://sketchfab.com/metrosp) | CC BY 4.0 | [Sketchfab](https://sketchfab.com/3d-models/stylized-vending-machine-3c6de8d50fbd45909cf2efeb6d636113) |

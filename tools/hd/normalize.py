@@ -174,6 +174,30 @@ if tris > opts["tris"]:
     bpy.ops.object.modifier_apply(modifier="dec")
     print("NORMALIZE decimated %d -> %d tris" % (tris, sum(len(p.vertices) - 2 for p in obj.data.polygons)))
 
+# ---- legacy specular/glossiness (KHR_materials_pbrSpecularGlossiness) or other custom node groups: rebuild a plain Principled material
+# from the best colour image, otherwise the colour texture is lost on export
+for mat in bpy.data.materials:
+    if not mat.use_nodes:
+        continue
+    nt = mat.node_tree
+    pr = [n for n in nt.nodes if n.type == "BSDF_PRINCIPLED"]
+    if pr and pr[0].inputs["Base Color"].is_linked:
+        continue
+    imgs = [n for n in nt.nodes if n.type == "TEX_IMAGE" and n.image]
+    if not imgs:
+        continue
+    imgs.sort(key=lambda n: 0 if any(k in n.image.name.lower() for k in ("diffuse", "color", "albedo", "base")) else 1)
+    out_node = next((n for n in nt.nodes if n.type == "OUTPUT_MATERIAL"), None)
+    if out_node is None:
+        continue
+    bsdf = pr[0] if pr else nt.nodes.new("ShaderNodeBsdfPrincipled")
+    nt.links.new(imgs[0].outputs["Color"], bsdf.inputs["Base Color"])
+    if imgs[0].image.alpha_mode != "NONE" and mat.blend_method in ("CLIP", "BLEND", "HASHED"):
+        nt.links.new(imgs[0].outputs["Alpha"], bsdf.inputs["Alpha"])
+    for l in list(out_node.inputs["Surface"].links):
+        nt.links.remove(l)
+    nt.links.new(bsdf.outputs["BSDF"], out_node.inputs["Surface"])
+
 # ---- keep the file small: by default only the colour map survives (metal / roughness become constants, no normal map)
 if opts["maps"] != "all":
     for mat in bpy.data.materials:
