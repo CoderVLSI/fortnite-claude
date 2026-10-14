@@ -19,13 +19,15 @@ var _wave := 0.0
 func _ready() -> void:
 	add_to_group("interactable")
 	add_to_group("npcs")
-	var scene = load("res://assets/models/player.glb")
+	var hd_skin: String = Gfx.skin_path(skin)
+	var scene = load(hd_skin) if hd_skin != "" else load("res://assets/models/player.glb")
 	if scene != null:
 		model = scene.instance()
 		add_child(model)
 		animator = Animator.new()
 		animator.setup(model)
-		Skins.apply(model, skin, Color(0.85, 0.65, 0.2))
+		if hd_skin == "":
+			Skins.apply(model, skin, Color(0.85, 0.65, 0.2))
 	var body := StaticBody.new()
 	body.collision_layer = 1
 	body.collision_mask = 0

@@ -23,8 +23,8 @@ bpy.ops.object.delete()
 bpy.ops.import_scene.gltf(filepath=src)
 meshes = [o for o in bpy.context.scene.objects if o.type == "MESH"]
 arms = [o for o in bpy.context.scene.objects if o.type == "ARMATURE"]
-if not meshes or not arms:
-    raise SystemExit("CHAR no mesh or no armature")
+if not meshes:
+    raise SystemExit("CHAR no mesh")
 
 # ---------------------------------------------------------------- bone info (world space, imported pose)
 bones = {}
@@ -330,6 +330,50 @@ def xf(p):
 for v in bm.verts:
     v.co = xf(v.co)
 bones_x = {n: (xf(h), xf(t)) for n, (h, t) in bones.items()}
+
+# centre the body on x = 0 (median of the torso-height vertices)
+_mid = sorted(v.co.x for v in bm.verts if 0.45 * opts["height"] < v.co.z < 0.8 * opts["height"])
+_cx = _mid[len(_mid) // 2] if _mid else 0.0
+if abs(_cx) > 0.001:
+    for v in bm.verts:
+        v.co.x -= _cx
+    bones_x = {n: (h - Vector((_cx, 0, 0)), t - Vector((_cx, 0, 0))) for n, (h, t) in bones_x.items()}
+
+
+def zone_parts():
+    """Faces -> parts from where they are (static or unlabelled models): head above the neck, legs below the crotch, arms outside the
+    torso, the rest torso. Works for T-pose and arms-down poses."""
+    Hh = opts["height"]
+    out = []
+    arm_faces = []
+    for f, _p in face_part:
+        c = sum((v.co for v in f.verts), Vector()) / len(f.verts)
+        u = c.z / Hh
+        lat = abs(c.x) / Hh
+        if u > 0.835:
+            out.append([f, "Head", c])
+        elif u < 0.50:
+            out.append([f, "Thigh" if u > 0.27 else "Shin", c])
+        elif u < 0.53 and lat < 0.1:
+            out.append([f, "Pelvis", c])
+        elif lat > 0.125 and u > 0.45:
+            ent = [f, "Arm", c]
+            out.append(ent)
+            arm_faces.append(ent)
+        else:
+            out.append([f, "Torso", c])
+    # arms: upper = nearer the shoulder (0.13H out, 0.80H up), fore = the far half
+    if arm_faces:
+        dmax = max(math.hypot(e[2].x / abs(e[2].x) * 0 + (abs(e[2].x) / Hh - 0.13), e[2].z / Hh - 0.80) for e in arm_faces)
+        for e in arm_faces:
+            d = math.hypot(abs(e[2].x) / Hh - 0.13, e[2].z / Hh - 0.80)
+            e[1] = "Upper" if d < 0.45 * dmax else "Fore"
+    return [(e[0], e[1]) for e in out]
+
+
+if not have_roles:
+    face_part = zone_parts()
+    print("CHAR zone-based parts (no usable skeleton)")
 
 # left = -x
 def lr_of(name_side, p):
