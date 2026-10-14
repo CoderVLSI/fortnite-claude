@@ -240,7 +240,7 @@ func _make_glider() -> void:
 		glider = null
 	var g = Cosmetics.build_glider(loadout.glider)
 	if g == null:
-		var gl = load(GLIDER_PATH)
+		var gl = Gfx.load_model(GLIDER_PATH)
 		g = gl.instance() if gl != null else null
 	if g != null:
 		glider = g

@@ -19,7 +19,7 @@ func _ready() -> void:
 	cs.shape = box
 	cs.translation = Vector3(0, 0.3, 0)
 	add_child(cs)
-	var scene = load("res://assets/models/bouncer.glb")
+	var scene = Gfx.load_model("res://assets/models/bouncer.glb")
 	if scene != null:
 		var model: Spatial = scene.instance()
 		model.scale = Vector3(3.6, 3.6, 3.6)         # 0.5 m item, 1.8 m pad

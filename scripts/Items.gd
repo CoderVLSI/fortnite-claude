@@ -301,6 +301,10 @@ static func name_of(item: Dictionary) -> String:
 
 
 static func model_of(item: Dictionary) -> String:
+	return Gfx.model_path(_pixel_model_of(item))
+
+
+static func _pixel_model_of(item: Dictionary) -> String:
 	if item.kind == "weapon":
 		var base: String = "rifle" if item.id == "assault" else WEAPONS[item.id].get("mesh", WEAPONS[item.id].get("model", item.id))
 		if item.rarity == MYTHIC and ResourceLoader.exists(MODEL_DIR + base + "_mythic.glb"):

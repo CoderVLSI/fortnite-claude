@@ -40,7 +40,7 @@ func _ready() -> void:
 func _build_spikes() -> void:
 	_spikes = Spatial.new()
 	add_child(_spikes)
-	var scene = load("res://assets/models/spike_trap.glb")
+	var scene = Gfx.load_model("res://assets/models/spike_trap.glb")
 	if scene != null:
 		var m: Spatial = scene.instance()
 		m.scale = Vector3(3.4, 3.4, 3.4)            # the item model is 0.5 m across, the trap on the ground 1.7 m
@@ -49,7 +49,7 @@ func _build_spikes() -> void:
 
 
 func _build_mine() -> void:
-	var scene = load("res://assets/models/proximity_mine.glb")
+	var scene = Gfx.load_model("res://assets/models/proximity_mine.glb")
 	if scene != null:
 		var m: Spatial = scene.instance()
 		m.scale = Vector3(2.0, 2.0, 2.0)

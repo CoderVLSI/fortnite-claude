@@ -47,7 +47,7 @@ func _ready() -> void:
 	cs.shape = shape
 	cs.translation = Vector3(0, 0.55, 0)
 	add_child(cs)
-	var scene = load("res://assets/models/boat.glb")
+	var scene = Gfx.load_model("res://assets/models/boat.glb")
 	model = scene.instance() if scene != null else Spatial.new()
 	add_child(model)
 	_engine_snd = Audio.make_loop3d("engine_boat_loop", self, -60.0, 140.0)

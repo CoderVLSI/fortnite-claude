@@ -577,6 +577,7 @@ func _build_settings() -> Control:
 		["minimap_rotate", "Minimap turns with you", "check"],
 		["map_extras", "Extra map icons (Keepers, Reboot Vans, fuel pumps)", "check"],
 		["weather", "Rain storms and fog banks (pure scenery)", "check"],
+		["graphics_mode", "Graphics style (applies to the next match)", "option", ["OG Pixel Mode (original look)", "HD Mode (Sketchfab models)"]],
 		["day_night", "Time of day", "option", ["Day and night cycle", "Always day", "Always night"]],
 		["show_hints", "Show the control hints at the bottom", "check"],
 		["visual_sound", "Visualize sound effects (footsteps, gunfire, chests, cars)", "check"],

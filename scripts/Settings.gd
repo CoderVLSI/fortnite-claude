@@ -55,6 +55,7 @@ const PREF_DEFAULTS := {
 	"turbo_build": true,          # hold fire in build mode to keep placing pieces
 	"colorblind": 0,              # 0 off, 1 protanopia, 2 deuteranopia, 3 tritanopia (ColorFilter.gd)
 	"colorblind_strength": 1.0,
+	"graphics_mode": 0,           # 0 OG Pixel Mode (the original look), 1 HD Mode (Sketchfab models, see Gfx.gd); applies to the next match
 	"weather": true,              # rain storms and fog banks (cosmetic)
 	"day_night": 0,               # 0 day-night cycle, 1 always day, 2 always night
 	"hud_scale": 1.0,             # size of the HUD

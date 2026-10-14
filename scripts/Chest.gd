@@ -32,7 +32,7 @@ func _ready() -> void:
 	add_to_group("interactable")
 	if kind == "supply":
 		add_to_group("supply")
-	var scene = load("res://assets/models/%s.glb" % MODELS[kind])
+	var scene = Gfx.load_model("res://assets/models/%s.glb" % MODELS[kind])
 	var model: Spatial = scene.instance() if scene != null else Spatial.new()
 	add_child(model)
 	_lid = model.get_node_or_null("Lid")

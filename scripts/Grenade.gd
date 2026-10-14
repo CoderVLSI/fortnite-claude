@@ -37,7 +37,7 @@ func _ready() -> void:
 	sh.radius = 0.13
 	cs.shape = sh
 	add_child(cs)
-	var scene = load("res://assets/models/%s.glb" % ("shockwave_grenade" if shock else ("boogie_bomb" if boogie else ("stink_bomb" if stink else "grenade"))))
+	var scene = Gfx.load_model("res://assets/models/%s.glb" % ("shockwave_grenade" if shock else ("boogie_bomb" if boogie else ("stink_bomb" if stink else "grenade"))))
 	var model: Spatial
 	if scene != null:
 		model = scene.instance()

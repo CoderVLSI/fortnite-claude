@@ -354,7 +354,7 @@ func _plan_buildings() -> Array:
 
 func _spawn_buildings(plan: Array) -> void:
 	for entry in plan:
-		var scene = load(MODEL_DIR + entry.res + ".glb")
+		var scene = Gfx.load_model(MODEL_DIR + entry.res + ".glb")
 		if scene == null:
 			push_warning("missing model: " + entry.res)
 			continue
@@ -564,7 +564,7 @@ func _build_pois() -> void:
 		poi["nodes"] = []
 		var idx := 0
 		for pr in def.props:
-			var scene = load(MODEL_DIR + pr.res + ".glb")
+			var scene = Gfx.load_model(MODEL_DIR + pr.res + ".glb")
 			if scene == null:
 				poi.nodes.append(null)
 				continue
@@ -1351,7 +1351,7 @@ func _boss_slain(victim, killer) -> void:
 # ------------------------------------------------------------------ props
 
 func _scatter_props(model: String, count: int, smin: float, smax: float, col_radius: float, col_height: float, min_h: float, harvest_kind: String) -> void:
-	var scene = load(MODEL_DIR + model + ".glb")
+	var scene = Gfx.load_model(MODEL_DIR + model + ".glb")
 	if scene == null:
 		return
 	var transforms := []

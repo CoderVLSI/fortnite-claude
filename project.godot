@@ -29,6 +29,7 @@ Net="*res://scripts/Net.gd"
 Audio="*res://scripts/Audio.gd"
 Controls="*res://scripts/Controls.gd"
 Voice="*res://scripts/Voice.gd"
+Gfx="*res://scripts/Gfx.gd"
 
 [display]
 

@@ -25,7 +25,7 @@ func _ready() -> void:
 	add_to_group("interactable")
 	add_to_group("vending")
 	price = KINDS[kind].base
-	var scene = load("res://assets/models/vending_machine.glb")
+	var scene = Gfx.load_model("res://assets/models/vending_machine.glb")
 	if scene != null:
 		var model: Spatial = scene.instance()
 		add_child(model)

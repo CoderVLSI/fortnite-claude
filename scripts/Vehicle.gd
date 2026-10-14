@@ -69,7 +69,7 @@ func _ready() -> void:
 	cs.shape = shape
 	cs.translation = Vector3(0, 0.85, 0.0)
 	add_child(cs)
-	var scene = load("res://assets/models/%s.glb" % kind)
+	var scene = Gfx.load_model("res://assets/models/%s.glb" % kind)
 	model = scene.instance() if scene != null else Spatial.new()
 	add_child(model)
 	var wheel_nodes := []

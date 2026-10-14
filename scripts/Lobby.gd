@@ -61,7 +61,7 @@ func _mesh(mesh: Mesh, mat: Material, pos: Vector3, parent: Spatial = null) -> M
 
 
 func _scene(path: String, pos: Vector3, scale: float = 1.0, parent: Spatial = null):
-	var res = load(path)
+	var res = Gfx.load_model(path)
 	if res == null:
 		return null
 	var n: Spatial = res.instance()
@@ -154,7 +154,7 @@ func apply_loadout(d: Dictionary, wave_it: bool = false) -> void:
 		_glider_model = null
 	var g = Cosmetics.build_glider(lo.glider)
 	if g == null:
-		var gl = load("res://assets/models/glider.glb")
+		var gl = Gfx.load_model("res://assets/models/glider.glb")
 		g = gl.instance() if gl != null else null
 	if g != null:
 		_glider_model = g

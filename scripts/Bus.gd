@@ -25,7 +25,7 @@ func setup(from: Vector3, dir: Vector3, length: float) -> void:
 
 
 func _ready() -> void:
-	var scene = load(MODEL_PATH)
+	var scene = Gfx.load_model(MODEL_PATH)
 	if scene != null:
 		var m: Spatial = scene.instance()
 		m.scale = Vector3(1.6, 1.6, 1.6)
