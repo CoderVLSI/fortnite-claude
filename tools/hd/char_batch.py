@@ -50,7 +50,7 @@ for skin in want:
         lab = "skeleton labelled: True" in txt
         m = re.search(r"CHAR parts (\{.*?\})", txt)
         parts = eval(m.group(1)) if m else {}
-        ok = REQ <= set(parts) and os.path.exists(tmp_out) and os.path.getsize(tmp_out) < 4_500_000
+        ok = lab and REQ <= set(parts) and os.path.exists(tmp_out) and os.path.getsize(tmp_out) < 4_500_000
         print(skin, c["uid"][:8], c["name"][:30], "labelled" if lab else "NO-SKELETON", sorted(REQ - set(parts)) if parts else "no parts", "OK" if ok else "reject")
         if ok:
             shutil.copy(tmp_out, out)
