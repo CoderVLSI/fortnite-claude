@@ -46,10 +46,17 @@ def world_points(objs, step=1):
     return pts
 
 
-def bbox(pts):
-    mn = Vector((min(p.x for p in pts), min(p.y for p in pts), min(p.z for p in pts)))
-    mx = Vector((max(p.x for p in pts), max(p.y for p in pts), max(p.z for p in pts)))
-    return mn, mx
+def bbox(pts, q=0.004):
+    # robust box: ignores the outermost 0.4% of vertices per axis (stray bits, floor planes, hidden helper meshes)
+    n = len(pts)
+    k = int(n * q)
+    mn = []
+    mx = []
+    for a in range(3):
+        vals = sorted(p[a] for p in pts)
+        mn.append(vals[k])
+        mx.append(vals[n - 1 - k])
+    return Vector(mn), Vector(mx)
 
 
 def profile(pts, axis, mn, mx, bins=8):
@@ -83,6 +90,23 @@ rprof = [profile(rpts, a, rmn, rmx) for a in range(3)]
 # ---- source
 clear()
 objs = do_import(src)
+# skinned models (an armature with the mesh bound to it): bake the pose into the mesh and drop the rig, otherwise the exported skin keeps
+# the original bone scales and the model comes out huge or distorted
+for o in list(objs):
+    if o.data.users > 1:
+        o.data = o.data.copy()
+    bpy.context.view_layer.objects.active = o
+    for m in list(o.modifiers):
+        if m.type == "ARMATURE":
+            try:
+                bpy.ops.object.modifier_apply(modifier=m.name)
+            except Exception as e:
+                print("NORMALIZE armature apply failed:", e)
+    o.vertex_groups.clear()
+for o in list(bpy.context.scene.objects):
+    if o.type == "ARMATURE":
+        bpy.data.objects.remove(o, do_unlink=True)
+objs = [o for o in bpy.context.scene.objects if o.type == "MESH"]
 # join everything into one mesh object (keeps materials)
 bpy.ops.object.select_all(action="DESELECT")
 for o in objs:
@@ -122,7 +146,7 @@ for m in mats:
     if best is None or score < best[0]:
         best = (score, m)
 m = best[1]
-print("NORMALIZE best score %.3f" % best[0])
+print("NORMALIZE best score %.3f ref dims %s src n=%d" % (best[0], tuple(round(v, 3) for v in rdim), len(spts)))
 for v in obj.data.vertices:
     v.co = m @ v.co
 obj.data.update()
@@ -131,6 +155,7 @@ mn, mx = bbox(pts)
 dim = mx - mn
 scale = {"longest": max(rdim) / max(max(dim), 1e-9), "volume": (rdim.x * rdim.y * rdim.z / max(dim.x * dim.y * dim.z, 1e-12)) ** (1 / 3)}[opts["fit"]]
 cen = (mn + mx) / 2
+print("NORMALIZE src dims %s scale %.4f" % (tuple(round(v, 3) for v in dim), scale))
 for v in obj.data.vertices:
     v.co = (v.co - cen) * scale + rcen
 obj.data.update()
