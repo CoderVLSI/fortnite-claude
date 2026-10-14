@@ -11,6 +11,16 @@ cands = json.load(open(os.path.join(HERE, "characters.json")))
 used_file = os.path.join(HERE, "characters_used.json")
 used = json.load(open(used_file)) if os.path.exists(used_file) else {}
 want = sys.argv[1:] or list(cands)
+# A candidate's title must hint at the skin (any keyword); skins not listed accept any humanoid.
+KEYS = {"ranger": ["soldier", "ranger", "military", "commando", "hunter"], "ninja": ["ninja", "samurai", "assassin", "shinobi"],
+	"astronaut": ["astronaut", "spaceman", "cosmonaut"], "knight": ["knight", "paladin", "crusader"], "robot": ["robot", "android", "droid", "mech", "gynoid", "cyborg"],
+	"pirate": ["pirate", "captain", "buccaneer", "corsair"], "cowboy": ["cowboy", "sheriff", "gunslinger", "western"], "banana": ["banana"],
+	"marine": ["marine", "soldier", "trooper", "space"], "viking": ["viking", "norse", "nordic", "barbarian"], "chef": ["chef", "cook", "baker"],
+	"ranger_f": ["ranger", "archer", "huntress", "adventurer", "scout"], "aviator": ["pilot", "aviator", "flyer"], "scientist": ["scientist", "researcher", "doctor", "lab"],
+	"witch": ["witch", "wizard", "sorcer", "mage"], "princess": ["princess", "queen", "royal"], "soccer": ["soccer", "football", "goalkeeper", "player"],
+	"bunny": ["bunny", "rabbit"], "shieldmaiden": ["viking", "nordic", "warrior", "shield", "valkyrie", "maiden"], "dame": ["lady", "dame", "woman", "girl"],
+	"goldie": ["girl", "woman", "lady", "adventurer"], "astroada": ["astronaut", "space"], "pigtails": ["girl", "kid", "child"], "rodeo": ["rodeo", "cowgirl", "cowboy"],
+	"wristhero": ["hero", "superhero"], "shark": ["shark"], "fishhead": ["fish", "merman", "aquatic"], "pumpkin": ["pumpkin"], "cactus": ["cactus"], "panda": ["panda"], "chicken": ["chicken"], "dino": ["dino", "rex"]}
 REQ = {"Head", "Torso", "UpperL", "UpperR", "ForeL", "ForeR", "ShinL", "ShinR"}
 for skin in want:
     out = os.path.join(ROOT, "hd", "models", "skin_%s.glb" % skin)
@@ -19,6 +29,8 @@ for skin in want:
     done = False
     for c in cands.get(skin, []):
         if c["uid"] in used.values():
+            continue
+        if skin in KEYS and not any(k in c["name"].lower() for k in KEYS[skin]):
             continue
         work = tempfile.mkdtemp(prefix="hdc_", dir=os.environ.get("HD_WORK", "/tmp"))
         try:
@@ -38,7 +50,7 @@ for skin in want:
         lab = "skeleton labelled: True" in txt
         m = re.search(r"CHAR parts (\{.*?\})", txt)
         parts = eval(m.group(1)) if m else {}
-        ok = lab and REQ <= set(parts) and os.path.exists(tmp_out) and os.path.getsize(tmp_out) < 4_500_000
+        ok = REQ <= set(parts) and os.path.exists(tmp_out) and os.path.getsize(tmp_out) < 4_500_000
         print(skin, c["uid"][:8], c["name"][:30], "labelled" if lab else "NO-SKELETON", sorted(REQ - set(parts)) if parts else "no parts", "OK" if ok else "reject")
         if ok:
             shutil.copy(tmp_out, out)
