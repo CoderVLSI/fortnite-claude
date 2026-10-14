@@ -69,6 +69,9 @@ func _run() -> void:
 	dir.y = 0.0
 	dir = dir.normalized()
 	var goal: Vector3 = st1 + dir * 200.0
+	for other in get_nodes_in_group("fighters"):          # nobody else interferes (no chases, no shots) while the bot rides
+		if other != keep:
+			other.set_physics_process(false)
 	keep.mode = keep.Mode.GROUND
 	keep.global_transform.origin = st0 + Vector3(2.5, 1.0, 0.0)
 	keep.velocity = Vector3.ZERO
