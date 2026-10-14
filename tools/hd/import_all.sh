@@ -3,6 +3,13 @@
 # and re-imported).   tools/hd/import_all.sh
 set -uo pipefail
 cd "$(dirname "$0")/../.."
+# a rebuilt .glb must be re-imported: drop the cache of every model that is newer than its imported scene
+for f in hd/models/*.glb.import; do
+  [ -e "$f" ] || continue
+  p=$(grep '^path=' "$f" | sed 's/path="res:\/\/\(.*\)"/\1/')
+  g="${f%.import}"
+  if [ -n "$p" ] && { [ ! -e "$p" ] || [ "$g" -nt "$p" ]; }; then rm -f "${p%.scn}".*; fi
+done
 tools/import_assets.sh 240 | tail -1
 changed=0
 for f in hd/models/*.glb.import; do

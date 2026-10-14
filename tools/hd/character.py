@@ -533,6 +533,20 @@ for pname, flist in final_faces.items():
     bpy.context.scene.collection.objects.link(ob)
     ob.parent = H_[joint]
     total_tris += sum(len(p.vertices) - 2 for p in me.polygons)
+if total_tris > opts["tris"]:
+    ratio = max(0.25, opts["tris"] / float(total_tris))
+    for ob in list(bpy.context.scene.objects):
+        if ob.type == "MESH" and len(ob.data.polygons) > 200:
+            bpy.context.view_layer.objects.active = ob
+            md = ob.modifiers.new("dec", "DECIMATE")
+            md.ratio = ratio
+            md.use_collapse_triangulate = True
+            try:
+                bpy.ops.object.modifier_apply(modifier="dec")
+            except Exception as e:
+                print("CHAR decimate failed", ob.name, e)
+    total_tris = sum(len(ob.data.polygons) for ob in bpy.context.scene.objects if ob.type == "MESH")
+    print("CHAR decimated to ~%d polys (ratio %.2f)" % (total_tris, ratio))
 print("CHAR parts", {k: len(v) for k, v in final_faces.items()}, "tris", total_tris)
 
 # ---------------------------------------------------------------- textures / materials: keep the colour map only, shrink
